@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v6 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v7 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -443,76 +443,59 @@ Private Function GetOffsetPlane(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane 
     Set GetOffsetPlane = f
 End Function
 
-' Tapped holes: one Hole Wizard hole on the face + circular pattern around the part axis.
-' If Hole Wizard fails, a plain tap-drill hole pattern is made instead.
+' Tapped holes: tap-drill holes (Cut-Extrude, same as HOLES) + a cosmetic thread on
+' every hole. Hole Wizard is not used: its API parameters are interpreted differently
+' between versions and gave wrong geometry in SW 2017.
 Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, _
                       p As PartSpec, ByVal i As Long)
-    Dim h As HoleSpec, idx As Long, a As Double, r As Double
-    Dim hf As SldWorks.Feature, picked As Boolean, why As String
+    Dim h As HoleSpec, idx As Long, k As Long, a As Double, r As Double
+    Dim cut As SldWorks.Feature, nOk As Long, nominal As Double
     h = p.H(i)
     idx = i + 1
-    r = h.Pcd / 2
-    a = h.Ang * PI / 180#
 
-    ' pick the end face with a ray going along the drilling direction from 0.5 mm outside
+    ' 1. tap-drill holes
+    Dim drill As HoleSpec
+    drill = h
+    drill.IsThread = False
+    drill.Depth = h.DrillDepth
+    AddHoles m, planes(2), drill, idx, p.Name
+    Set cut = m.FeatureByPositionReverse(0)
+    If cut.Name <> "Holes" & idx Then Exit Sub      ' cut failed, already logged
+    cut.Name = "Thread" & idx & "_" & h.Size
+
+    ' 2. cosmetic thread on the entry edge of every hole
+    nominal = Num(Mid(h.Size, 2))
+    For k = 0 To h.N - 1
+        a = (h.Ang + k * 360# / h.N) * PI / 180#
+        r = h.Pcd / 2 + h.D / 2                      ' a point on the hole edge
+        m.ClearSelection2 True
+        If m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
+                                   h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0) Then
+            If AddCosmeticThread(m, nominal * MM, h.Depth * MM, h.Size) Then nOk = nOk + 1
+        End If
+    Next k
     m.ClearSelection2 True
-    picked = m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
-                                     h.Dir, 0, 0, 0.0001, swSelFACES, False, 0, 0)
-    If Not picked Then
-        why = "face not found at X=" & h.X & ", R=" & r
-    Else
-        Set hf = m.FeatureManager.HoleWizard5(swWzdTap, swStandardISO, swStandardISOTappedHole, _
-            h.Size, swEndCondBlind, h.D * MM, h.DrillDepth * MM, h.Depth * MM, _
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, _
-            "", False, True, True, True, True, False)
-        If hf Is Nothing Then why = "Hole Wizard failed"
-    End If
-
-    If hf Is Nothing Then
-        gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - " & why & _
-               ", plain D" & h.D & " hole made instead" & vbCrLf
-        Dim plain As HoleSpec
-        plain = h
-        plain.IsThread = False
-        plain.Depth = h.DrillDepth
-        AddHoles m, planes(2), plain, idx, p.Name
-        Exit Sub
-    End If
-    hf.Name = "Thread" & idx & "_" & h.Size
-
-    If h.N > 1 Then
-        Dim pat As SldWorks.Feature
-        m.ClearSelection2 True
-        hf.Select2 False, 4                     ' feature to pattern
-        If Not SelectAxisFace(m, p) Then        ' pattern axis = outer cylindrical face
-            gLog = gLog & p.Name & ": no cylindrical face for the pattern of thread #" & idx & vbCrLf
-            Exit Sub
-        End If
-        Set pat = m.FeatureManager.FeatureCircularPattern4(h.N, 2 * PI, False, "NULL", False, True, False)
-        If pat Is Nothing Then
-            gLog = gLog & p.Name & ": circular pattern of thread #" & idx & " failed" & vbCrLf
-        Else
-            pat.Name = "Thread" & idx & "_Pattern"
-        End If
-        m.ClearSelection2 True
+    If nOk < h.N Then
+        gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - cosmetic thread on " & nOk & _
+               " of " & h.N & " holes (holes are made)" & vbCrLf
     End If
 End Sub
 
-' Selects (append, mark 1) the cylindrical face made by the outermost horizontal
-' profile segment: a ray from above goes straight down onto it.
-Private Function SelectAxisFace(ByVal m As SldWorks.ModelDoc2, p As PartSpec) As Boolean
-    Dim i As Long, j As Long, best As Long, yMax As Double
-    best = -1
-    For i = 0 To p.NP - 1
-        j = (i + 1) Mod p.NP
-        If p.PY(i) = p.PY(j) And p.PY(i) > 0 And p.PX(i) <> p.PX(j) Then
-            If best < 0 Or p.PY(i) > yMax Then best = i: yMax = p.PY(i)
-        End If
-    Next i
-    If best < 0 Then Exit Function
-    j = (best + 1) Mod p.NP
-    SelectAxisFace = m.Extension.SelectByRay((p.PX(best) + p.PX(j)) / 2 * MM, (yMax + 5) * MM, 0, _
-                                             0, -1, 0, 0.0001, swSelFACES, True, 1, 0)
+' Cosmetic thread on the selected circular edge. Tries the API calls available in
+' different SolidWorks versions; returns False if none of them worked.
+Private Function AddCosmeticThread(ByVal m As SldWorks.ModelDoc2, ByVal majorDia As Double, _
+                                   ByVal length As Double, ByVal note As String) As Boolean
+    Dim f As Object, fm As Object, md As Object
+    Set fm = m.FeatureManager
+    Set md = m
+    On Error Resume Next
+    Set f = fm.InsertCosmeticThread3(swEndCondBlind, majorDia, length, note)
+    If f Is Nothing Then
+        Err.Clear
+        Set f = md.InsertCosmeticThread2(swEndCondBlind, majorDia, length, note)
+    End If
+    On Error GoTo 0
+    AddCosmeticThread = Not (f Is Nothing)
 End Function
 
 Private Function ModelToSketch(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
