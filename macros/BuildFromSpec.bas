@@ -16,6 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
+Private Const MACRO_VERSION As String = "v3 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -172,7 +173,15 @@ NextLine:
     Next li
 
     If gNParts = 0 Then
-        MsgBox "No PART found in the spec.", vbExclamation
+        Dim firstLine As String
+        For li = LBound(lines) To UBound(lines)
+            If Trim(lines(li)) <> "" Then firstLine = lines(li): Exit For
+        Next li
+        MsgBox "No PART found in the spec." & vbCrLf & vbCrLf & _
+               "Macro: " & MACRO_VERSION & vbCrLf & _
+               "File: " & path & vbCrLf & _
+               "Size: " & FileLen(path) & " bytes, lines read: " & (UBound(lines) - LBound(lines) + 1) & vbCrLf & _
+               "First line: " & Left(firstLine, 80), vbExclamation
         Exit Function
     End If
     For cur = 0 To gNParts - 1
