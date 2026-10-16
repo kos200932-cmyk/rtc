@@ -1,6 +1,6 @@
-# Example: stepped shaft, mm
+# Example: stepped shaft, single part (no ASSEMBLY line), mm
 # X - along the axis, Y - radius. Points go around the closed profile.
-NAME Shaft_example
+PART Shaft_example
 P 0 0
 P 0 14
 P 1 15
@@ -11,3 +11,4 @@ P 100 12.5
 P 129 12.5
 P 130 11.5
 P 130 0
+END
