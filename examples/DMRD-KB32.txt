@@ -31,7 +31,9 @@ P 17    61       # D122h7, 7 long
 P 24    61
 P 24    71       # D142h7, 32.5 long
 P 56.5  71
-P 56.5  22.5
+P 56.5  56       # pocket D112 x 6 deep for the output shaft
+P 50.5  56
+P 50.5  22.5
 #      x     dir  n   pcd    d    depth  angle
 HOLES  24    1    12  132    5.5  0      90       # 12-D5.5 through
 HOLES  17    1    2   88     6.3  9      90       # 2-PT1/16 oil plugs, LEFT side; PCD ASSUMED 88 (measured, not dimensioned)
@@ -39,10 +41,10 @@ HOLES  17    1    2   88     6.3  9      90       # 2-PT1/16 oil plugs, LEFT sid
 THREAD  24    1    4   132    M4   8      45       # 4-M4, LEFT face of the D142 ring (depth ASSUMED 8)
 END
 
-# ---- 03: output shaft (flange D112h7) -------------------------------------
+# ---- 03: output shaft (D112h7, 9 outside + 6 inside the housing) ----------
 PART DMRD-KB32-03_OutputShaft
-P 56.5  22.5
-P 56.5  56       # D112h7, 9 long
+P 50.5  22.5     # enters the housing 6 mm (D112 inside ASSUMED same as outside)
+P 50.5  56       # D112h7, 15 long in total
 P 65.5  56
 P 65.5  22.5
 #       x     dir  n   pcd    size depth  angle  drillDepth
