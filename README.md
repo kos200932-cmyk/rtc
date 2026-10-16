@@ -82,3 +82,4 @@ END
 |---|---|
 | `examples/shaft.txt` | одна деталь — ступенчатый вал |
 | `examples/DMRD-KB25.txt` | сборка DMRD-KB25: вал Ø38 (отдельная деталь) + корпус; чертёж — `examples/DMRD-KB25.png` |
+| `examples/DMRD-KB32.txt` | сборка DMRD-KB32: вал Ø45 + корпус + выходной вал Ø112; чертёж — `examples/DMRD-KB32.png` |
