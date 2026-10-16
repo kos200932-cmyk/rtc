@@ -47,11 +47,10 @@ Sub main()
     gLog = ""
 
     Dim specPath As String
-    specPath = InputBox("Full path to the spec file (*.txt):", _
-                        "BuildFromSpec", swApp.GetCurrentMacroPathFolder & "\")
+    specPath = PickSpecFile()
     If specPath = "" Then Exit Sub
-    If Dir(specPath) = "" Then
-        MsgBox "File not found:" & vbCrLf & specPath, vbExclamation
+    If Not FileExists(specPath) Then
+        MsgBox "File not found or bad path:" & vbCrLf & specPath, vbExclamation
         Exit Sub
     End If
     If Not ReadSpec(specPath) Then Exit Sub
@@ -75,6 +74,33 @@ Sub main()
         MsgBox "Finished with warnings:" & vbCrLf & gLog, vbInformation
     End If
 End Sub
+
+' ---------------------------------------------------------------------------
+' Choosing the spec file
+' ---------------------------------------------------------------------------
+' Standard Open dialog; if it is not available - a text box for the path.
+Private Function PickSpecFile() As String
+    Dim s As String, opts As Long, cfg As String, disp As String, failed As Boolean
+    On Error Resume Next
+    s = swApp.GetOpenFileName("Spec file", swApp.GetCurrentMacroPathFolder & "\", _
+                              "Spec files (*.txt)|*.txt|All files (*.*)|*.*|", opts, cfg, disp)
+    failed = (Err.Number <> 0)
+    On Error GoTo 0
+
+    If failed Then
+        s = InputBox("Full path to the spec file (*.txt):", "BuildFromSpec", _
+                     swApp.GetCurrentMacroPathFolder & "\")
+    End If
+    ' "Copy as path" in Explorer adds quotes - remove them
+    PickSpecFile = Trim(Replace(s, """", ""))
+End Function
+
+Private Function FileExists(ByVal path As String) As Boolean
+    On Error Resume Next
+    FileExists = ((GetAttr(path) And vbDirectory) = 0)
+    If Err.Number <> 0 Then FileExists = False
+    On Error GoTo 0
+End Function
 
 ' ---------------------------------------------------------------------------
 ' Spec reading
