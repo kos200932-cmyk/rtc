@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v4 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v5 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -25,7 +25,10 @@ Private Type HoleSpec
     Pcd As Double       ' pitch circle diameter, mm
     D As Double         ' hole diameter, mm
     Depth As Double     ' depth, mm (0 = through all)
-    Ang As Double       ' angle of the first hole, deg
+    Ang As Double       ' angle of the first hole, deg (0 = +Z, 90 = +Y / top)
+    IsThread As Boolean ' THREAD line: tapped hole via Hole Wizard
+    Size As String      ' thread size for Hole Wizard, e.g. "M4"
+    DrillDepth As Double ' tap drill depth, mm (THREAD only)
 End Type
 
 Private Type PartSpec
@@ -166,6 +169,31 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             If gParts(cur).H(k).N < 1 Or gParts(cur).H(k).D <= 0 Then errMsg = "bad hole count or diameter": GoTo Bad
             gParts(cur).NH = k + 1
 
+        Case "THREAD"
+            ' THREAD x dir n pcd size threadDepth angle [drillDepth]
+            If cur < 0 Then errMsg = "'THREAD' outside of PART ... END": GoTo Bad
+            If UBound(t) < 7 Then errMsg = "expected 'THREAD x dir n pcd size depth angle [drillDepth]'": GoTo Bad
+            k = gParts(cur).NH
+            If k > UBound(gParts(cur).H) Then ReDim Preserve gParts(cur).H(0 To 2 * k)
+            gParts(cur).H(k).IsThread = True
+            gParts(cur).H(k).X = Num(t(1))
+            gParts(cur).H(k).Dir = IIf(Num(t(2)) < 0, -1, 1)
+            gParts(cur).H(k).N = CLng(Num(t(3)))
+            gParts(cur).H(k).Pcd = Num(t(4))
+            gParts(cur).H(k).Size = UCase(t(5))
+            gParts(cur).H(k).D = TapDrill(t(5))
+            gParts(cur).H(k).Depth = Num(t(6))
+            gParts(cur).H(k).Ang = Num(t(7))
+            If gParts(cur).H(k).D <= 0 Then errMsg = "unknown thread size '" & t(5) & "'": GoTo Bad
+            If gParts(cur).H(k).Depth <= 0 Then errMsg = "thread depth must be > 0": GoTo Bad
+            If UBound(t) >= 8 Then
+                gParts(cur).H(k).DrillDepth = Num(t(8))
+            Else
+                gParts(cur).H(k).DrillDepth = gParts(cur).H(k).Depth + 0.5 * Num(Mid(t(5), 2))
+            End If
+            If gParts(cur).H(k).N < 1 Then errMsg = "bad hole count": GoTo Bad
+            gParts(cur).NH = k + 1
+
         Case Else
             errMsg = "unknown keyword '" & t(0) & "'": GoTo Bad
         End Select
@@ -291,7 +319,11 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
 
     ' --- holes ---
     For i = 0 To p.NH - 1
-        AddHoles m, planes(2), p.H(i), i + 1, p.Name
+        If p.H(i).IsThread Then
+            AddThread m, planes, p.H(i), i + 1, p.Name
+        Else
+            AddHoles m, planes(2), p.H(i), i + 1, p.Name
+        End If
     Next i
 
     m.ClearSelection2 True
@@ -314,13 +346,17 @@ Private Sub AddHoles(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks
     End If
 
     Dim sm As SldWorks.SketchManager, i As Long, a As Double
+    Dim xf As SldWorks.MathTransform, sp As Variant
     Set sm = m.SketchManager
     m.ClearSelection2 True
     pl.Select2 False, 0
     sm.InsertSketch True
+    Set xf = sm.ActiveSketch.ModelToSketchTransform
     For i = 0 To h.N - 1
         a = (h.Ang + i * 360# / h.N) * PI / 180#
-        sm.CreateCircleByRadius h.Pcd / 2 * Cos(a) * MM, h.Pcd / 2 * Sin(a) * MM, 0, h.D / 2 * MM
+        ' hole centre in model coordinates -> sketch coordinates
+        sp = ModelToSketch(xf, h.X * MM, h.Pcd / 2 * Sin(a) * MM, h.Pcd / 2 * Cos(a) * MM)
+        sm.CreateCircleByRadius sp(0), sp(1), 0, h.D / 2 * MM
     Next i
     sm.InsertSketch True
 
@@ -405,6 +441,107 @@ Private Function GetOffsetPlane(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane 
     m.BlankRefGeom          ' hide the helper plane
     m.ClearSelection2 True
     Set GetOffsetPlane = f
+End Function
+
+' Tapped holes: one Hole Wizard hole on the face + circular pattern around the X axis.
+' If Hole Wizard fails, a plain tap-drill hole pattern is made instead.
+Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, _
+                      h As HoleSpec, ByVal idx As Long, ByVal partName As String)
+    Dim a As Double, r As Double, hf As SldWorks.Feature
+    r = h.Pcd / 2
+    a = h.Ang * PI / 180#
+
+    m.ClearSelection2 True
+    If m.Extension.SelectByID2("", "FACE", h.X * MM, r * Sin(a) * MM, r * Cos(a) * MM, _
+                               False, 0, Nothing, 0) Then
+        Set hf = m.FeatureManager.HoleWizard5(swWzdTap, swStandardISO, swStandardISOTappedHole, _
+            h.Size, swEndCondBlind, h.D * MM, h.DrillDepth * MM, h.Depth * MM, _
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, _
+            "", False, True, True, True, True, False)
+    End If
+
+    If hf Is Nothing Then
+        gLog = gLog & partName & ": " & h.Size & " (#" & idx & ") - Hole Wizard failed, " & _
+               "plain D" & h.D & " hole made instead" & vbCrLf
+        Dim plain As HoleSpec
+        plain = h
+        plain.IsThread = False
+        plain.Depth = h.DrillDepth
+        AddHoles m, planes(2), plain, idx, partName
+        Exit Sub
+    End If
+    hf.Name = "Thread" & idx & "_" & h.Size
+
+    If h.N > 1 Then
+        Dim ax As SldWorks.Feature, pat As SldWorks.Feature
+        Set ax = GetAxisX(m, planes)
+        If ax Is Nothing Then
+            gLog = gLog & partName & ": cannot create axis for the pattern of thread #" & idx & vbCrLf
+            Exit Sub
+        End If
+        m.ClearSelection2 True
+        hf.Select2 False, 4         ' feature to pattern
+        ax.Select2 True, 1          ' pattern axis
+        Set pat = m.FeatureManager.FeatureCircularPattern4(h.N, 2 * PI, False, "NULL", False, True, False)
+        If pat Is Nothing Then
+            gLog = gLog & partName & ": circular pattern of thread #" & idx & " failed" & vbCrLf
+        Else
+            pat.Name = "Thread" & idx & "_Pattern"
+        End If
+        m.ClearSelection2 True
+    End If
+End Sub
+
+' Reference axis along model X (Front x Top), reused if it exists
+Private Function GetAxisX(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature) As SldWorks.Feature
+    Dim pd As SldWorks.PartDoc, f As SldWorks.Feature
+    Set pd = m
+    Set f = pd.FeatureByName("Axis_X")
+    If Not f Is Nothing Then
+        Set GetAxisX = f
+        Exit Function
+    End If
+    m.ClearSelection2 True
+    planes(0).Select2 False, 0
+    planes(1).Select2 True, 0
+    If Not m.InsertAxis2(True) Then Exit Function
+    Set f = m.FeatureByPositionReverse(0)
+    f.Name = "Axis_X"
+    m.ClearSelection2 True
+    f.Select2 False, 0
+    m.BlankRefGeom
+    m.ClearSelection2 True
+    Set GetAxisX = f
+End Function
+
+Private Function ModelToSketch(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
+                               ByVal y As Double, ByVal z As Double) As Variant
+    Dim mu As SldWorks.MathUtility, mp As SldWorks.MathPoint, pt(2) As Double
+    pt(0) = x: pt(1) = y: pt(2) = z
+    Set mu = swApp.GetMathUtility
+    Set mp = mu.CreatePoint(pt)
+    Set mp = mp.MultiplyTransform(xf)
+    ModelToSketch = mp.ArrayData
+End Function
+
+' Tap drill diameter for ISO coarse metric threads, mm (0 = unknown size)
+Private Function TapDrill(ByVal size As String) As Double
+    Select Case UCase(Trim(size))
+        Case "M1.6": TapDrill = 1.25
+        Case "M2": TapDrill = 1.6
+        Case "M2.5": TapDrill = 2.05
+        Case "M3": TapDrill = 2.5
+        Case "M4": TapDrill = 3.3
+        Case "M5": TapDrill = 4.2
+        Case "M6": TapDrill = 5
+        Case "M8": TapDrill = 6.8
+        Case "M10": TapDrill = 8.5
+        Case "M12": TapDrill = 10.2
+        Case "M14": TapDrill = 12
+        Case "M16": TapDrill = 14
+        Case "M20": TapDrill = 17.5
+        Case Else: TapDrill = 0
+    End Select
 End Function
 
 Private Function PlaneX(ByVal rp As SldWorks.RefPlane) As Double
