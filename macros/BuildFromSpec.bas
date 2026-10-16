@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v3 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v4 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -299,13 +299,7 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     m.ShowNamedView2 "*Isometric", swIsometricView
     m.ViewZoomtofit2
 
-    Dim errs As Long, warns As Long
-    If Not m.Extension.SaveAs(outPath, swSaveAsCurrentVersion, swSaveAsOptions_Silent, _
-                              Nothing, errs, warns) Then
-        gLog = gLog & "Cannot save " & outPath & " (error " & errs & "). " & _
-               "Close old copies of this file and run again." & vbCrLf
-        Exit Function
-    End If
+    If Not SaveDoc(m, outPath) Then Exit Function
     BuildPart = True
 End Function
 
@@ -489,9 +483,34 @@ Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
 
-    Dim errs As Long, warns As Long
-    If Not am.Extension.SaveAs(asmPath, swSaveAsCurrentVersion, swSaveAsOptions_Silent, _
-                               Nothing, errs, warns) Then
-        gLog = gLog & "Cannot save " & asmPath & " (error " & errs & ")" & vbCrLf
-    End If
+    SaveDoc am, asmPath
 End Sub
+
+' Save a new document. The return value of Extension.SaveAs is not reliable,
+' so success is checked by the file on disk; SaveAs3 is the fallback.
+Private Function SaveDoc(ByVal m As SldWorks.ModelDoc2, ByVal outPath As String) As Boolean
+    Dim errs As Long, warns As Long, ok As Boolean, code3 As Long
+
+    If FileExists(outPath) Then
+        On Error Resume Next
+        SetAttr outPath, vbNormal       ' clear read-only flag of an old copy
+        On Error GoTo 0
+    End If
+
+    ok = m.Extension.SaveAs(outPath, swSaveAsCurrentVersion, swSaveAsOptions_Silent, _
+                            Nothing, errs, warns)
+    If ok Or (FileExists(outPath) And m.GetPathName <> "") Then
+        SaveDoc = True
+        Exit Function
+    End If
+
+    code3 = m.SaveAs3(outPath, swSaveAsCurrentVersion, swSaveAsOptions_Silent)
+    If code3 = 0 Or (FileExists(outPath) And m.GetPathName <> "") Then
+        SaveDoc = True
+        Exit Function
+    End If
+
+    gLog = gLog & "Cannot save " & outPath & vbCrLf & _
+           "  SaveAs: errors=" & errs & ", warnings=" & warns & "; SaveAs3 code=" & code3 & vbCrLf & _
+           "  Check that the folder is writable and no file with this name is open." & vbCrLf
+End Function
