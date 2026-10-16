@@ -106,18 +106,16 @@ End Function
 ' Spec reading
 ' ---------------------------------------------------------------------------
 Private Function ReadSpec(ByVal path As String) As Boolean
-    Dim f As Integer, s As String, t() As String
+    Dim s As String, t() As String, lines() As String, li As Long
     Dim lineNo As Long, cur As Long, k As Long, errMsg As String
 
     cur = -1: gNParts = 0: gAsmName = ""
     ReDim gParts(0 To 15)
 
-    f = FreeFile
-    Open path For Input As #f
-    Do While Not EOF(f)
-        Line Input #f, s
-        lineNo = lineNo + 1
-        s = CleanLine(s)
+    lines = ReadLines(path)
+    For li = LBound(lines) To UBound(lines)
+        lineNo = li + 1
+        s = CleanLine(lines(li))
         If s = "" Then GoTo NextLine
         t = Split(s, " ")
 
@@ -171,8 +169,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             errMsg = "unknown keyword '" & t(0) & "'": GoTo Bad
         End Select
 NextLine:
-    Loop
-    Close #f
+    Next li
 
     If gNParts = 0 Then
         MsgBox "No PART found in the spec.", vbExclamation
@@ -193,8 +190,22 @@ NextLine:
     Exit Function
 
 Bad:
-    Close #f
     MsgBox "Spec line " & lineNo & ": " & errMsg, vbExclamation
+End Function
+
+' Whole file -> array of lines. Works with Windows (CRLF), Unix (LF) and old Mac (CR)
+' line endings and skips a UTF-8 BOM (Line Input does not understand LF-only files).
+Private Function ReadLines(ByVal path As String) As String()
+    Dim f As Integer, content As String
+    f = FreeFile
+    Open path For Binary Access Read As #f
+    content = Space$(LOF(f))
+    Get #f, , content
+    Close #f
+    If Left$(content, 3) = Chr$(239) & Chr$(187) & Chr$(191) Then content = Mid$(content, 4)
+    content = Replace(content, vbCrLf, vbLf)
+    content = Replace(content, vbCr, vbLf)
+    ReadLines = Split(content, vbLf)
 End Function
 
 Private Function CleanLine(ByVal s As String) As String

@@ -2,3 +2,4 @@
 *.cls text eol=crlf
 *.frm text eol=crlf
 *.swp binary
+*.txt text eol=crlf
