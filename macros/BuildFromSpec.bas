@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v7 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v8 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -463,39 +463,96 @@ Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Featur
     If cut.Name <> "Holes" & idx Then Exit Sub      ' cut failed, already logged
     cut.Name = "Thread" & idx & "_" & h.Size
 
-    ' 2. cosmetic thread on the entry edge of every hole
+    ' 2. cosmetic thread on the entry edges of the holes
+    Dim edges() As Object, nEdges As Long, why As String
     nominal = Num(Mid(h.Size, 2))
-    For k = 0 To h.N - 1
-        a = (h.Ang + k * 360# / h.N) * PI / 180#
-        r = h.Pcd / 2 + h.D / 2                      ' a point on the hole edge
-        m.ClearSelection2 True
-        If m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
-                                   h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0) Then
-            If AddCosmeticThread(m, nominal * MM, h.Depth * MM, h.Size) Then nOk = nOk + 1
-        End If
-    Next k
+    nEdges = EntryEdges(cut, h.X * MM, h.D / 2 * MM, edges)
+    If nEdges = 0 Then
+        why = "entry edges not found"
+    Else
+        nOk = AddCosmeticThreads(m, edges, nEdges, nominal * MM, h.Depth * MM, h.Size, why)
+    End If
     m.ClearSelection2 True
     If nOk < h.N Then
         gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - cosmetic thread on " & nOk & _
-               " of " & h.N & " holes (holes are made)" & vbCrLf
+               " of " & h.N & " holes (" & why & "; edges found: " & nEdges & ")" & vbCrLf
     End If
 End Sub
 
-' Cosmetic thread on the selected circular edge. Tries the API calls available in
-' different SolidWorks versions; returns False if none of them worked.
-Private Function AddCosmeticThread(ByVal m As SldWorks.ModelDoc2, ByVal majorDia As Double, _
-                                   ByVal length As Double, ByVal note As String) As Boolean
-    Dim f As Object, fm As Object, md As Object
+' Circular edges of the cut that lie in the plane X = x0 and have the hole radius
+Private Function EntryEdges(ByVal cut As SldWorks.Feature, ByVal x0 As Double, _
+                            ByVal rad As Double, edges() As Object) As Long
+    Dim faces As Variant, fe As Variant, eds As Variant, ed As Variant
+    Dim c As SldWorks.Curve, cp As Variant, n As Long, k As Long, dup As Boolean
+    ReDim edges(0 To 63)
+    faces = cut.GetFaces
+    If IsEmpty(faces) Then Exit Function
+    For Each fe In faces
+        eds = fe.GetEdges
+        If Not IsEmpty(eds) Then
+            For Each ed In eds
+                Set c = ed.GetCurve
+                If c.IsCircle Then
+                    cp = c.CircleParams     ' center x,y,z, axis x,y,z, radius
+                    If Abs(cp(0) - x0) < 0.000001 And Abs(cp(6) - rad) < 0.000001 Then
+                        dup = False
+                        For k = 0 To n - 1
+                            If edges(k) Is ed Then dup = True: Exit For
+                        Next k
+                        If Not dup Then
+                            If n > UBound(edges) Then ReDim Preserve edges(0 To 2 * n)
+                            Set edges(n) = ed
+                            n = n + 1
+                        End If
+                    End If
+                End If
+            Next ed
+        End If
+    Next fe
+    EntryEdges = n
+End Function
+
+' Cosmetic threads on the given edges. First all edges at once, then one by one.
+' Returns the number of holes that got a thread.
+Private Function AddCosmeticThreads(ByVal m As SldWorks.ModelDoc2, edges() As Object, ByVal n As Long, _
+                                    ByVal majorDia As Double, ByVal length As Double, _
+                                    ByVal size As String, why As String) As Long
+    Dim k As Long, cnt As Long
+    m.ClearSelection2 True
+    For k = 0 To n - 1
+        edges(k).Select4 True, Nothing
+    Next k
+    If CosmeticThreadCall(m, majorDia, length, size, why) Then
+        AddCosmeticThreads = n
+        Exit Function
+    End If
+    For k = 0 To n - 1
+        m.ClearSelection2 True
+        edges(k).Select4 False, Nothing
+        If CosmeticThreadCall(m, majorDia, length, size, why) Then cnt = cnt + 1
+    Next k
+    AddCosmeticThreads = cnt
+End Function
+
+' One cosmetic thread call on the current selection (late bound: the available
+' method differs between SolidWorks versions).
+Private Function CosmeticThreadCall(ByVal m As SldWorks.ModelDoc2, ByVal majorDia As Double, _
+                                    ByVal length As Double, ByVal size As String, why As String) As Boolean
+    Dim fm As Object, f As Object
     Set fm = m.FeatureManager
-    Set md = m
     On Error Resume Next
-    Set f = fm.InsertCosmeticThread3(swEndCondBlind, majorDia, length, note)
+    ' InsertCosmeticThread3(Standard, Type, Size, Diameter, EndCondition, Length, Note)
+    Set f = fm.InsertCosmeticThread3(-1, "", "", majorDia, 0, length, size)
+    If Err.Number <> 0 Then why = "InsertCosmeticThread3: " & Err.Description
     If f Is Nothing Then
         Err.Clear
-        Set f = md.InsertCosmeticThread2(swEndCondBlind, majorDia, length, note)
+        ' older API: InsertCosmeticThread2(Type, Diameter, Length, Note)
+        Set f = fm.InsertCosmeticThread2(0, majorDia, length, size)
+        If Err.Number <> 0 Then why = why & "; InsertCosmeticThread2: " & Err.Description
     End If
     On Error GoTo 0
-    AddCosmeticThread = Not (f Is Nothing)
+    If f Is Nothing And why = "" Then why = "API returned nothing"
+    CosmeticThreadCall = Not (f Is Nothing)
 End Function
 
 Private Function ModelToSketch(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
