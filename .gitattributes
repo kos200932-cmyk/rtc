@@ -1,0 +1,4 @@
+*.bas text eol=crlf
+*.cls text eol=crlf
+*.frm text eol=crlf
+*.swp binary
