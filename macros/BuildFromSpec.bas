@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v9 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v10 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -75,7 +75,7 @@ Sub main()
     If gAsmName <> "" Then BuildAssembly folder & gAsmName & ".SLDASM", partPaths
 
     If gLog <> "" Then
-        MsgBox "Finished with warnings:" & vbCrLf & gLog, vbInformation
+        MsgBox "Finished with warnings (" & MACRO_VERSION & "):" & vbCrLf & gLog, vbInformation
     End If
 End Sub
 
@@ -475,7 +475,7 @@ Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Featur
 
     ' holes whose entry edge was not found among the cut faces: pick the edge by a ray
     If nOk < h.N Then
-        Dim cp As Variant, found As Boolean, j As Long, yc As Double, zc As Double
+        Dim cp As Variant, found As Boolean, j As Long, yc As Double, zc As Double, missing As String
         For k = 0 To h.N - 1
             a = (h.Ang + k * 360# / h.N) * PI / 180#
             yc = h.Pcd / 2 * Sin(a) * MM
@@ -488,17 +488,26 @@ Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Featur
             If Not found Then
                 r = h.Pcd / 2 + h.D / 2
                 m.ClearSelection2 True
+                missing = missing & "    " & Format(h.Ang + k * 360# / h.N, "0.##") & " deg: "
                 If m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
                                            h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0) Then
-                    If CosmeticThreadCall(m, nominal * MM, h.Depth * MM, h.Size, why) Then nOk = nOk + 1
+                    why = ""
+                    If CosmeticThreadCall(m, nominal * MM, h.Depth * MM, h.Size, why) Then
+                        nOk = nOk + 1
+                        missing = missing & "fixed by ray" & vbCrLf
+                    Else
+                        missing = missing & "edge picked, thread failed (" & why & ")" & vbCrLf
+                    End If
+                Else
+                    missing = missing & "edge not picked by ray" & vbCrLf
                 End If
             End If
         Next k
     End If
     m.ClearSelection2 True
-    If nOk < h.N Then
+    If nOk < h.N Or missing <> "" Then
         gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - cosmetic thread on " & nOk & _
-               " of " & h.N & " holes (" & why & "; edges found: " & nEdges & ")" & vbCrLf
+               " of " & h.N & " holes (edges found: " & nEdges & ")" & vbCrLf & missing
     End If
 End Sub
 
