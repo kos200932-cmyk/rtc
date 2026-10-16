@@ -14,7 +14,6 @@ P 37.5  14.5
 P 37.5  15       # middle bore - ASSUMED D30 (not dimensioned)
 P 10    15
 P 10    14.5
-#      x     dir  n   pcd    d    depth  angle
 #       x     dir  n   pcd    size depth  angle
 THREAD  0     1    6   33.5   M3   6      90     # 6-M3 depth 6, left end
 THREAD  59.5  -1   6   33.5   M3   6      90     # 6-M3 depth 6, right end
