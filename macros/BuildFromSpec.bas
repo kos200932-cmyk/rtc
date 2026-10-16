@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v5 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v6 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -320,7 +320,7 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     ' --- holes ---
     For i = 0 To p.NH - 1
         If p.H(i).IsThread Then
-            AddThread m, planes, p.H(i), i + 1, p.Name
+            AddThread m, planes, p, i
         Else
             AddHoles m, planes(2), p.H(i), i + 1, p.Name
         End If
@@ -443,48 +443,54 @@ Private Function GetOffsetPlane(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane 
     Set GetOffsetPlane = f
 End Function
 
-' Tapped holes: one Hole Wizard hole on the face + circular pattern around the X axis.
+' Tapped holes: one Hole Wizard hole on the face + circular pattern around the part axis.
 ' If Hole Wizard fails, a plain tap-drill hole pattern is made instead.
 Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, _
-                      h As HoleSpec, ByVal idx As Long, ByVal partName As String)
-    Dim a As Double, r As Double, hf As SldWorks.Feature
+                      p As PartSpec, ByVal i As Long)
+    Dim h As HoleSpec, idx As Long, a As Double, r As Double
+    Dim hf As SldWorks.Feature, picked As Boolean, why As String
+    h = p.H(i)
+    idx = i + 1
     r = h.Pcd / 2
     a = h.Ang * PI / 180#
 
+    ' pick the end face with a ray going along the drilling direction from 0.5 mm outside
     m.ClearSelection2 True
-    If m.Extension.SelectByID2("", "FACE", h.X * MM, r * Sin(a) * MM, r * Cos(a) * MM, _
-                               False, 0, Nothing, 0) Then
+    picked = m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
+                                     h.Dir, 0, 0, 0.0001, swSelFACES, False, 0, 0)
+    If Not picked Then
+        why = "face not found at X=" & h.X & ", R=" & r
+    Else
         Set hf = m.FeatureManager.HoleWizard5(swWzdTap, swStandardISO, swStandardISOTappedHole, _
             h.Size, swEndCondBlind, h.D * MM, h.DrillDepth * MM, h.Depth * MM, _
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, _
             "", False, True, True, True, True, False)
+        If hf Is Nothing Then why = "Hole Wizard failed"
     End If
 
     If hf Is Nothing Then
-        gLog = gLog & partName & ": " & h.Size & " (#" & idx & ") - Hole Wizard failed, " & _
-               "plain D" & h.D & " hole made instead" & vbCrLf
+        gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - " & why & _
+               ", plain D" & h.D & " hole made instead" & vbCrLf
         Dim plain As HoleSpec
         plain = h
         plain.IsThread = False
         plain.Depth = h.DrillDepth
-        AddHoles m, planes(2), plain, idx, partName
+        AddHoles m, planes(2), plain, idx, p.Name
         Exit Sub
     End If
     hf.Name = "Thread" & idx & "_" & h.Size
 
     If h.N > 1 Then
-        Dim ax As SldWorks.Feature, pat As SldWorks.Feature
-        Set ax = GetAxisX(m, planes)
-        If ax Is Nothing Then
-            gLog = gLog & partName & ": cannot create axis for the pattern of thread #" & idx & vbCrLf
+        Dim pat As SldWorks.Feature
+        m.ClearSelection2 True
+        hf.Select2 False, 4                     ' feature to pattern
+        If Not SelectAxisFace(m, p) Then        ' pattern axis = outer cylindrical face
+            gLog = gLog & p.Name & ": no cylindrical face for the pattern of thread #" & idx & vbCrLf
             Exit Sub
         End If
-        m.ClearSelection2 True
-        hf.Select2 False, 4         ' feature to pattern
-        ax.Select2 True, 1          ' pattern axis
         Set pat = m.FeatureManager.FeatureCircularPattern4(h.N, 2 * PI, False, "NULL", False, True, False)
         If pat Is Nothing Then
-            gLog = gLog & partName & ": circular pattern of thread #" & idx & " failed" & vbCrLf
+            gLog = gLog & p.Name & ": circular pattern of thread #" & idx & " failed" & vbCrLf
         Else
             pat.Name = "Thread" & idx & "_Pattern"
         End If
@@ -492,26 +498,21 @@ Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Featur
     End If
 End Sub
 
-' Reference axis along model X (Front x Top), reused if it exists
-Private Function GetAxisX(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature) As SldWorks.Feature
-    Dim pd As SldWorks.PartDoc, f As SldWorks.Feature
-    Set pd = m
-    Set f = pd.FeatureByName("Axis_X")
-    If Not f Is Nothing Then
-        Set GetAxisX = f
-        Exit Function
-    End If
-    m.ClearSelection2 True
-    planes(0).Select2 False, 0
-    planes(1).Select2 True, 0
-    If Not m.InsertAxis2(True) Then Exit Function
-    Set f = m.FeatureByPositionReverse(0)
-    f.Name = "Axis_X"
-    m.ClearSelection2 True
-    f.Select2 False, 0
-    m.BlankRefGeom
-    m.ClearSelection2 True
-    Set GetAxisX = f
+' Selects (append, mark 1) the cylindrical face made by the outermost horizontal
+' profile segment: a ray from above goes straight down onto it.
+Private Function SelectAxisFace(ByVal m As SldWorks.ModelDoc2, p As PartSpec) As Boolean
+    Dim i As Long, j As Long, best As Long, yMax As Double
+    best = -1
+    For i = 0 To p.NP - 1
+        j = (i + 1) Mod p.NP
+        If p.PY(i) = p.PY(j) And p.PY(i) > 0 And p.PX(i) <> p.PX(j) Then
+            If best < 0 Or p.PY(i) > yMax Then best = i: yMax = p.PY(i)
+        End If
+    Next i
+    If best < 0 Then Exit Function
+    j = (best + 1) Mod p.NP
+    SelectAxisFace = m.Extension.SelectByRay((p.PX(best) + p.PX(j)) / 2 * MM, (yMax + 5) * MM, 0, _
+                                             0, -1, 0, 0.0001, swSelFACES, True, 1, 0)
 End Function
 
 Private Function ModelToSketch(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
