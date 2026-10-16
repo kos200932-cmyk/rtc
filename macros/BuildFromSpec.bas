@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v8 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v9 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -472,6 +472,29 @@ Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Featur
     Else
         nOk = AddCosmeticThreads(m, edges, nEdges, nominal * MM, h.Depth * MM, h.Size, why)
     End If
+
+    ' holes whose entry edge was not found among the cut faces: pick the edge by a ray
+    If nOk < h.N Then
+        Dim cp As Variant, found As Boolean, j As Long, yc As Double, zc As Double
+        For k = 0 To h.N - 1
+            a = (h.Ang + k * 360# / h.N) * PI / 180#
+            yc = h.Pcd / 2 * Sin(a) * MM
+            zc = h.Pcd / 2 * Cos(a) * MM
+            found = False
+            For j = 0 To nEdges - 1
+                cp = edges(j).GetCurve.CircleParams
+                If Abs(cp(1) - yc) < 0.00001 And Abs(cp(2) - zc) < 0.00001 Then found = True: Exit For
+            Next j
+            If Not found Then
+                r = h.Pcd / 2 + h.D / 2
+                m.ClearSelection2 True
+                If m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
+                                           h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0) Then
+                    If CosmeticThreadCall(m, nominal * MM, h.Depth * MM, h.Size, why) Then nOk = nOk + 1
+                End If
+            End If
+        Next k
+    End If
     m.ClearSelection2 True
     If nOk < h.N Then
         gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - cosmetic thread on " & nOk & _
@@ -494,10 +517,12 @@ Private Function EntryEdges(ByVal cut As SldWorks.Feature, ByVal x0 As Double, _
                 Set c = ed.GetCurve
                 If c.IsCircle Then
                     cp = c.CircleParams     ' center x,y,z, axis x,y,z, radius
-                    If Abs(cp(0) - x0) < 0.000001 And Abs(cp(6) - rad) < 0.000001 Then
+                    If Abs(cp(0) - x0) < 0.00001 And Abs(cp(6) - rad) < 0.00001 Then
                         dup = False
                         For k = 0 To n - 1
-                            If edges(k) Is ed Then dup = True: Exit For
+                            Dim cq As Variant
+                            cq = edges(k).GetCurve.CircleParams
+                            If Abs(cq(1) - cp(1)) < 0.00001 And Abs(cq(2) - cp(2)) < 0.00001 Then dup = True: Exit For
                         Next k
                         If Not dup Then
                             If n > UBound(edges) Then ReDim Preserve edges(0 To 2 * n)
