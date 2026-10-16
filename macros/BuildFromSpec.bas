@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v10 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v11 (2026-10-16)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -463,60 +463,76 @@ Private Sub AddThread(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Featur
     If cut.Name <> "Holes" & idx Then Exit Sub      ' cut failed, already logged
     cut.Name = "Thread" & idx & "_" & h.Size
 
-    ' 2. cosmetic thread on the entry edges of the holes
-    Dim edges() As Object, nEdges As Long, why As String
+    ' 2. cosmetic thread on the entry edges of the holes.
+    ' Edge objects become invalid after every thread is added (the model rebuilds),
+    ' so only the edge centres are kept; edges are re-picked by a ray when needed.
+    Dim edges() As Object, cy() As Double, cz() As Double, nEdges As Long
+    Dim why As String, missing As String, found As Boolean, j As Long
+    Dim yc As Double, zc As Double, angDeg As Double
     nominal = Num(Mid(h.Size, 2))
-    nEdges = EntryEdges(cut, h.X * MM, h.D / 2 * MM, edges)
-    If nEdges = 0 Then
-        why = "entry edges not found"
-    Else
-        nOk = AddCosmeticThreads(m, edges, nEdges, nominal * MM, h.Depth * MM, h.Size, why)
+    nEdges = EntryEdges(cut, h.X * MM, h.D / 2 * MM, edges, cy, cz)
+
+    ' a) all found edges in one call
+    If nEdges > 0 Then
+        m.ClearSelection2 True
+        For j = 0 To nEdges - 1
+            edges(j).Select4 True, Nothing
+        Next j
+        If CosmeticThreadCall(m, nominal * MM, h.Depth * MM, h.Size, why) Then nOk = nEdges
+        Erase edges                     ' do not touch them after the model changed
     End If
 
-    ' holes whose entry edge was not found among the cut faces: pick the edge by a ray
-    If nOk < h.N Then
-        Dim cp As Variant, found As Boolean, j As Long, yc As Double, zc As Double, missing As String
-        For k = 0 To h.N - 1
-            a = (h.Ang + k * 360# / h.N) * PI / 180#
-            yc = h.Pcd / 2 * Sin(a) * MM
-            zc = h.Pcd / 2 * Cos(a) * MM
-            found = False
+    ' b) every hole without a thread yet: re-pick its edge by a ray, one call per hole
+    For k = 0 To h.N - 1
+        angDeg = h.Ang + k * 360# / h.N
+        a = angDeg * PI / 180#
+        yc = h.Pcd / 2 * Sin(a) * MM
+        zc = h.Pcd / 2 * Cos(a) * MM
+        found = False
+        If nOk > 0 Then
             For j = 0 To nEdges - 1
-                cp = edges(j).GetCurve.CircleParams
-                If Abs(cp(1) - yc) < 0.00001 And Abs(cp(2) - zc) < 0.00001 Then found = True: Exit For
+                If Abs(cy(j) - yc) < 0.00001 And Abs(cz(j) - zc) < 0.00001 Then found = True: Exit For
             Next j
-            If Not found Then
-                r = h.Pcd / 2 + h.D / 2
-                m.ClearSelection2 True
-                missing = missing & "    " & Format(h.Ang + k * 360# / h.N, "0.##") & " deg: "
-                If m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
-                                           h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0) Then
-                    why = ""
-                    If CosmeticThreadCall(m, nominal * MM, h.Depth * MM, h.Size, why) Then
-                        nOk = nOk + 1
-                        missing = missing & "fixed by ray" & vbCrLf
-                    Else
-                        missing = missing & "edge picked, thread failed (" & why & ")" & vbCrLf
-                    End If
+        End If
+        If Not found Then
+            missing = missing & "    " & Format(angDeg, "0.##") & " deg: "
+            If RayPickHoleEdge(m, h, a) Then
+                why = ""
+                If CosmeticThreadCall(m, nominal * MM, h.Depth * MM, h.Size, why) Then
+                    nOk = nOk + 1
+                    missing = missing & "ok" & vbCrLf
                 Else
-                    missing = missing & "edge not picked by ray" & vbCrLf
+                    missing = missing & "edge picked, thread failed (" & why & ")" & vbCrLf
                 End If
+            Else
+                missing = missing & "edge not picked by ray" & vbCrLf
             End If
-        Next k
-    End If
+        End If
+    Next k
     m.ClearSelection2 True
-    If nOk < h.N Or missing <> "" Then
+
+    If nOk < h.N Then
         gLog = gLog & p.Name & ": " & h.Size & " (#" & idx & ") - cosmetic thread on " & nOk & _
                " of " & h.N & " holes (edges found: " & nEdges & ")" & vbCrLf & missing
     End If
 End Sub
 
-' Circular edges of the cut that lie in the plane X = x0 and have the hole radius
-Private Function EntryEdges(ByVal cut As SldWorks.Feature, ByVal x0 As Double, _
-                            ByVal rad As Double, edges() As Object) As Long
+' Selects the entry edge of one hole with a ray along the drilling direction
+Private Function RayPickHoleEdge(ByVal m As SldWorks.ModelDoc2, h As HoleSpec, ByVal a As Double) As Boolean
+    Dim r As Double
+    r = h.Pcd / 2 + h.D / 2                ' a point on the hole edge
+    m.ClearSelection2 True
+    RayPickHoleEdge = m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
+                                              h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0)
+End Function
+
+' Circular edges of the cut lying in the plane X = x0 with the hole radius.
+' Returns the edges and their centres (y, z).
+Private Function EntryEdges(ByVal cut As SldWorks.Feature, ByVal x0 As Double, ByVal rad As Double, _
+                            edges() As Object, cy() As Double, cz() As Double) As Long
     Dim faces As Variant, fe As Variant, eds As Variant, ed As Variant
     Dim c As SldWorks.Curve, cp As Variant, n As Long, k As Long, dup As Boolean
-    ReDim edges(0 To 63)
+    ReDim edges(0 To 63): ReDim cy(0 To 63): ReDim cz(0 To 63)
     faces = cut.GetFaces
     If IsEmpty(faces) Then Exit Function
     For Each fe In faces
@@ -529,13 +545,16 @@ Private Function EntryEdges(ByVal cut As SldWorks.Feature, ByVal x0 As Double, _
                     If Abs(cp(0) - x0) < 0.00001 And Abs(cp(6) - rad) < 0.00001 Then
                         dup = False
                         For k = 0 To n - 1
-                            Dim cq As Variant
-                            cq = edges(k).GetCurve.CircleParams
-                            If Abs(cq(1) - cp(1)) < 0.00001 And Abs(cq(2) - cp(2)) < 0.00001 Then dup = True: Exit For
+                            If Abs(cy(k) - cp(1)) < 0.00001 And Abs(cz(k) - cp(2)) < 0.00001 Then dup = True: Exit For
                         Next k
                         If Not dup Then
-                            If n > UBound(edges) Then ReDim Preserve edges(0 To 2 * n)
+                            If n > UBound(edges) Then
+                                ReDim Preserve edges(0 To 2 * n)
+                                ReDim Preserve cy(0 To 2 * n)
+                                ReDim Preserve cz(0 To 2 * n)
+                            End If
                             Set edges(n) = ed
+                            cy(n) = cp(1): cz(n) = cp(2)
                             n = n + 1
                         End If
                     End If
@@ -546,30 +565,6 @@ Private Function EntryEdges(ByVal cut As SldWorks.Feature, ByVal x0 As Double, _
     EntryEdges = n
 End Function
 
-' Cosmetic threads on the given edges. First all edges at once, then one by one.
-' Returns the number of holes that got a thread.
-Private Function AddCosmeticThreads(ByVal m As SldWorks.ModelDoc2, edges() As Object, ByVal n As Long, _
-                                    ByVal majorDia As Double, ByVal length As Double, _
-                                    ByVal size As String, why As String) As Long
-    Dim k As Long, cnt As Long
-    m.ClearSelection2 True
-    For k = 0 To n - 1
-        edges(k).Select4 True, Nothing
-    Next k
-    If CosmeticThreadCall(m, majorDia, length, size, why) Then
-        AddCosmeticThreads = n
-        Exit Function
-    End If
-    For k = 0 To n - 1
-        m.ClearSelection2 True
-        edges(k).Select4 False, Nothing
-        If CosmeticThreadCall(m, majorDia, length, size, why) Then cnt = cnt + 1
-    Next k
-    AddCosmeticThreads = cnt
-End Function
-
-' One cosmetic thread call on the current selection (late bound: the available
-' method differs between SolidWorks versions).
 Private Function CosmeticThreadCall(ByVal m As SldWorks.ModelDoc2, ByVal majorDia As Double, _
                                     ByVal length As Double, ByVal size As String, why As String) As Boolean
     Dim fm As Object, f As Object
