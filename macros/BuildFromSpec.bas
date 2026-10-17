@@ -33,7 +33,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v18 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v18.1 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -1439,14 +1439,14 @@ Private Function ImportCard(ByVal cardPath As String) As String
     End If
 
     ' import with a working part template (the default one is restored afterwards)
-    Dim m As SldWorks.ModelDoc2, imp As Object, errs As Long, oldTpl As String
+    Dim m As SldWorks.ModelDoc2, impData As Object, errs As Long, oldTpl As String
     If gTplPart = "" Then gTplPart = FindTemplate("prtdot", swDefaultTemplatePart, "part")
     oldTpl = swApp.GetUserPreferenceStringValue(swDefaultTemplatePart)
     If gTplPart <> "" Then swApp.SetUserPreferenceStringValue swDefaultTemplatePart, gTplPart
     On Error Resume Next
-    Set imp = swApp.GetImportFileData(folder & stepFile)
+    Set impData = swApp.GetImportFileData(folder & stepFile)
     On Error GoTo 0
-    Set m = swApp.LoadFile4(folder & stepFile, "r", imp, errs)
+    Set m = swApp.LoadFile4(folder & stepFile, "r", impData, errs)
     swApp.SetUserPreferenceStringValue swDefaultTemplatePart, oldTpl
     If m Is Nothing Then
         gLog = gLog & "STEP import failed (" & stepFile & ", error " & errs & ")" & vbCrLf
