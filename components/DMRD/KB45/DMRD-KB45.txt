@@ -1,9 +1,67 @@
-# DMRD-KB45 - NO DATA YET. Needed: catalog drawing (like DMRD-KB32.png) -> profile, holes, ports, ratio, torques.
+# DMRD-KB45 - reducer model from the catalog drawing (DMRD-KB45.jpg)
+# Three parts: housing (fixed), input shaft and output shaft (both rotate about X).
+# X - along the axis from the left (input) end of the input shaft, mm; Y - radius, mm.
+# The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
+# section B-B shows the RIGHT (output) end (x = 99) and vice versa.
+# Axial stack: 10 (shaft end) + 30 (D106 17 + D168 13) + 46 (D190) + 13 (D158 output) = 99
+# Output shaft D158h7: 13 outside the housing + 6 inside (pocket D158 x 6 in the housing).
+# The drawing writes the outer diameter as "D190H7" - taken as D190 (outer surface).
+# PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
+
 COMPONENT DMRD-KB45
 TYPE reducer
-DATA OD=? L=? bore=? ratio=? T_rated=? T_peak=? mass=?
-PORT  input       ? -1 role=input
-PORT  motor_side  ? -1 role=stator_mount
-PORT  base        ? -1 role=fixed
-PORT  output      ?  1 role=output
+DATA n_in_rated=2000 T_rated=375 T_startstop=675 T_peak=1350 F_axial=13000 M_tilt=740 backlash_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=?
+
+ASSEMBLY DMRD-KB45
+
+# ---- 01: housing (simplified, one solid; fixed) ------------------------------
+PART DMRD-KB45-01_Housing
+MOTION fixed
+P 10    32.5
+P 10    53       # D106, 17 long
+P 27    53
+P 27    84       # D168h7 pilot, 13 long
+P 40    84
+P 40    95       # D190, 46 long
+P 86    95
+P 86    79       # pocket D158 x 6 deep for the output shaft
+P 80    79
+P 80    32.5
+#      x     dir  n   pcd    d    depth  angle
+HOLES  40    1    18  180    6.6  0      90       # 18-D6.6 through (the drawing repeats this callout at 20 deg)
+HOLES  27    1    2   116    6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D168 step face), PCD 116
+PORT  base  40    -1   role=fixed fit=168h7 fit_x=27..40 holes=18xD6.6 pcd=180 ang=90 mate=link   # housing -> link: pilot D168h7 + holes on D180
+END
+
+# ---- 02: input shaft D65h7 (rotates) -----------------------------------------
+PART DMRD-KB45-02_InputShaft
+MOTION rotate
+P 0     25       # bore D50 at the left end, 14 deep (diameter ASSUMED = right bore, measured on the drawing)
+P 0     32.5     # outer D65h7
+P 99    32.5
+P 99    25       # bore D50H7 at the right end, 32 deep
+P 67    25
+P 67    25.5     # middle bore - ASSUMED D51 (not dimensioned)
+P 14    25.5
+P 14    25
+#       x     dir  n   pcd    size depth  angle
+THREAD  0     1    6   57.5   M4   9      90     # 6-M4 depth 9, left end
+THREAD  99    -1   6   57.5   M4   9      90     # 6-M4 depth 9, right end
+PORT  input 0     -1   role=input fit=65h7 fit_x=0..10 bolts=6xM4 pcd=57.5 ang=90 mate=rotor_cup   # motor rotor via an adapter cup
+END
+
+# ---- 03: output shaft D158h7 (rotates; 13 outside + 6 inside the housing) -----
+PART DMRD-KB45-03_OutputShaft
+MOTION rotate
+P 80    32.5
+P 80    79
+P 99    79
+P 99    32.5
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  99    -1   16  140    M8   10     101.25 10     # 16-M8 thread depth 10, RIGHT end
+THREAD  99    -1   4   140    M6   10     90            # 4-M6 on the same circle between the M8 (depth ASSUMED 10)
+#      x     dir  n   pcd    d    depth  angle
+HOLES  89    -1   16  140    9    11.5   101.25         # 16-D9 x 11.5 behind the thread (section A-A); goes through here
+PORT  output 99   1    role=output fit=158h7 fit_x=86..99 bolts=16xM8 pcd=140 ang=101.25 mate=next_link
 END

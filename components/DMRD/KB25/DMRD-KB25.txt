@@ -1,19 +1,46 @@
-# DMRD-KB25 - outline model from the catalog drawing (DMRD-KB25.png)
-# X - along the axis from the left end of the shaft, mm; Y - radius, mm.
+# DMRD-KB25 - reducer model from the catalog drawing (DMRD-KB25.png)
+# Three parts: housing (fixed), input shaft and output shaft (both rotate about X).
+# X - along the axis from the left (input) end of the input shaft, mm; Y - radius, mm.
 # The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
-# section B-B shows the RIGHT end (x = 59.5) and vice versa.
-# Metric threads: THREAD lines (tap-drill cut + cosmetic thread). PT1/16 oil plugs: plain 6.3 holes.
-
-# PORT/DATA lines: interfaces and catalog data for joints (see README). The macro skips them.
+# section B-B shows the RIGHT (output) end (x = 59.5) and vice versa.
+# Axial stack: 6.5 (shaft end) + 15 (D65 10 + D94 5) + 29 (D110) + 9 (D86 output) = 59.5
+# Output shaft D86h7: 9 outside the housing + 6 inside (pocket D86 x 6 in the housing).
+# PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
 
 COMPONENT DMRD-KB25
 TYPE reducer
-DATA OD=110 L=59.5 bore=29 ratio=? T_rated=? T_peak=? mass=?   # ratio/torques/mass: not on the drawing - TO FILL
+# Catalog table: rated input speed rpm, torques N*m (rated / start-stop / momentary max),
+# axial force N, tilting moment N*m, backlash arcmin. ratio - to choose from 'ratios'.
+DATA n_in_rated=2000 T_rated=62 T_startstop=93 T_peak=186 F_axial=7100 M_tilt=193.5 backlash_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=?
 
 ASSEMBLY DMRD-KB25
 
-# ---- 01: central hollow shaft D38h7 ---------------------------------------
-PART DMRD-KB25-01_Shaft
+# ---- 01: housing (simplified, one solid; fixed) ------------------------------
+PART DMRD-KB25-01_Housing
+MOTION fixed
+P 6.5   19
+P 6.5   32.5     # D65, 10 long
+P 16.5  32.5
+P 16.5  47       # D94h7 pilot, 5 long
+P 21.5  47
+P 21.5  55       # D110h7, 29 long
+P 50.5  55
+P 50.5  43       # pocket D86 x 6 deep for the output shaft
+P 44.5  43
+P 44.5  19
+#      x     dir  n   pcd    d    depth  angle
+HOLES  21.5  1    12  102    4.5  0      90       # 12-D4.5 through
+HOLES  16.5  1    2   73     6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D94 step face)
+#       x     dir  n   pcd    size depth  angle
+THREAD  21.5  1    4   102    M3   6      45       # 4-M3, LEFT face of the D110 ring (depth ASSUMED 6)
+#     name  x     dir  parameters
+PORT  base  21.5  -1   role=fixed fit=94h7 fit_x=16.5..21.5 holes=12xD4.5 pcd=102 ang=90 mate=link   # housing -> link: pilot D94h7 + holes on D102
+END
+
+# ---- 02: input shaft D38h7 (rotates) -----------------------------------------
+PART DMRD-KB25-02_InputShaft
+MOTION rotate
 P 0     14.5     # bore D29 at the left end, 10 deep
 P 0     19       # outer D38h7
 P 59.5  19
@@ -25,29 +52,19 @@ P 10    14.5
 #       x     dir  n   pcd    size depth  angle
 THREAD  0     1    6   33.5   M3   6      90     # 6-M3 depth 6, left end
 THREAD  59.5  -1   6   33.5   M3   6      90     # 6-M3 depth 6, right end
-#     name     x     dir  parameters
-PORT  input    0     -1   role=input bore=29 shaft=38h7 shaft_len=6.5 bolts=6xM3 pcd=33.5 ang=90   # input (motor) end; only 6.5 mm of D38 stick out of the housing
+PORT  input 0     -1   role=input fit=38h7 fit_x=0..6.5 bolts=6xM3 pcd=33.5 ang=90 mate=rotor_cup   # motor rotor via an adapter cup
 END
 
-# ---- 02: housing (simplified, one solid) ----------------------------------
-PART DMRD-KB25-02_Housing
-P 6.5   19
-P 6.5   32.5     # D65, 10 long
-P 16.5  32.5
-P 16.5  47       # D94h7, 5 long
-P 21.5  47
-P 21.5  55       # D110h7, 29 long
-P 50.5  55
-P 50.5  43       # D86h7, 9 long
+# ---- 03: output shaft D86h7 (rotates; 9 outside + 6 inside the housing) -------
+PART DMRD-KB25-03_OutputShaft
+MOTION rotate
+P 44.5  19
+P 44.5  43
 P 59.5  43
 P 59.5  19
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  59.5  -1   16  77     M4   8      101.25 8      # 16-M4 thread depth 8, RIGHT end
 #      x     dir  n   pcd    d    depth  angle
-HOLES  21.5  1    12  102    4.5  0      90       # 12-D4.5 through
-HOLES  16.5  1    2   73     6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D94 step face)
-#       x     dir  n   pcd    size depth  angle
-THREAD  21.5  1    4   102    M3   6      45       # 4-M3, LEFT face of the D110 ring (depth ASSUMED 6)
-THREAD  59.5  -1   16  77     M4   8      101.25   # 16-M4 thread depth 8, RIGHT end (D86 flange)
-PORT  motor_side 21.5 -1  role=stator_mount pilot=94h7 pilot_len=5 bolts=4xM3 pcd=102 ang=45     # motor housing is centred on D94h7
-PORT  base     21.5  -1   role=fixed holes=12xD4.5 pcd=102 ang=90    # fixed link; which face the link sits on - TO CONFIRM
-PORT  output   59.5  1    role=output pilot=86h7 bolts=16xM4 pcd=77 ang=101.25      # ASSUMED rotating output (housing is one simplified solid)
+HOLES  51.5  -1   16  77     4.5  7.5    101.25         # 16-D4.5 x 7.5 behind the thread (section A-A); goes through here
+PORT  output 59.5 1    role=output fit=86h7 fit_x=50.5..59.5 bolts=16xM4 pcd=77 ang=101.25 mate=next_link
 END

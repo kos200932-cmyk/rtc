@@ -1,18 +1,22 @@
-# Joint SHM-500 (ШМ-500): reducer DMRD-KB45 + frameless motor RI115-PH KV40
-# The motor has no housing/bearings -> the joint gets its own motor housing; the rotor sits on a hub on the reducer input shaft.
+# Joint SHM-500 (ШМ-500): reducer DMRD-KB45 + frameless motor RI115-PH-KV40
+# The motor has no housing/bearings: the rotor sits on an adapter cup on the reducer input shaft,
+# the stator - in a motor housing designed for the joint.
 JOINT SHM-500
-DATA T_nom=500         # N*m, from the name; rated or peak at the output - TO CONFIRM
+DATA T_nom=500          # N*m, from the name; rated or peak at the output - TO CONFIRM
+#     role     component      file
 USE   reducer  DMRD-KB45      components/DMRD/KB45/DMRD-KB45.txt
 USE   motor    RI115-PH-KV40  components/T-motor/RI115-PH-KV40/RI115-PH-KV40.txt
 USE   sensor   ?              # Lens angle sensor - TO CHOOSE
-DESIGN motor_housing   # stator holder on reducer.motor_side; stator OD115 inside
-DESIGN rotor_hub       # rotor ID74 on the hub; hub on reducer.input
+# Parts designed for this joint (geometry generated from the ports)
+DESIGN rotor_cup       # adapter cup: on reducer.input (65h7, 6xM4 PCD57.5 on the shaft end), carries the rotor ID74
+DESIGN motor_housing   # stator OD115 holder; fixed to the base link - TO DEFINE
 DESIGN rear_cover      # closes the motor housing, carries the angle sensor
-JOIN reducer.motor_side     motor_housing.reducer
+#    port A                 port B
+JOIN reducer.input          rotor_cup.reducer
+JOIN motor.rotor            rotor_cup.rotor
 JOIN motor.stator           motor_housing.stator
-JOIN reducer.input          rotor_hub.reducer
-JOIN motor.rotor            rotor_hub.rotor
 JOIN motor_housing.rear     rear_cover.housing
-OUT  base     reducer.base
-OUT  output   reducer.output
+# Interfaces of the joint for the arm layout
+OUT  base     reducer.base       # housing -> link: 168h7 + 18xD6.6 PCD180
+OUT  output   reducer.output     # output shaft -> next link: 158h7 + 16xM8 PCD140
 END

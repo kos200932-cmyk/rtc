@@ -6,8 +6,13 @@ Attribute VB_Name = "BuildFromSpec"
 '   * every PART as a separate .SLDPRT with a feature tree:
 '       Front Plane -> "Profile" sketch -> "Body" (Revolve 360)
 '       -> "HolesN" (Cut-Extrude on an offset plane, circular hole pattern)
-'   * if ASSEMBLY is given - an .SLDASM with all parts, each mated to the
-'     assembly origin planes (3 coincident mates).
+'       -> "AXIS" (axis of rotation = X) -> "PORT_<name>" planes (interfaces)
+'   * if ASSEMBLY is given - an .SLDASM with all parts:
+'       MOTION fixed (default) - 3 coincident mates to the assembly planes;
+'       MOTION rotate          - axis on the AXIS of the first fixed part +
+'                                Right plane on Right plane: free rotation about X.
+'   * DATA key=value lines -> custom properties of the assembly,
+'     PORT lines -> "PORT_<name>" plane + custom property of the part.
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -16,7 +21,8 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v12 (2026-10-17)"
+Private Const AXIS_NAME As String = "AXIS"
+Private Const MACRO_VERSION As String = "v13 (2026-10-17)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -38,12 +44,18 @@ Private Type PartSpec
     NP As Long
     H() As HoleSpec
     NH As Long
+    Motion As Integer   ' 0 - fixed, 1 - rotates about X relative to the first fixed part
+    PortName() As String
+    PortX() As Double
+    PortInfo() As String
+    NPort As Long
 End Type
 
 Private swApp As SldWorks.SldWorks
 Private gParts() As PartSpec
 Private gNParts As Long
 Private gAsmName As String
+Private gData As String          ' "key=value key=value ..." from DATA lines
 Private gLog As String
 
 Sub main()
@@ -111,9 +123,9 @@ End Function
 ' ---------------------------------------------------------------------------
 Private Function ReadSpec(ByVal path As String) As Boolean
     Dim s As String, t() As String, lines() As String, li As Long
-    Dim lineNo As Long, cur As Long, k As Long, errMsg As String
+    Dim lineNo As Long, cur As Long, k As Long, errMsg As String, q As Long, info As String
 
-    cur = -1: gNParts = 0: gAsmName = ""
+    cur = -1: gNParts = 0: gAsmName = "": gData = ""
     ReDim gParts(0 To 15)
 
     lines = ReadLines(path)
@@ -137,6 +149,11 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             ReDim gParts(cur).PX(0 To 63)
             ReDim gParts(cur).PY(0 To 63)
             ReDim gParts(cur).H(0 To 15)
+            gParts(cur).Motion = 0
+            gParts(cur).NPort = 0
+            ReDim gParts(cur).PortName(0 To 7)
+            ReDim gParts(cur).PortX(0 To 7)
+            ReDim gParts(cur).PortInfo(0 To 7)
 
         Case "END"
             cur = -1
@@ -194,8 +211,40 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             If gParts(cur).H(k).N < 1 Then errMsg = "bad hole count": GoTo Bad
             gParts(cur).NH = k + 1
 
-        Case "COMPONENT", "TYPE", "DATA", "PORT", "STEP"
-            ' metadata for joints and calculations (README: component cards) - no geometry yet
+        Case "COMPONENT", "TYPE", "STEP"
+            ' component card metadata - not used for geometry
+
+        Case "DATA"
+            gData = gData & " " & Trim(Mid(s, 5))
+
+        Case "MOTION"
+            If cur < 0 Then errMsg = "'MOTION' outside of PART ... END": GoTo Bad
+            If UBound(t) < 1 Then errMsg = "expected 'MOTION fixed' or 'MOTION rotate'": GoTo Bad
+            Select Case LCase(t(1))
+                Case "fixed": gParts(cur).Motion = 0
+                Case "rotate": gParts(cur).Motion = 1
+                Case Else: errMsg = "expected 'MOTION fixed' or 'MOTION rotate'": GoTo Bad
+            End Select
+
+        Case "PORT"
+            ' PORT name x dir [key=value ...]; outside PART (purchased parts) - ignored
+            If cur >= 0 Then
+                If UBound(t) < 3 Then errMsg = "expected 'PORT name x dir [key=value ...]'": GoTo Bad
+                k = gParts(cur).NPort
+                If k > UBound(gParts(cur).PortName) Then
+                    ReDim Preserve gParts(cur).PortName(0 To 2 * k)
+                    ReDim Preserve gParts(cur).PortX(0 To 2 * k)
+                    ReDim Preserve gParts(cur).PortInfo(0 To 2 * k)
+                End If
+                gParts(cur).PortName(k) = t(1)
+                gParts(cur).PortX(k) = Num(t(2))
+                info = "x=" & t(2) & " dir=" & t(3)
+                For q = 4 To UBound(t)
+                    info = info & " " & t(q)
+                Next q
+                gParts(cur).PortInfo(k) = info
+                gParts(cur).NPort = k + 1
+            End If
         Case Else
             errMsg = "unknown keyword '" & t(0) & "'": GoTo Bad
         End Select
@@ -328,6 +377,12 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
         End If
     Next i
 
+    ' --- axis of rotation and interface planes ---
+    AddAxis m, planes, p.Name
+    For i = 0 To p.NPort - 1
+        AddPort m, planes(2), p, i
+    Next i
+
     m.ClearSelection2 True
     m.EditRebuild3
     m.ShowNamedView2 "*Isometric", swIsometricView
@@ -408,7 +463,7 @@ Private Function GetOffsetPlane(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane 
         Exit Function
     End If
 
-    Dim nm As String, pd As SldWorks.PartDoc, f As SldWorks.Feature, rp As SldWorks.RefPlane
+    Dim nm As String, pd As SldWorks.PartDoc, f As SldWorks.Feature
     nm = "Plane_X" & Replace(CStr(x), ",", ".")
     Set pd = m
     Set f = pd.FeatureByName(nm)
@@ -417,8 +472,31 @@ Private Function GetOffsetPlane(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane 
         Exit Function
     End If
 
+    Set f = NewPlaneAtX(m, rightPlane, x)
+    If f Is Nothing Then Exit Function
+
+    f.Name = nm
+    m.ClearSelection2 True
+    f.Select2 False, 0
+    m.BlankRefGeom          ' hide the helper plane
+    m.ClearSelection2 True
+    Set GetOffsetPlane = f
+End Function
+
+' New plane parallel to Right (YZ) at X (coincident with Right when X = 0)
+Private Function NewPlaneAtX(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.Feature, _
+                             ByVal x As Double) As SldWorks.Feature
+    Dim f As SldWorks.Feature, rp As SldWorks.RefPlane
     m.ClearSelection2 True
     rightPlane.Select2 False, 0
+    If Abs(x) < 0.000001 Then
+        Set rp = m.FeatureManager.InsertRefPlane(swRefPlaneReferenceConstraint_Coincident, 0, 0, 0, 0, 0)
+        If rp Is Nothing Then Exit Function
+        Set NewPlaneAtX = m.FeatureByPositionReverse(0)
+        m.ClearSelection2 True
+        Exit Function
+    End If
+
     Set rp = m.FeatureManager.InsertRefPlane(swRefPlaneReferenceConstraint_Distance, Abs(x) * MM, 0, 0, 0, 0)
     If rp Is Nothing Then Exit Function
     Set f = m.FeatureByPositionReverse(0)
@@ -436,13 +514,63 @@ Private Function GetOffsetPlane(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane 
         If rp Is Nothing Then Exit Function
         Set f = m.FeatureByPositionReverse(0)
     End If
+    m.ClearSelection2 True
+    Set NewPlaneAtX = f
+End Function
 
-    f.Name = nm
+' Reference axis along X (Front x Top) named AXIS - used for the rotation mates
+Private Sub AddAxis(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, ByVal partName As String)
+    Dim f As SldWorks.Feature
     m.ClearSelection2 True
-    f.Select2 False, 0
-    m.BlankRefGeom          ' hide the helper plane
+    planes(0).Select2 False, 0
+    planes(1).Select2 True, 0
+    If m.InsertAxis2(True) Then
+        Set f = m.FeatureByPositionReverse(0)
+        f.Name = AXIS_NAME
+    Else
+        gLog = gLog & partName & ": axis was not created - rotation mates will fail" & vbCrLf
+    End If
     m.ClearSelection2 True
-    Set GetOffsetPlane = f
+End Sub
+
+' Interface: plane PORT_<name> at X + custom property PORT_<name> = "x=.. dir=.. key=value ..."
+Private Sub AddPort(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.Feature, _
+                    p As PartSpec, ByVal i As Long)
+    Dim f As SldWorks.Feature, nm As String
+    nm = "PORT_" & p.PortName(i)
+    Set f = NewPlaneAtX(m, rightPlane, p.PortX(i))
+    If f Is Nothing Then
+        gLog = gLog & p.Name & ": interface plane " & nm & " was not created" & vbCrLf
+    Else
+        f.Name = nm
+    End If
+    SetProp m, nm, p.PortInfo(i)
+End Sub
+
+Private Sub SetProp(ByVal m As SldWorks.ModelDoc2, ByVal nm As String, ByVal v As String)
+    Dim cpm As SldWorks.CustomPropertyManager, r As Long
+    Set cpm = m.Extension.CustomPropertyManager("")
+    On Error Resume Next
+    r = cpm.Add3(nm, swCustomInfoText, v, swCustomPropertyReplaceValue)
+    If Err.Number <> 0 Then
+        Err.Clear
+        r = cpm.Add2(nm, swCustomInfoText, v)
+    End If
+    If Err.Number <> 0 Then gLog = gLog & "Property " & nm & " was not written" & vbCrLf
+    On Error GoTo 0
+End Sub
+
+' Feature of a part or component by name (FirstFeature -> GetNextFeature)
+Private Function FindFeature(ByVal first As SldWorks.Feature, ByVal nm As String) As SldWorks.Feature
+    Dim f As SldWorks.Feature
+    Set f = first
+    Do While Not f Is Nothing
+        If StrComp(f.Name, nm, vbTextCompare) = 0 Then
+            Set FindFeature = f
+            Exit Function
+        End If
+        Set f = f.GetNextFeature
+    Loop
 End Function
 
 ' Tapped holes: tap-drill holes (Cut-Extrude, same as HOLES) + a cosmetic thread on
@@ -658,34 +786,65 @@ Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
         Exit Sub
     End If
 
-    Dim i As Long, k As Long, comp As SldWorks.Component2
-    Dim mate As SldWorks.Feature, errStat As Long
+    ' 1. insert all parts (floating)
+    Dim i As Long, k As Long, baseIdx As Long
+    Dim comps() As SldWorks.Component2
+    ReDim comps(LBound(partPaths) To UBound(partPaths))
     For i = LBound(partPaths) To UBound(partPaths)
-        Set comp = asm.AddComponent5(partPaths(i), swAddComponentConfigOptions_CurrentSelectedConfig, _
-                                     "", False, "", 0, 0, 0)
-        If comp Is Nothing Then
+        Set comps(i) = asm.AddComponent5(partPaths(i), swAddComponentConfigOptions_CurrentSelectedConfig, _
+                                         "", False, "", 0, 0, 0)
+        If comps(i) Is Nothing Then
             gLog = gLog & "Cannot insert " & partPaths(i) & vbCrLf
         Else
-            ' float the component, then fix its position by mates
             am.ClearSelection2 True
-            comp.Select4 False, Nothing, False
+            comps(i).Select4 False, Nothing, False
             asm.UnfixComponent
-            If GetRefPlanes(comp.FirstFeature, cp) Then
+        End If
+    Next i
+
+    ' 2. fixed parts: 3 coincident mates to the assembly planes
+    baseIdx = -1
+    For i = LBound(partPaths) To UBound(partPaths)
+        If Not comps(i) Is Nothing And gParts(i).Motion = 0 Then
+            If baseIdx < 0 Then baseIdx = i
+            If GetRefPlanes(comps(i).FirstFeature, cp) Then
                 For k = 0 To 2
-                    am.ClearSelection2 True
-                    asmPlanes(k).Select2 False, 1
-                    cp(k).Select2 True, 1
-                    Set mate = asm.AddMate3(swMateCOINCIDENT, swMateAlignALIGNED, False, _
-                                            0, 0, 0, 0, 0, 0, 0, 0, False, errStat)
-                    If mate Is Nothing Then
-                        gLog = gLog & comp.Name2 & ": mate " & (k + 1) & " failed (status " & errStat & ")" & vbCrLf
-                    End If
+                    MatePair am, asm, asmPlanes(k), cp(k), swMateCOINCIDENT, comps(i).Name2 & ": mate " & (k + 1)
                 Next k
             Else
-                gLog = gLog & comp.Name2 & ": planes not found, component left floating" & vbCrLf
+                gLog = gLog & comps(i).Name2 & ": planes not found, component left floating" & vbCrLf
             End If
         End If
     Next i
+
+    ' 3. rotating parts: axis on the AXIS of the first fixed part + Right plane on Right plane
+    Dim ax As SldWorks.Feature, baseAx As SldWorks.Feature, mate As Object
+    If baseIdx >= 0 Then Set baseAx = FindFeature(comps(baseIdx).FirstFeature, AXIS_NAME)
+    For i = LBound(partPaths) To UBound(partPaths)
+        If Not comps(i) Is Nothing And gParts(i).Motion = 1 Then
+            Set ax = FindFeature(comps(i).FirstFeature, AXIS_NAME)
+            If baseAx Is Nothing Or ax Is Nothing Then
+                gLog = gLog & comps(i).Name2 & ": no fixed part or no AXIS - rotation mates not added" & vbCrLf
+            Else
+                Set mate = MatePair(am, asm, baseAx, ax, swMateCOINCIDENT, "")
+                If mate Is Nothing Then Set mate = MatePair(am, asm, baseAx, ax, swMateCONCENTRIC, _
+                                                            comps(i).Name2 & ": axis mate")
+                If Not mate Is Nothing Then NameMate mate, "Rot_" & gParts(i).Name & "_Axis"
+                If GetRefPlanes(comps(i).FirstFeature, cp) Then
+                    Set mate = MatePair(am, asm, asmPlanes(2), cp(2), swMateCOINCIDENT, _
+                                        comps(i).Name2 & ": axial mate")
+                    If Not mate Is Nothing Then NameMate mate, "Rot_" & gParts(i).Name & "_Axial"
+                End If
+            End If
+        End If
+    Next i
+
+    ' 4. catalog data -> custom properties of the assembly
+    Dim kv As Variant, eq As Long
+    For Each kv In Split(Trim(gData), " ")
+        eq = InStr(kv, "=")
+        If eq > 1 Then SetProp am, Left(kv, eq - 1), Mid(kv, eq + 1)
+    Next kv
 
     am.ClearSelection2 True
     am.EditRebuild3
@@ -694,6 +853,28 @@ Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
 
     SaveDoc am, asmPath
 End Sub
+
+Private Sub NameMate(ByVal mate As Object, ByVal nm As String)
+    On Error Resume Next        ' a name is only a convenience
+    mate.Name = nm
+    On Error GoTo 0
+End Sub
+
+' Mate of two selected entities (ALIGNED). Logs a failure only when errName is given.
+Private Function MatePair(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
+                          ByVal a As SldWorks.Feature, ByVal b As SldWorks.Feature, _
+                          ByVal mateType As Long, ByVal errName As String) As Object
+    Dim errStat As Long
+    am.ClearSelection2 True
+    a.Select2 False, 1
+    b.Select2 True, 1
+    Set MatePair = asm.AddMate3(mateType, swMateAlignALIGNED, False, _
+                                0, 0, 0, 0, 0, 0, 0, 0, False, errStat)
+    If MatePair Is Nothing And errName <> "" Then
+        gLog = gLog & errName & " failed (status " & errStat & ")" & vbCrLf
+    End If
+    am.ClearSelection2 True
+End Function
 
 ' Save a new document. The return value of Extension.SaveAs is not reliable,
 ' so success is checked by the file on disk; SaveAs3 is the fallback.

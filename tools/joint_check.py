@@ -116,7 +116,9 @@ def check_joint(j, eta):
             res["i_rated"] = res["T_nom"] / (res["T_rated"] * eta)
     if red:
         i = num(red["data"].get("ratio"))
-        res.update(reducer=red["name"], ratio=i)
+        rd = red["data"]
+        res.update(reducer=red["name"], ratio=i, R_rated=num(rd.get("T_rated")),
+                   R_ss=num(rd.get("T_startstop")), R_peak=num(rd.get("T_peak")))
         if i and m:
             res["T_out_rated"] = res["T_rated"] * i * eta
             res["T_out_peak"] = res["T_peak"] * i * eta
@@ -141,14 +143,16 @@ def main():
     lines = [f"# Joint check (`python tools/joint_check.py`)", "",
              f"Assumed reducer efficiency eta = {a.eta}. Torques in N*m, speeds in rpm.",
              "Required ratio = T_nom / (motor torque x eta); for an actuator the motor torque is already after its own gearbox.", "",
-             "| Joint | Reducer | Motor | T_nom | Motor T rated / peak | Ratio needed: from peak / from rated | Reducer ratio | T_out rated / peak | n_out |",
-             "|---|---|---|---|---|---|---|---|---|"]
+             "Reducer T: catalog rated / start-stop / momentary max at the output.", "",
+             "| Joint | Reducer | Motor | T_nom | Reducer T rated / start-stop / max | Motor T rated / peak | Ratio needed: from peak / from rated | Reducer ratio | T_out rated / peak | n_out |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
     details, bad = [], False
     for f in files:
         j = read_joint(f)
         r, problems, todo = check_joint(j, a.eta)
         lines.append(
             f"| {j['name']} | {r.get('reducer', '?')} | {r.get('motor', '?')} | {fmt(r['T_nom'])} | "
+            f"{fmt(r.get('R_rated'))} / {fmt(r.get('R_ss'))} / {fmt(r.get('R_peak'))} | "
             f"{fmt(r.get('T_rated'), 2)} / {fmt(r.get('T_peak'), 2)} | "
             f"{fmt(r.get('i_peak'), 1)} / {fmt(r.get('i_rated'), 1)} | {fmt(r.get('ratio'))} | "
             f"{fmt(r.get('T_out_rated'))} / {fmt(r.get('T_out_peak'))} | {fmt(r.get('n_out'), 1)} |")

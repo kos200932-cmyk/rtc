@@ -10,3 +10,4 @@
 *.pdf binary
 *.md text eol=lf
 *.py text eol=lf
+*.jpg binary
