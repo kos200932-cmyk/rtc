@@ -60,8 +60,7 @@ THREAD  54    1    2   206    M8   41     11.42  41.5   # 2-M8 through the D222 
 HOLES  54    1    2   206    8.4  10     78.75          # 2 grease fill/drain ports Rc1/8 (tap drill 8.4, depth ASSUMED 10)
 #     name        x    dir  parameters
 PORT  motor_side  0    -1   role=stator_mount fit=110H7 fit_depth=6.5 square=130 bolts=4xM8 pcd=145 ang=45 mate=motor_adapter
-PORT  base        54   -1   role=fixed fit=190h7 fit_x=44..54 holes=16xD9 pcd=206 ang=90 mate=link    # housing -> link (input side)
-PORT  base_alt    95   1    role=fixed fit=190h7 fit_x=95..105 holes=16xD9 pcd=206 ang=90 mate=link   # same flange, output side
+PORT  base        54   -1   role=fixed fit=190h7 fit_x=44..54 holes=16xD9 pcd=206 ang=90 mate=prev_link   # housing -> previous link (motor side, as on KB)
 END
 
 # ---- 02: input shaft, bore D22H7 with key slot 8 (rotates) -------------------------------
