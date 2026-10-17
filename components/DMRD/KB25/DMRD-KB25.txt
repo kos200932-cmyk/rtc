@@ -12,9 +12,9 @@
 COMPONENT DMRD-KB25
 TYPE reducer
 # Catalog table: rated input speed rpm, torques N*m (rated / start-stop / momentary max),
-# axial force N, tilting moment N*m, backlash arcmin. ratio - to choose from 'ratios'.
-DATA n_in_rated=2000 T_rated=62 T_startstop=93 T_peak=186 F_axial=7100 M_tilt=193.5 backlash_arcmin=1.5
-DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=?
+# axial force N, tilting moment N*m, lost motion arcmin, mass kg (manufacturer). ratio - to choose from 'ratios'.
+DATA n_in_rated=2000 T_rated=62 T_startstop=93 T_peak=186 F_axial=7100 M_tilt=193.5 lost_motion_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=2.3
 
 ASSEMBLY DMRD-KB25
 

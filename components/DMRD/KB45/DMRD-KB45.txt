@@ -12,8 +12,9 @@
 
 COMPONENT DMRD-KB45
 TYPE reducer
-DATA n_in_rated=2000 T_rated=375 T_startstop=675 T_peak=1350 F_axial=13000 M_tilt=740 backlash_arcmin=1.5
-DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=?
+# Catalog: rpm, N*m (rated / start-stop / momentary max), N, N*m, arcmin, kg (manufacturer).
+DATA n_in_rated=2000 T_rated=375 T_startstop=675 T_peak=1350 F_axial=13000 M_tilt=740 lost_motion_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=10.4
 
 ASSEMBLY DMRD-KB45
 

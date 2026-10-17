@@ -11,8 +11,9 @@
 
 COMPONENT DMRD-KB32
 TYPE reducer
-DATA n_in_rated=2000 T_rated=103 T_startstop=155 T_peak=310 F_axial=11500 M_tilt=336 backlash_arcmin=1.5
-DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=?
+# Catalog: rpm, N*m (rated / start-stop / momentary max), N, N*m, arcmin, kg (manufacturer).
+DATA n_in_rated=2000 T_rated=103 T_startstop=155 T_peak=310 F_axial=11500 M_tilt=336 lost_motion_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=4.1
 
 ASSEMBLY DMRD-KB32
 
