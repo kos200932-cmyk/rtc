@@ -1,0 +1,11 @@
+# T-motor (CubeMars) AK80-9 V3.0 KV100 - complete actuator: motor + 9:1 planetary gear + driver (CAN), own housing and bearings
+# Source: https://www.cubemars.com/goods.php?id=982 (comparison table, 2026-10-17)
+# Units: mm, kg, N*m, rpm at the ACTUATOR OUTPUT (after 9:1), 48 V.
+COMPONENT AK80-9-V3-KV100
+TYPE actuator
+DATA OD=98 L=38.5 mass=0.490 U=48 KV=100 ratio=9 T_rated=9 T_peak=22 I_rated=12 I_peak=28 n_rated=390 n0=570
+STEP AK80-9-V3-KV100.step  # NOT IN REPO: no STEP on the page; need the 2D drawing or STEP from CubeMars
+# Flange patterns are on the drawing image only - TO FILL.
+PORT  base     ?  -1   role=fixed  bolts=? pcd=?    # housing (stator side) mounting
+PORT  output   ?   1   role=output bolts=? pcd=?    # 9:1 output flange
+END

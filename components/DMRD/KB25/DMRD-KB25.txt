@@ -1,8 +1,14 @@
-# DMRD-KB25 - outline model from the catalog drawing (examples/DMRD-KB25.png)
+# DMRD-KB25 - outline model from the catalog drawing (DMRD-KB25.png)
 # X - along the axis from the left end of the shaft, mm; Y - radius, mm.
 # The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
 # section B-B shows the RIGHT end (x = 59.5) and vice versa.
 # Metric threads: THREAD lines (tap-drill cut + cosmetic thread). PT1/16 oil plugs: plain 6.3 holes.
+
+# PORT/DATA lines: interfaces and catalog data for joints (see README). The macro skips them.
+
+COMPONENT DMRD-KB25
+TYPE reducer
+DATA OD=110 L=59.5 bore=29 ratio=? T_rated=? T_peak=? mass=?   # ratio/torques/mass: not on the drawing - TO FILL
 
 ASSEMBLY DMRD-KB25
 
@@ -19,6 +25,8 @@ P 10    14.5
 #       x     dir  n   pcd    size depth  angle
 THREAD  0     1    6   33.5   M3   6      90     # 6-M3 depth 6, left end
 THREAD  59.5  -1   6   33.5   M3   6      90     # 6-M3 depth 6, right end
+#     name     x     dir  parameters
+PORT  input    0     -1   role=input bore=29 shaft=38h7 shaft_len=6.5 bolts=6xM3 pcd=33.5 ang=90   # input (motor) end; only 6.5 mm of D38 stick out of the housing
 END
 
 # ---- 02: housing (simplified, one solid) ----------------------------------
@@ -39,4 +47,7 @@ HOLES  16.5  1    2   73     6.3  9      90       # 2-PT1/16 oil plugs, LEFT sid
 #       x     dir  n   pcd    size depth  angle
 THREAD  21.5  1    4   102    M3   6      45       # 4-M3, LEFT face of the D110 ring (depth ASSUMED 6)
 THREAD  59.5  -1   16  77     M4   8      101.25   # 16-M4 thread depth 8, RIGHT end (D86 flange)
+PORT  motor_side 21.5 -1  role=stator_mount pilot=94h7 pilot_len=5 bolts=4xM3 pcd=102 ang=45     # motor housing is centred on D94h7
+PORT  base     21.5  -1   role=fixed holes=12xD4.5 pcd=102 ang=90    # fixed link; which face the link sits on - TO CONFIRM
+PORT  output   59.5  1    role=output pilot=86h7 bolts=16xM4 pcd=77 ang=101.25      # ASSUMED rotating output (housing is one simplified solid)
 END

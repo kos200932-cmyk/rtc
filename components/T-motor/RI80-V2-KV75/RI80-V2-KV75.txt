@@ -1,0 +1,10 @@
+# T-motor (CubeMars) RI80 V2.0 KV75 - frameless inrunner torque motor (stator + rotor, no housing, no bearings)
+# Source: https://www.cubemars.com/goods-860-RI80+V20.html (catalog data, 2026-10-17)
+# Units: mm, kg, N*m, rpm (at 48 V), g*cm2.
+COMPONENT RI80-V2-KV75
+TYPE frameless_motor
+DATA OD=85 L=27 bore=40.5 mass=0.411 U=48 KV=75 Kt=0.155 T_rated=1.45 T_peak=4.1 I_rated=9.4 I_peak=27.6 n_rated=2430 n0=2960 J_rotor=212.49 pole_pairs=8
+STEP RI80-V2-KV75.step  # NOT IN REPO YET: "3D drawing without Hall sensor" on the page above
+PORT  stator   ?  -1   role=stator_mount od=85
+PORT  rotor    ?  -1   role=rotor_mount  id=40.5
+END

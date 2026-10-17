@@ -1,0 +1,17 @@
+# Joint SHM-1000 (ШМ-1000): reducer DMRD-80E + actuator AK80-9 V3.0 KV100 (motor + 9:1 planetary + driver)
+# The actuator has its own housing and bearings -> it is attached through an adapter plate and a coupling.
+# Two stages: total ratio = 9 x ratio(DMRD-80E). AK80-9 has no through bore -> no cable passage along the axis.
+JOINT SHM-1000
+DATA T_nom=1000        # N*m, from the name; rated or peak at the output - TO CONFIRM
+USE   reducer  DMRD-80E          components/DMRD/80E/DMRD-80E.txt
+USE   motor    AK80-9-V3-KV100   components/T-motor/AK80-9-V3-KV100/AK80-9-V3-KV100.txt
+USE   sensor   ?                 # Lens angle sensor - TO CHOOSE
+DESIGN adapter_plate   # actuator base flange -> reducer.motor_side
+DESIGN coupling        # actuator output flange -> reducer.input
+JOIN reducer.motor_side     adapter_plate.reducer
+JOIN motor.base             adapter_plate.motor
+JOIN motor.output           coupling.motor
+JOIN reducer.input          coupling.reducer
+OUT  base     reducer.base
+OUT  output   reducer.output
+END

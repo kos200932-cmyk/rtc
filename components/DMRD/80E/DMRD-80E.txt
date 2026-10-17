@@ -1,0 +1,10 @@
+# DMRD-80E - NO DATA YET. Needed: catalog drawing -> profile, holes, ports, ratio, torques.
+# Input is driven by the AK80-9 output flange (not by a frameless rotor), so the input port type may differ from the KB series.
+COMPONENT DMRD-80E
+TYPE reducer
+DATA OD=? L=? bore=? ratio=? T_rated=? T_peak=? mass=?
+PORT  input       ? -1 role=input
+PORT  motor_side  ? -1 role=stator_mount
+PORT  base        ? -1 role=fixed
+PORT  output      ?  1 role=output
+END

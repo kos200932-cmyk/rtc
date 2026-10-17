@@ -1,0 +1,22 @@
+# Joint SHM-60 (ШМ-60): reducer DMRD-KB25 + frameless motor RI70 KV95
+# The motor has no housing/bearings -> the joint gets its own motor housing; the rotor sits on a hub on the reducer input shaft.
+JOINT SHM-60
+DATA T_nom=60          # N*m, from the name; rated or peak at the output - TO CONFIRM
+#     role     component      file
+USE   reducer  DMRD-KB25      components/DMRD/KB25/DMRD-KB25.txt
+USE   motor    RI70-KV95      components/T-motor/RI70-KV95/RI70-KV95.txt
+USE   sensor   ?              # Lens angle sensor - TO CHOOSE
+# Parts designed for this joint (geometry generated from the ports)
+DESIGN motor_housing   # stator holder: centred on reducer.motor_side (D94h7), 4xM3 PCD102; stator OD76 inside
+DESIGN rotor_hub       # rotor ID38 on the hub; hub bolted to reducer.input face 6xM3 PCD33.5; through bore for cables
+DESIGN rear_cover      # closes the motor housing, carries the angle sensor
+#    port A                 port B
+JOIN reducer.motor_side     motor_housing.reducer
+JOIN motor.stator           motor_housing.stator
+JOIN reducer.input          rotor_hub.reducer
+JOIN motor.rotor            rotor_hub.rotor
+JOIN motor_housing.rear     rear_cover.housing
+# Interfaces of the joint for the arm layout
+OUT  base     reducer.base
+OUT  output   reducer.output
+END

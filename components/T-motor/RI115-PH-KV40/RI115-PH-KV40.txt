@@ -1,0 +1,11 @@
+# T-motor (CubeMars) RI115-PH KV40 - potted frameless inrunner torque motor (stator + rotor, no housing, no bearings)
+# Source: https://www.cubemars.com/product/ri115-ph-kv40-potting-frameless-torque-motor.html (catalog data, 2026-10-17)
+# Units: mm, kg, N*m, rpm (at 48 V), g*cm2.
+# NOTE: the page gives no-load speed 1920 rpm @48 V and 955 rpm @24 V - inconsistent, check with CubeMars.
+COMPONENT RI115-PH-KV40
+TYPE frameless_motor
+DATA OD=115 L=42 bore=74 mass=1.108 U=48 KV=40 Kt=0.29 T_rated=5.5 T_peak=16 I_rated=20 I_peak=52 n_rated=1430 n0=1920 J_rotor=3461 pole_pairs=20
+STEP RI115-PH-KV40.step # NOT IN REPO YET: "3D drawing" on the page above
+PORT  stator   ?  -1   role=stator_mount od=115
+PORT  rotor    ?  -1   role=rotor_mount  id=74
+END

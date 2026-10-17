@@ -1,0 +1,9 @@
+# DMRD-KB45 - NO DATA YET. Needed: catalog drawing (like DMRD-KB32.png) -> profile, holes, ports, ratio, torques.
+COMPONENT DMRD-KB45
+TYPE reducer
+DATA OD=? L=? bore=? ratio=? T_rated=? T_peak=? mass=?
+PORT  input       ? -1 role=input
+PORT  motor_side  ? -1 role=stator_mount
+PORT  base        ? -1 role=fixed
+PORT  output      ?  1 role=output
+END

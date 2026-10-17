@@ -1,0 +1,11 @@
+# T-motor (CubeMars) RI70 KV95 - frameless inrunner torque motor (stator + rotor, no housing, no bearings)
+# Source: https://www.cubemars.com/goods-858-RI70.html (catalog data, 2026-10-17)
+# Units: mm, kg, N*m, rpm (at 48 V), g*cm2.
+COMPONENT RI70-KV95
+TYPE frameless_motor
+DATA OD=76 L=24 bore=38 mass=0.2704 U=48 KV=95 Kt=0.130 T_rated=0.94 T_peak=2.68 I_rated=7.1 I_peak=21 n_rated=2710 n0=3912 J_rotor=92.15 pole_pairs=14
+STEP RI70-KV95.step     # NOT IN REPO YET: "3D drawing without Hall sensor" on the page above
+# Ports in the motor's own frame (X - axis). x positions and fits come from the STEP - TO FILL.
+PORT  stator   ?  -1   role=stator_mount od=76      # stator OD: pressed/glued into the joint's motor housing
+PORT  rotor    ?  -1   role=rotor_mount  id=38      # rotor bore: on the rotor hub
+END

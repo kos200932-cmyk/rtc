@@ -1,9 +1,15 @@
-# DMRD-KB32 - outline model from the catalog drawing (examples/DMRD-KB32.png)
+# DMRD-KB32 - outline model from the catalog drawing (DMRD-KB32.png)
 # X - along the axis from the left end of the shaft, mm; Y - radius, mm.
 # The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
 # section B-B shows the RIGHT end (x = 65.5) and vice versa.
 # Axial stack: 7 (shaft end) + 17 (D80 10 + D122 7) + 32.5 (D142) + 9 (D112) = 65.5
 # Metric threads: THREAD lines (tap-drill cut + cosmetic thread). PT1/16 oil plugs: plain 6.3 holes.
+
+# PORT/DATA lines: interfaces and catalog data for joints (see README). The macro skips them.
+
+COMPONENT DMRD-KB32
+TYPE reducer
+DATA OD=142 L=65.5 bore=36 ratio=? T_rated=? T_peak=? mass=?   # ratio/torques/mass: not on the drawing - TO FILL
 
 ASSEMBLY DMRD-KB32
 
@@ -20,6 +26,8 @@ P 12    18
 #       x     dir  n   pcd    size depth  angle
 THREAD  0     1    6   40.5   M3   6      90     # 6-M3 depth 6, left end
 THREAD  65.5  -1   6   40.5   M3   6      90     # 6-M3 depth 6, right end
+#     name     x     dir  parameters
+PORT  input    0     -1   role=input bore=36 shaft=45h7 shaft_len=7 bolts=6xM3 pcd=40.5 ang=90   # input (motor) end; only 7 mm of D45 stick out of the housing
 END
 
 # ---- 02: housing (simplified, one solid) ----------------------------------
@@ -39,6 +47,8 @@ HOLES  24    1    12  132    5.5  0      90       # 12-D5.5 through
 HOLES  17    1    2   88     6.3  9      90       # 2-PT1/16 oil plugs, LEFT side; PCD ASSUMED 88 (measured, not dimensioned)
 #       x     dir  n   pcd    size depth  angle
 THREAD  24    1    4   132    M4   8      45       # 4-M4, LEFT face of the D142 ring (depth ASSUMED 8)
+PORT  motor_side 24  -1   role=stator_mount pilot=122h7 pilot_len=7 bolts=4xM4 pcd=132 ang=45    # motor housing is centred on D122h7
+PORT  base     24    -1   role=fixed holes=12xD5.5 pcd=132 ang=90    # fixed link; which face the link sits on - TO CONFIRM
 END
 
 # ---- 03: output shaft (D112h7, 9 outside + 6 inside the housing) ----------
@@ -49,4 +59,5 @@ P 65.5  56
 P 65.5  22.5
 #       x     dir  n   pcd    size depth  angle  drillDepth
 THREAD  65.5  -1   16  100    M5   8      101.25 8.5    # 16-M5 thread depth 8, RIGHT end
+PORT  output   65.5  1    role=output pilot=112h7 bolts=16xM5 pcd=100 ang=101.25     # next link
 END

@@ -3,3 +3,10 @@
 *.frm text eol=crlf
 *.swp binary
 *.txt text eol=crlf
+*.step -text
+*.stp -text
+*.STEP -text
+*.png binary
+*.pdf binary
+*.md text eol=lf
+*.py text eol=lf

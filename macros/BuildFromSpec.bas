@@ -16,7 +16,7 @@ Option Explicit
 
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
-Private Const MACRO_VERSION As String = "v11 (2026-10-16)"
+Private Const MACRO_VERSION As String = "v12 (2026-10-17)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -194,6 +194,8 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             If gParts(cur).H(k).N < 1 Then errMsg = "bad hole count": GoTo Bad
             gParts(cur).NH = k + 1
 
+        Case "COMPONENT", "TYPE", "DATA", "PORT", "STEP"
+            ' metadata for joints and calculations (README: component cards) - no geometry yet
         Case Else
             errMsg = "unknown keyword '" & t(0) & "'": GoTo Bad
         End Select

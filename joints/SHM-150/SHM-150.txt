@@ -1,0 +1,18 @@
+# Joint SHM-150 (ШМ-150): reducer DMRD-KB32 + frameless motor RI80 V2.0 KV75
+# The motor has no housing/bearings -> the joint gets its own motor housing; the rotor sits on a hub on the reducer input shaft.
+JOINT SHM-150
+DATA T_nom=150         # N*m, from the name; rated or peak at the output - TO CONFIRM
+USE   reducer  DMRD-KB32      components/DMRD/KB32/DMRD-KB32.txt
+USE   motor    RI80-V2-KV75   components/T-motor/RI80-V2-KV75/RI80-V2-KV75.txt
+USE   sensor   ?              # Lens angle sensor - TO CHOOSE
+DESIGN motor_housing   # stator holder: centred on reducer.motor_side (D122h7), 4xM4 PCD132; stator OD85 inside
+DESIGN rotor_hub       # rotor ID40.5 on the hub; hub bolted to reducer.input face 6xM3 PCD40.5; through bore < 40.5 (reducer bore is 36)
+DESIGN rear_cover      # closes the motor housing, carries the angle sensor
+JOIN reducer.motor_side     motor_housing.reducer
+JOIN motor.stator           motor_housing.stator
+JOIN reducer.input          rotor_hub.reducer
+JOIN motor.rotor            rotor_hub.rotor
+JOIN motor_housing.rear     rear_cover.housing
+OUT  base     reducer.base
+OUT  output   reducer.output
+END
