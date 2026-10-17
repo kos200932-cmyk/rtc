@@ -38,7 +38,8 @@ def parse(path):
             elif kw == "DATA":
                 data.update(kv.split("=", 1) for kv in s[1:] if "=" in kv)
             elif kw == "PART":
-                cur = {"name": s[1], "pts": [], "holes": [], "ports": [], "motion": "fixed", "mass": None}
+                cur = {"name": s[1], "pts": [], "holes": [], "ports": [], "motion": "fixed", "mass": None,
+                       "cuts": []}
                 parts.append(cur)
             elif kw == "END":
                 cur = None
@@ -60,6 +61,16 @@ def parse(path):
                     depth = num(s[8]) if len(s) > 8 else depth + 0.5 * nominal
                 cur["holes"].append({"x": x, "dir": -1 if d_ < 0 else 1, "n": n, "pcd": pcd,
                                      "d": dia, "depth": depth, "ang": num(s[7]), "label": label})
+            elif kw == "FLATS":
+                x0, x1 = num(s[1]), num(s[2])
+                cur["cuts"].append({"kind": "flats", "x0": min(x0, x1), "x1": max(x0, x1), "across": num(s[3]),
+                                    "n": int(num(s[4])) if len(s) > 4 else 4,
+                                    "ang": num(s[5]) if len(s) > 5 else 0.0})
+            elif kw == "KEYWAY":
+                x, d_, L = num(s[1]), num(s[2]), num(s[3])
+                x1 = x + (L if d_ >= 0 else -L)
+                cur["cuts"].append({"kind": "keyway", "x0": min(x, x1), "x1": max(x, x1), "width": num(s[4]),
+                                    "bottom": num(s[5]), "ang": num(s[6])})
             elif kw == "PORT":
                 cur["ports"].append({"name": s[1], "x": num(s[2]), "dir": num(s[3]),
                                      "info": " ".join(s[4:])})
@@ -156,8 +167,23 @@ def check(parts):
                 inside(poly, x0 + (x1 - x0) * k / steps, r + h["d"] / 2))]
             if bad:
                 errs.append(f"{p['name']}: {h['label']} on D{h['pcd']} breaks through a wall at x={bad[0]:.2f}")
-            if h["depth"] > 0 and not on_mat[0] and not on_mat[-1]:
-                notes.append(f"{p['name']}: {h['label']} starts and ends outside material")
+            # holes that pass through a FLATS zone must stay inside the polygon
+            for c in p["cuts"]:
+                if c["kind"] != "flats" or x1 <= c["x0"] or x0 >= c["x1"]:
+                    continue
+                lo, hi = max(x0, c["x0"]), min(x1, c["x1"])
+                if not any(strictly_inside(poly, lo + (hi - lo) * k / 20, r, 0.01) for k in range(21)):
+                    continue        # the hole passes this zone in the air
+                half = c["across"] / 2
+                for k in range(h["n"]):
+                    a = math.radians(h["ang"] + k * 360 / h["n"])
+                    hy, hz = r * math.sin(a), r * math.cos(a)
+                    for j in range(c["n"]):
+                        b = math.radians(c["ang"] + j * 360 / c["n"])
+                        if hy * math.sin(b) + hz * math.cos(b) + h["d"] / 2 > half + 1e-9:
+                            errs.append(f"{p['name']}: {h['label']} hole at {math.degrees(a):.1f} deg "
+                                        f"breaks through a flat (across {c['across']:g})")
+                            break
             # neighbours on the same circle
             pitch = 2 * r * math.sin(math.pi / h["n"]) if h["n"] > 1 else 1e9
             if pitch < h["d"] + 1:
@@ -194,6 +220,15 @@ def draw(asm, parts, png):
                                        ec="crimson", lw=0.6, hatch="////" if "M" in h["label"] else None))
             ax.annotate(f"{h['label']} D{h['pcd']:g}", (x1 if h["dir"] > 0 else x0, r),
                         fontsize=7, color="crimson", xytext=(3, 2), textcoords="offset points")
+        for c in p["cuts"]:
+            if c["kind"] == "flats":
+                ax.plot([c["x0"], c["x1"]], [c["across"] / 2] * 2, color="purple", ls="--", lw=1)
+                ax.plot([c["x0"], c["x1"]], [-c["across"] / 2] * 2, color="purple", ls="--", lw=1)
+                ax.text(c["x0"], c["across"] / 2 + 1, f"flats {c['across']:g}", fontsize=7, color="purple")
+            else:
+                ax.add_patch(Rectangle((c["x0"], 0), c["x1"] - c["x0"], c["bottom"], fc="none",
+                                       ec="purple", lw=0.8, ls="--"))
+                ax.text(c["x1"], c["bottom"], f" key {c['width']:g}", fontsize=7, color="purple")
         for po in p["ports"]:
             ax.axvline(po["x"], color="navy", lw=0.8, ls="--")
             fit = re.search(r"fit=(\S+)", po["info"])
@@ -211,10 +246,67 @@ def draw(asm, parts, png):
     fig.savefig(png, dpi=130)
 
 
+def draw_ends(asm, parts, png):
+    """Views of both ends: from -X (input, left end) and from +X (output, right end).
+    Holes are shown on the end they are drilled from (through holes on both)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle, Polygon, Rectangle
+
+    fig, axs = plt.subplots(1, 2, figsize=(14, 7.2))
+    colors = ["#5b7c99", "#c9822b", "#4f8a3a", "#a14d5a", "#6b5ca5"]
+    for side, ax in zip((-1, 1), axs):
+        # screen x: from -X (side -1) the +Z axis points right, from +X it points left
+        sx = 1 if side < 0 else -1
+        for i, p in enumerate(parts):
+            col = colors[i % len(colors)]
+            for r in sorted({y for _, y in p["pts"] if y > 0}):
+                ax.add_patch(Circle((0, 0), r, fill=False, ec=col, lw=0.6, alpha=0.6))
+            for c in p["cuts"]:
+                if c["kind"] == "flats":
+                    rv = c["across"] / 2 / math.cos(math.pi / c["n"])
+                    vs = []
+                    for k in range(c["n"]):
+                        a = math.radians(c["ang"] + 180 / c["n"] + k * 360 / c["n"])
+                        vs.append((sx * rv * math.cos(a), rv * math.sin(a)))
+                    ax.add_patch(Polygon(vs, closed=True, fill=False, ec="purple", lw=1.2))
+                elif side < 0:
+                    a = math.radians(c["ang"])
+                    u, w = c["bottom"], c["width"] / 2
+                    pts = [(0, -w), (u, -w), (u, w), (0, w)]
+                    ax.add_patch(Polygon([(sx * (uu * math.cos(a) - vv * math.sin(a)), uu * math.sin(a) + vv * math.cos(a))
+                                          for uu, vv in pts], closed=True, fill=False, ec="purple", lw=1.2))
+            for h in p["holes"]:
+                faces = (-1, 1) if h["depth"] <= 0 else ((-1,) if h["dir"] > 0 else (1,))
+                if side not in faces:
+                    continue
+                r = h["pcd"] / 2
+                for k in range(h["n"]):
+                    a = math.radians(h["ang"] + k * 360 / h["n"])
+                    cx, cy = sx * r * math.cos(a), r * math.sin(a)
+                    ax.add_patch(Circle((cx, cy), h["d"] / 2, fill=False, ec="crimson", lw=1))
+                a = math.radians(h["ang"])
+                ax.annotate(f"{h['label']} D{h['pcd']:g}", (sx * r * math.cos(a), r * math.sin(a)),
+                            fontsize=7, color="crimson", xytext=(4, 4), textcoords="offset points")
+        R = max(y for p in parts for _, y in p["pts"]) * 1.08
+        ax.axhline(0, color="k", lw=0.4, ls="-.")
+        ax.axvline(0, color="k", lw=0.4, ls="-.")
+        ax.set_xlim(-R, R)
+        ax.set_ylim(-R, R)
+        ax.set_aspect("equal")
+        ax.set_title("from -X: input (left) end, +Z right" if side < 0 else "from +X: output (right) end, +Z left",
+                     fontsize=10)
+    fig.suptitle(f"{asm or ''} - end views (angle 0 = +Z, 90 = +Y up)")
+    fig.tight_layout()
+    fig.savefig(png, dpi=120)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("spec")
     ap.add_argument("--png")
+    ap.add_argument("--ends", help="PNG with both end views")
     a = ap.parse_args()
     asm, parts, data = parse(a.spec)
     errs, notes = check(parts)
@@ -240,6 +332,8 @@ def main():
               f"{sum(len(p['ports']) for p in parts)} ports")
     if a.png:
         draw(asm, parts, a.png)
+    if a.ends:
+        draw_ends(asm, parts, a.ends)
     sys.exit(1 if errs else 0)
 
 

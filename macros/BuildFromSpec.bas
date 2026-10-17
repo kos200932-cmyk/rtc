@@ -13,7 +13,9 @@ Attribute VB_Name = "BuildFromSpec"
 '                                Right plane on Right plane: free rotation about X.
 '   * DATA key=value lines -> custom properties of the assembly,
 '     PORT lines -> "PORT_<name>" plane + custom property of the part,
-'     MASS <kg> -> part density set so that the part has exactly this mass.
+'     MASS <kg> -> part density set so that the part has exactly this mass,
+'     FLATS  -> "FlatsN" (milled flats, e.g. a square flange cut from a turned disc),
+'     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore).
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -23,7 +25,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v14 (2026-10-17)"
+Private Const MACRO_VERSION As String = "v15 (2026-10-17)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -36,6 +38,16 @@ Private Type HoleSpec
     IsThread As Boolean ' THREAD line: tapped hole via Hole Wizard
     Size As String      ' thread size for Hole Wizard, e.g. "M4"
     DrillDepth As Double ' tap drill depth, mm (THREAD only)
+End Type
+
+Private Type CutSpec        ' FLATS / KEYWAY
+    Kind As Integer     ' 1 - FLATS, 2 - KEYWAY
+    X As Double         ' start plane, mm
+    Dir As Integer      ' +1 / -1 - cut direction along X
+    Depth As Double     ' length of the cut along X, mm
+    A As Double         ' FLATS: size across flats; KEYWAY: width, mm
+    B As Double         ' FLATS: number of flats; KEYWAY: bottom - distance from the axis, mm
+    Ang As Double       ' FLATS: normal of the first flat; KEYWAY: slot direction, deg (0 = +Z, 90 = +Y)
 End Type
 
 Private Type PartSpec
@@ -51,6 +63,8 @@ Private Type PartSpec
     PortInfo() As String
     NPort As Long
     Mass As Double      ' kg; 0 - not set
+    C() As CutSpec
+    NC As Long
 End Type
 
 Private swApp As SldWorks.SldWorks
@@ -153,6 +167,8 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             ReDim gParts(cur).H(0 To 15)
             gParts(cur).Motion = 0
             gParts(cur).Mass = 0
+            gParts(cur).NC = 0
+            ReDim gParts(cur).C(0 To 7)
             gParts(cur).NPort = 0
             ReDim gParts(cur).PortName(0 To 7)
             ReDim gParts(cur).PortX(0 To 7)
@@ -228,6 +244,37 @@ Private Function ReadSpec(ByVal path As String) As Boolean
                 Case "rotate": gParts(cur).Motion = 1
                 Case Else: errMsg = "expected 'MOTION fixed' or 'MOTION rotate'": GoTo Bad
             End Select
+
+        Case "FLATS", "KEYWAY"
+            ' FLATS x0 x1 across [n] [angle]  |  KEYWAY x dir length width bottom angle
+            If cur < 0 Then errMsg = "'" & t(0) & "' outside of PART ... END": GoTo Bad
+            k = gParts(cur).NC
+            If k > UBound(gParts(cur).C) Then ReDim Preserve gParts(cur).C(0 To 2 * k)
+            If UCase(t(0)) = "FLATS" Then
+                If UBound(t) < 3 Then errMsg = "expected 'FLATS x0 x1 across [n] [angle]'": GoTo Bad
+                gParts(cur).C(k).Kind = 1
+                gParts(cur).C(k).X = Num(t(1))
+                gParts(cur).C(k).Dir = IIf(Num(t(2)) < Num(t(1)), -1, 1)
+                gParts(cur).C(k).Depth = Abs(Num(t(2)) - Num(t(1)))
+                gParts(cur).C(k).A = Num(t(3))
+                gParts(cur).C(k).B = 4
+                If UBound(t) >= 4 Then gParts(cur).C(k).B = Num(t(4))
+                gParts(cur).C(k).Ang = 0
+                If UBound(t) >= 5 Then gParts(cur).C(k).Ang = Num(t(5))
+                If gParts(cur).C(k).B < 1 Or gParts(cur).C(k).A <= 0 Then errMsg = "bad FLATS size or count": GoTo Bad
+            Else
+                If UBound(t) < 6 Then errMsg = "expected 'KEYWAY x dir length width bottom angle'": GoTo Bad
+                gParts(cur).C(k).Kind = 2
+                gParts(cur).C(k).X = Num(t(1))
+                gParts(cur).C(k).Dir = IIf(Num(t(2)) < 0, -1, 1)
+                gParts(cur).C(k).Depth = Num(t(3))
+                gParts(cur).C(k).A = Num(t(4))
+                gParts(cur).C(k).B = Num(t(5))
+                gParts(cur).C(k).Ang = Num(t(6))
+                If gParts(cur).C(k).A <= 0 Or gParts(cur).C(k).B <= 0 Then errMsg = "bad KEYWAY width or bottom": GoTo Bad
+            End If
+            If gParts(cur).C(k).Depth <= 0 Then errMsg = "cut length must be > 0": GoTo Bad
+            gParts(cur).NC = k + 1
 
         Case "MASS"
             If cur < 0 Then errMsg = "'MASS' outside of PART ... END": GoTo Bad
@@ -377,6 +424,11 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     End If
     body.Name = "Body"
 
+    ' --- flats and keyways ---
+    For i = 0 To p.NC - 1
+        AddCut m, planes(2), p, i
+    Next i
+
     ' --- holes ---
     For i = 0 To p.NH - 1
         If p.H(i).IsThread Then
@@ -402,6 +454,85 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
 
     If Not SaveDoc(m, outPath) Then Exit Function
     BuildPart = True
+End Function
+
+' FLATS: region between a big circle and a regular polygon (n flats) is cut over the length.
+' KEYWAY: rectangle from the axis to "bottom", "width" wide, in the direction Ang.
+Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.Feature, _
+                   p As PartSpec, ByVal i As Long)
+    Dim c As CutSpec, pl As SldWorks.Feature, nm As String
+    c = p.C(i)
+    nm = IIf(c.Kind = 1, "Flats", "Keyway") & (i + 1)
+    Set pl = GetOffsetPlane(m, rightPlane, c.X)
+    If pl Is Nothing Then
+        gLog = gLog & p.Name & ": cannot create plane at X=" & c.X & " for " & nm & vbCrLf
+        Exit Sub
+    End If
+
+    Dim sm As SldWorks.SketchManager, xf As SldWorks.MathTransform
+    Dim k As Long, n As Long, rv As Double, a As Double, rMax As Double
+    Dim pt(0 To 3) As Variant, p1 As Variant, p2 As Variant
+    Set sm = m.SketchManager
+    m.ClearSelection2 True
+    pl.Select2 False, 0
+    sm.InsertSketch True
+    Set xf = sm.ActiveSketch.ModelToSketchTransform
+
+    If c.Kind = 1 Then
+        n = CLng(c.B)
+        rv = c.A / 2 / Cos(PI / n)                     ' polygon vertex radius
+        For k = 0 To n - 1
+            p1 = PolarPt(xf, c.X, rv, c.Ang + 180# / n + k * 360# / n)
+            p2 = PolarPt(xf, c.X, rv, c.Ang + 180# / n + (k + 1) * 360# / n)
+            sm.CreateLine p1(0), p1(1), 0, p2(0), p2(1), 0
+        Next k
+        For k = 0 To p.NP - 1
+            If p.PY(k) > rMax Then rMax = p.PY(k)
+        Next k
+        p1 = PolarPt(xf, c.X, 0, 0)
+        sm.CreateCircleByRadius p1(0), p1(1), 0, 2 * rMax * MM
+    Else
+        ' corners in (radial u, tangential v): (0,-w/2) (bottom,-w/2) (bottom,w/2) (0,w/2)
+        a = c.Ang * PI / 180#
+        pt(0) = SlotPt(xf, c.X, 0, -c.A / 2, a)
+        pt(1) = SlotPt(xf, c.X, c.B, -c.A / 2, a)
+        pt(2) = SlotPt(xf, c.X, c.B, c.A / 2, a)
+        pt(3) = SlotPt(xf, c.X, 0, c.A / 2, a)
+        For k = 0 To 3
+            sm.CreateLine pt(k)(0), pt(k)(1), 0, pt((k + 1) Mod 4)(0), pt((k + 1) Mod 4)(1), 0
+        Next k
+    End If
+    sm.InsertSketch True
+
+    Dim sk As SldWorks.Feature, cut As SldWorks.Feature, attempt As Long, rev As Boolean
+    Set sk = m.FeatureByPositionReverse(0)
+    sk.Name = nm & "_Sketch"
+    For attempt = 0 To 1
+        rev = (c.Dir < 0) Xor (attempt = 1)
+        m.ClearSelection2 True
+        sk.Select2 False, 0
+        Set cut = CutExtrude(m, True, rev, swEndCondBlind, c.Depth * MM)
+        If Not cut Is Nothing Then Exit For
+    Next attempt
+    If cut Is Nothing Then
+        gLog = gLog & p.Name & ": " & nm & " failed (X=" & c.X & ")" & vbCrLf
+    Else
+        cut.Name = nm
+    End If
+End Sub
+
+' Point at radius r (mm), angle angDeg (0 = +Z, 90 = +Y) in the plane X = x -> sketch coordinates
+Private Function PolarPt(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
+                         ByVal r As Double, ByVal angDeg As Double) As Variant
+    Dim a As Double
+    a = angDeg * PI / 180#
+    PolarPt = ModelToSketch(xf, x * MM, r * Sin(a) * MM, r * Cos(a) * MM)
+End Function
+
+' Point u along the radial direction a (rad) and v across it, mm -> sketch coordinates
+Private Function SlotPt(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
+                        ByVal u As Double, ByVal v As Double, ByVal a As Double) As Variant
+    SlotPt = ModelToSketch(xf, x * MM, (u * Sin(a) + v * Cos(a)) * MM, (u * Cos(a) - v * Sin(a)) * MM)
 End Function
 
 ' Circular pattern of holes as one sketch + one Cut-Extrude

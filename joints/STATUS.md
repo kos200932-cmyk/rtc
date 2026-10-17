@@ -10,7 +10,7 @@ Reducer T: catalog rated / start-stop / momentary max at the output.
 | SHM-60 | DMRD-KB25 | RI70-KV95 | 60 | 62 / 93 / 186 | 0.94 / 2.68 | 28.0 / 79.8 | ? | ? / ? | ? |
 | SHM-150 | DMRD-KB32 | RI80-V2-KV75 | 150 | 103 / 155 / 310 | 1.45 / 4.10 | 45.7 / 129.3 | ? | ? / ? | ? |
 | SHM-500 | DMRD-KB45 | RI115-PH-KV40 | 500 | 375 / 675 / 1350 | 5.50 / 16.00 | 39.1 / 113.6 | ? | ? / ? | ? |
-| SHM-1000 | DMRD-80E | AK80-9-V3-KV100 | 1000 | ? / ? / ? | 9.00 / 22.00 | 56.8 / 138.9 | ? | ? / ? | ? |
+| SHM-1000 | DMRD-80E | AK80-9-V3-KV100 | 1000 | 784 / 1960 / 3920 | 9.00 / 22.00 | 56.8 / 138.9 | ? | ? / ? | ? |
 
 ## SHM-60
 
@@ -39,17 +39,8 @@ Reducer T: catalog rated / start-stop / momentary max at the output.
 ## SHM-1000
 
 - links: OK
-- to fill: DMRD-80E: DATA OD
-- to fill: DMRD-80E: DATA L
-- to fill: DMRD-80E: DATA bore
 - to fill: DMRD-80E: DATA ratio
-- to fill: DMRD-80E: DATA T_rated
-- to fill: DMRD-80E: DATA T_peak
 - to fill: DMRD-80E: DATA mass
-- to fill: DMRD-80E: PORT input
-- to fill: DMRD-80E: PORT motor_side
-- to fill: DMRD-80E: PORT base
-- to fill: DMRD-80E: PORT output
 - to fill: AK80-9-V3-KV100: PORT base
 - to fill: AK80-9-V3-KV100: PORT output
 - to fill: sensor: component not chosen
