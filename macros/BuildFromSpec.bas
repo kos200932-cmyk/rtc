@@ -230,7 +230,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             If gParts(cur).H(k).N < 1 Then errMsg = "bad hole count": GoTo Bad
             gParts(cur).NH = k + 1
 
-        Case "COMPONENT", "TYPE", "STEP"
+        Case "COMPONENT", "TYPE", "STEP", "FRAME"
             ' component card metadata - not used for geometry
 
         Case "DATA"

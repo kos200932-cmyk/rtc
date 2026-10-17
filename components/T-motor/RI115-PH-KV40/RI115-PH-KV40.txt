@@ -5,7 +5,17 @@
 COMPONENT RI115-PH-KV40
 TYPE frameless_motor
 DATA OD=115 L=42 bore=74 mass=1.108 U=48 KV=40 Kt=0.29 T_rated=5.5 T_peak=16 I_rated=20 I_peak=52 n_rated=1430 n0=1920 J_rotor=3461 pole_pairs=20
-STEP RI115-PH-KV40.step # NOT IN REPO YET: "3D drawing" on the page above
-PORT  stator   ?  -1   role=stator_mount od=115
-PORT  rotor    ?  -1   role=rotor_mount  id=74
+STEP  RI115-PH.step     # from https://www.cubemars.com/product/ri115-ph-kv40-potting-frameless-torque-motor.html ("3D drawing" archive)
+FRAME axis=+Z origin=0,0,-13.5   # STEP coordinates: motor axis -> X of this card, origin -> x=0
+# Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
+# +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
+# with tools/step_inspect.py (STEP: stator (potted, with the sensor board) and rotor as separate solids):
+#   stator: lamination D115 x 0..27 (a R1 feature on the OD at 0 deg - anti-rotation), potting D113 / D85.2
+#           x -4..31.5, board D112.5 x 31.5..33.1, parts on it up to x 35.1 (on the +X side)
+#   rotor:  D83.73 / bore D74, x 0..32 (flush with the lamination at x=0, 5 mm beyond it at +X)
+#   air gap 0.64 mm (D83.73 in D85)
+# stator: fit = lamination OD (pressed / glued into the motor housing); envelope = all of the stator
+PORT  stator   0  -1   role=stator_mount od=115 fit_x=0..27 envelope_od=115 envelope_x=-4..35.1 winding_id=85.2 key=R1_on_OD_at_0deg
+# rotor: fit = rotor bore (on the adapter cup)
+PORT  rotor    0  -1   role=rotor_mount  id=74 od=83.73 fit_x=0..32
 END

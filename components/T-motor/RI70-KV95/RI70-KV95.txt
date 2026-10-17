@@ -4,8 +4,17 @@
 COMPONENT RI70-KV95
 TYPE frameless_motor
 DATA OD=76 L=24 bore=38 mass=0.2704 U=48 KV=95 Kt=0.130 T_rated=0.94 T_peak=2.68 I_rated=7.1 I_peak=21 n_rated=2710 n0=3912 J_rotor=92.15 pole_pairs=14
-STEP RI70-KV95.step     # NOT IN REPO YET: "3D drawing without Hall sensor" on the page above
-# Ports in the motor's own frame (X - axis). x positions and fits come from the STEP - TO FILL.
-PORT  stator   ?  -1   role=stator_mount od=76      # stator OD: pressed/glued into the joint's motor housing
-PORT  rotor    ?  -1   role=rotor_mount  id=38      # rotor bore: on the rotor hub
+STEP  RI70.step     # from https://www.cubemars.com/goods-858-RI70.html ("without Hall sensor" archive - it still contains the Hall board solid)
+FRAME axis=+Y origin=0,0,0   # STEP coordinates: motor axis -> X of this card, origin -> x=0
+# Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
+# +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
+# with tools/step_inspect.py (STEP: stator, rotor, Hall board (+ lead wires) as separate solids):
+#   stator: lamination D76 x 0..13 (4 notches on the OD at 0/90/180/270), teeth ID D47,
+#           end windings D73 / D48 x -3.5..19.5, lead wires up to x 44.5 (on the +X side)
+#   rotor:  D45.8 / bore D38, x 0..15 (flush with the lamination at x=0, 2 mm beyond it at +X)
+#   air gap 0.6 mm (D45.8 in D47)
+# stator: fit = lamination OD (pressed / glued into the motor housing); envelope = all of the stator
+PORT  stator   0  -1   role=stator_mount od=76 fit_x=0..13 envelope_od=76 envelope_x=-3.5..19.5 winding_id=48 leads_x=19.5..44.5 notches=4xR1.25_on_OD
+# rotor: fit = rotor bore (on the adapter cup)
+PORT  rotor    0  -1   role=rotor_mount  id=38 od=45.8 fit_x=0..15 chamfer=0.3
 END

@@ -16,24 +16,18 @@ Reducer T: catalog rated / start-stop / momentary max at the output.
 
 - links: OK
 - to fill: DMRD-KB25: DATA ratio
-- to fill: RI70-KV95: PORT stator
-- to fill: RI70-KV95: PORT rotor
 - to fill: sensor: component not chosen
 
 ## SHM-150
 
 - links: OK
 - to fill: DMRD-KB32: DATA ratio
-- to fill: RI80-V2-KV75: PORT stator
-- to fill: RI80-V2-KV75: PORT rotor
 - to fill: sensor: component not chosen
 
 ## SHM-500
 
 - links: OK
 - to fill: DMRD-KB45: DATA ratio
-- to fill: RI115-PH-KV40: PORT stator
-- to fill: RI115-PH-KV40: PORT rotor
 - to fill: sensor: component not chosen
 
 ## SHM-1000

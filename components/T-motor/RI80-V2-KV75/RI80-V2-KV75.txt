@@ -4,7 +4,16 @@
 COMPONENT RI80-V2-KV75
 TYPE frameless_motor
 DATA OD=85 L=27 bore=40.5 mass=0.411 U=48 KV=75 Kt=0.155 T_rated=1.45 T_peak=4.1 I_rated=9.4 I_peak=27.6 n_rated=2430 n0=2960 J_rotor=212.49 pole_pairs=8
-STEP RI80-V2-KV75.step  # NOT IN REPO YET: "3D drawing without Hall sensor" on the page above
-PORT  stator   ?  -1   role=stator_mount od=85
-PORT  rotor    ?  -1   role=rotor_mount  id=40.5
+STEP  RI80-V2.step     # from https://www.cubemars.com/goods-860-RI80+V20.html (3D drawing without Hall sensor)
+FRAME axis=+Z origin=-6.415,15.376,-9.25   # STEP coordinates: motor axis -> X of this card, origin -> x=0
+# Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
+# +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
+# with tools/step_inspect.py (STEP: stator and rotor as separate solids):
+#   stator: lamination D85 x 0..16, teeth ID D51, end windings D82 / D52.5 x -4..22.5
+#   rotor:  D50 / bore D40.5, x 0..19 (flush with the lamination at x=0, 3 mm beyond it at +X)
+#   air gap 0.5 mm (D50 in D51)
+# stator: fit = lamination OD (pressed / glued into the motor housing); envelope = all of the stator
+PORT  stator   0  -1   role=stator_mount od=85 fit_x=0..16 envelope_od=85 envelope_x=-4..22.5 winding_id=52.5
+# rotor: fit = rotor bore (on the adapter cup)
+PORT  rotor    0  -1   role=rotor_mount  id=40.5 od=50 fit_x=0..19
 END
