@@ -96,6 +96,14 @@ def frame_trsf(axis, origin):
     return r.Multiplied(t1)
 
 
+def volume(shape):
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    g = GProp_GProps()
+    BRepGProp.VolumeProperties_s(shape, g)
+    return g.Mass()
+
+
 def bbox(shape):
     b = Bnd_Box()
     BRepBndLib.Add_s(shape, b)
@@ -129,12 +137,25 @@ def main():
     for c in parts.values():
         builder.MakeCompound(c)
     counts = {"rotor": 0, "stator": 0}
+    stator_solids = []
     for s in solids(shape):
         ds = coaxial_diameters(s, ax, info["origin"])
         kind = "rotor" if (info["rotor_id"] in ds and round(info["rotor_od"], 2) in ds) else "stator"
         moved = BRepBuilderAPI_Transform(s, trsf, True).Shape()
-        builder.Add(parts[kind], moved)
-        counts[kind] += 1
+        if kind == "rotor":
+            builder.Add(parts[kind], moved)
+            counts[kind] += 1
+        else:
+            stator_solids.append(moved)
+    # one solid per file: SolidWorks opens a STEP with several solids as an assembly.
+    # The stator keeps its largest solid; boards / lead wires are dropped (level of detail 2).
+    stator_solids.sort(key=volume, reverse=True)
+    if stator_solids:
+        builder.Add(parts["stator"], stator_solids[0])
+        counts["stator"] = 1
+        if len(stator_solids) > 1:
+            print(f"stator: kept the largest of {len(stator_solids)} solids, dropped "
+                  + ", ".join(f"{volume(x) / 1000:.2f} cm3" for x in stator_solids[1:]))
     if counts["rotor"] != 1:
         sys.exit(f"expected exactly one rotor solid, found {counts['rotor']}")
     base = os.path.splitext(info["step"])[0]
