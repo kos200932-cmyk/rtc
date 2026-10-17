@@ -16,23 +16,27 @@ Reducer T: catalog rated / start-stop / momentary max at the output.
 
 - links: OK
 - to fill: DMRD-KB25: DATA ratio
-- to fill: sensor: component not chosen
+- planned later: sensor_out
+- planned later: sensor_motor
 
 ## SHM-150
 
 - links: OK
 - to fill: DMRD-KB32: DATA ratio
-- to fill: sensor: component not chosen
+- planned later: sensor_out
+- planned later: sensor_motor
 
 ## SHM-500
 
 - links: OK
 - to fill: DMRD-KB45: DATA ratio
-- to fill: sensor: component not chosen
+- planned later: sensor_out
+- planned later: sensor_motor
 
 ## SHM-1000
 
 - links: OK
 - to fill: DMRD-80E: DATA ratio
 - to fill: DMRD-80E: DATA mass
-- to fill: sensor: component not chosen
+- planned later: sensor_out
+- planned later: sensor_motor

@@ -1,0 +1,47 @@
+# SHM-150: adapter cup for the RI80 V2 rotor on the DMRD-KB32 input shaft + clamping flange.
+# Coordinates: the frame of DMRD-KB32 (X - axis, x=0 - left / motor end of the input shaft), mm.
+#
+# Why not screws on the motor side: the 6-M3 of the shaft end are on D40.5, i.e. on the rotor bore
+# itself (M3 heads take r 17.5..23, rotor bore r 20.25) - the screws cannot be reached through the
+# rotor seat without 6 slots along it (-26 % of the seat). So the cup is a tube through the hollow
+# input shaft, clamped by a flange on the other (output) end, which is screwed to the shaft with its
+# 6-M3 on D40.5:
+#   torque: shaft -> 6xM3 -> flange -> 3xM3 -> cup -> rotor (RI80 peak 4.1 N*m)
+#   centring: the tube D36 sits in both D36 bores of the shaft (left 0..12, right 41.5..65.5)
+#   axial: cup shoulder on the left shaft face <- clamp -> flange on the right shaft face
+#   rotor: on the seat D40.5 x -19..0, held between the cup collar and the left shaft face
+#   cable passage: D28 (was D36 in the shaft)
+# Rotor / stator placement (card RI80-V2-KV75, card +X -> -X here): rotor x -19..0,
+# stator lamination D85 x -16..0, windings x -22.5..4 (3 mm clear of the housing D80 boss at x=7).
+# The flange sticks out 3 mm beyond the output face (x 65.5..68.5, D46, turns with the INPUT shaft):
+# the next link needs a central recess >= D50 x 4.
+
+# ---- rotor cup ----------------------------------------------------------------------------
+PART SHM-150-01_RotorCup
+MOTION rotate
+P -22   14
+P -22   23       # collar D46 x 3 - axial stop of the rotor
+P -19   23
+P -19   20.25    # rotor seat D40.5 (rotor bore 40.5, fit for gluing / light press)
+P 0     20.25
+P 0     18       # shoulder on the left shaft face; tube D36 through the shaft (fits both D36 bores)
+P 65.5  18
+P 65.5  14       # bore D28 - cable passage
+#       x     dir  n   pcd    size depth  angle
+THREAD  65.5  -1   3   32     M3   6      0       # 3-M3 in the tube end for the flange
+PORT  shaft  0     1   role=fit_in_shaft fit=36g6 fit_x=0..12,41.5..65.5 shoulder_x=0
+PORT  rotor  -19   -1  role=rotor_seat fit=40.5 fit_x=-19..0 collar=46
+END
+
+# ---- clamping flange (output end of the input shaft) ------------------------------------------
+PART SHM-150-02_ClampFlange
+MOTION rotate
+P 65.5  14
+P 65.5  23       # D46
+P 68.5  23
+P 68.5  14
+#      x     dir  n   pcd    d    depth  angle
+HOLES  68.5  -1   6   40.5   3.4  0      90       # 6 x D3.4 -> 6-M3 of the shaft end (D40.5)
+HOLES  68.5  -1   3   32     3.4  0      0        # 3 x D3.4 -> 3-M3 of the cup tube (D32)
+PORT  shaft  65.5  -1  role=on_shaft_end bolts=6xM3 pcd=40.5 ang=90
+END

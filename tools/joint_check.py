@@ -67,6 +67,8 @@ def read_joint(path):
                     j["data"][k] = v
             elif kw == "USE":
                 j["use"][t[1]] = {"component": t[2], "file": t[3] if len(t) > 3 else None}
+            elif kw == "LATER":
+                j.setdefault("later", []).append(" ".join(t[1:]))
             elif kw == "DESIGN":
                 j["design"].append(t[1])
             elif kw == "JOIN":
@@ -149,6 +151,8 @@ def main():
     details, bad = [], False
     for f in files:
         j = read_joint(f)
+        if not j["name"]:
+            continue        # part specs of a joint (no JOINT line)
         r, problems, todo = check_joint(j, a.eta)
         lines.append(
             f"| {j['name']} | {r.get('reducer', '?')} | {r.get('motor', '?')} | {fmt(r['T_nom'])} | "
@@ -159,6 +163,7 @@ def main():
         details.append(f"\n## {j['name']}\n")
         details += [f"- ERROR: {p}" for p in problems] or ["- links: OK"]
         details += [f"- to fill: {t}" for t in todo]
+        details += [f"- planned later: {t}" for t in j.get("later", [])]
         bad |= bool(problems)
     report = "\n".join(lines + details) + "\n"
     print(report)

@@ -5,7 +5,9 @@ JOINT SHM-1000
 DATA T_nom=1000        # N*m, from the name; rated or peak at the output - TO CONFIRM
 USE   reducer  DMRD-80E          components/DMRD/80E/DMRD-80E.txt
 USE   motor    AK80-9-V3-KV100   components/T-motor/AK80-9-V3-KV100/AK80-9-V3-KV100.txt
-USE   sensor   ?                 # Lens angle sensor - TO CHOOSE
+# Sensors - not in the joint yet (for now a joint = reducer + motor), space to be kept for:
+LATER sensor_out     # angle sensor of the output shaft
+LATER sensor_motor   # rotor angle sensor for motor control, driven from the rotor by a belt
 DESIGN adapter_plate   # AK80-9 front face (D98, 8xM3 on D85) -> reducer.motor_side (recess D110H7 x 6.5, 4xM8 on D145 in the 130 square)
 DESIGN coupling        # AK80-9 output (spigot D48, 6xM4 on D28, 2 dowels D3) -> reducer.input (bore D22H7 x 41, key 8, 19 below the face)
 JOIN reducer.motor_side     adapter_plate.reducer

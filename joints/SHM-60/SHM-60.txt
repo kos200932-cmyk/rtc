@@ -6,7 +6,9 @@ DATA T_nom=60          # N*m, from the name; rated or peak at the output - TO CO
 #     role     component      file
 USE   reducer  DMRD-KB25      components/DMRD/KB25/DMRD-KB25.txt
 USE   motor    RI70-KV95      components/T-motor/RI70-KV95/RI70-KV95.txt
-USE   sensor   ?              # Lens angle sensor - TO CHOOSE
+# Sensors - not in the joint yet (for now a joint = reducer + motor), space to be kept for:
+LATER sensor_out     # angle sensor of the output shaft
+LATER sensor_motor   # rotor angle sensor for motor control, driven from the rotor by a belt
 # Parts designed for this joint (geometry generated from the ports)
 DESIGN rotor_cup       # adapter cup: on reducer.input (38h7, 6xM3 PCD33.5 on the shaft end), carries the rotor ID38
 DESIGN motor_housing   # stator OD76 holder; fixed to the base link - TO DEFINE
