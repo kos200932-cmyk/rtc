@@ -61,6 +61,11 @@ def parse(path):
                     depth = num(s[8]) if len(s) > 8 else depth + 0.5 * nominal
                 cur["holes"].append({"x": x, "dir": -1 if d_ < 0 else 1, "n": n, "pcd": pcd,
                                      "d": dia, "depth": depth, "ang": num(s[7]), "label": label})
+            elif kw == "BOX":
+                x0, x1 = sorted((num(s[1]), num(s[2])))
+                cur["box"] = {"x0": x0, "x1": x1, "r0": num(s[3]), "r1": num(s[4]),
+                              "w": num(s[5]), "ang": num(s[6])}
+                cur["pts"] = [(x0, num(s[3])), (x0, num(s[4])), (x1, num(s[4])), (x1, num(s[3]))]
             elif kw == "FLATS":
                 x0, x1 = num(s[1]), num(s[2])
                 cur["cuts"].append({"kind": "flats", "x0": min(x0, x1), "x1": max(x0, x1), "across": num(s[3]),
@@ -81,6 +86,9 @@ def parse(path):
 
 def volume(p):
     """Volume of the revolved profile minus the holes (hole length taken inside the part), m^3."""
+    if p.get("box"):
+        b = p["box"]
+        return (b["x1"] - b["x0"]) * (b["r1"] - b["r0"]) * b["w"] * 1e-9
     pts, a, cy = p["pts"], 0.0, 0.0
     for i in range(len(pts)):
         (x1, y1), (x2, y2) = pts[i], pts[(i + 1) % len(pts)]
@@ -131,6 +139,8 @@ def check(parts):
     # overlap between parts: sample a grid, a point strictly inside two parts = overlap
     for i in range(len(parts)):
         for j in range(i + 1, len(parts)):
+            if parts[i].get("box") or parts[j].get("box"):
+                continue            # a prism is not a ring - not comparable in the axial section
             a, b = parts[i]["pts"], parts[j]["pts"]
             xs = [x for x, _ in a + b]
             ys = [y for _, y in a + b]

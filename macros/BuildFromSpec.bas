@@ -15,7 +15,9 @@ Attribute VB_Name = "BuildFromSpec"
 '     PORT lines -> "PORT_<name>" plane + custom property of the part,
 '     MASS <kg> -> part density set so that the part has exactly this mass,
 '     FLATS  -> "FlatsN" (milled flats, e.g. a square flange cut from a turned disc),
-'     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore or on a shaft).
+'     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore or on a shaft),
+'     BOX    -> a prismatic part instead of a revolved one (e.g. a key).
+'   Every blind cut / extrusion is checked to go to the requested side of its sketch plane.
 '   * a JOINT file (joints/*/*.txt) builds a whole joint in one run:
 '       USE <role> <component> <file>  - a spec with PARTs (built, inserted as a flexible
 '                                        sub-assembly) or a component card with STEP (imported,
@@ -33,7 +35,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v18.1 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v19 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -74,6 +76,13 @@ Private Type PartSpec
     Mass As Double      ' kg; 0 - not set
     C() As CutSpec
     NC As Long
+    HasBox As Boolean   ' BOX x0 x1 r0 r1 width angle - prism instead of the revolved profile
+    BX0 As Double
+    BX1 As Double
+    BR0 As Double
+    BR1 As Double
+    BW As Double
+    BAng As Double
 End Type
 
 Private swApp As SldWorks.SldWorks
@@ -262,6 +271,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             gParts(cur).Mass = 0
             gParts(cur).NC = 0
             ReDim gParts(cur).C(0 To 7)
+            gParts(cur).HasBox = False
             gParts(cur).NPort = 0
             ReDim gParts(cur).PortName(0 To 7)
             ReDim gParts(cur).PortX(0 To 7)
@@ -371,6 +381,17 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             If gParts(cur).C(k).Depth <= 0 Then errMsg = "cut length must be > 0": GoTo Bad
             gParts(cur).NC = k + 1
 
+        Case "BOX"
+            ' BOX x0 x1 r0 r1 width angle: rectangle r0..r1 (from the axis) x width, direction angle, x0..x1
+            If cur < 0 Then errMsg = "'BOX' outside of PART ... END": GoTo Bad
+            If UBound(t) < 6 Then errMsg = "expected 'BOX x0 x1 r0 r1 width angle'": GoTo Bad
+            gParts(cur).HasBox = True
+            gParts(cur).BX0 = Num(t(1)): gParts(cur).BX1 = Num(t(2))
+            gParts(cur).BR0 = Num(t(3)): gParts(cur).BR1 = Num(t(4))
+            gParts(cur).BW = Num(t(5)): gParts(cur).BAng = Num(t(6))
+            If gParts(cur).BX1 = gParts(cur).BX0 Or gParts(cur).BR1 <= gParts(cur).BR0 Or gParts(cur).BW <= 0 Then _
+                errMsg = "bad BOX size": GoTo Bad
+
         Case "MASS"
             If cur < 0 Then errMsg = "'MASS' outside of PART ... END": GoTo Bad
             If UBound(t) < 1 Then errMsg = "expected 'MASS kg'": GoTo Bad
@@ -420,7 +441,7 @@ NextLine:
             If gParts(cur).PX(k - 1) = gParts(cur).PX(0) And _
                gParts(cur).PY(k - 1) = gParts(cur).PY(0) Then gParts(cur).NP = k - 1
         End If
-        If gParts(cur).NP < 3 Then
+        If gParts(cur).NP < 3 And Not gParts(cur).HasBox Then
             MsgBox "Part " & gParts(cur).Name & ": profile needs at least 3 points.", vbExclamation
             Exit Function
         End If
@@ -483,6 +504,13 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
         Exit Function
     End If
 
+    Dim body As SldWorks.Feature
+    If p.HasBox Then
+        Set body = AddBox(m, planes(2), p)
+        If body Is Nothing Then Exit Function
+        GoTo BodyDone
+    End If
+
     ' --- profile sketch on the Front plane ---
     Dim sm As SldWorks.SketchManager
     Set sm = m.SketchManager
@@ -508,7 +536,6 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     ' --- revolve ---
     m.ClearSelection2 True
     sk.Select2 False, 0
-    Dim body As SldWorks.Feature
     Set body = m.FeatureManager.FeatureRevolve2( _
         True, True, False, False, False, False, _
         swEndCondBlind, swEndCondBlind, 2 * PI, 0, _
@@ -519,6 +546,7 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
         gLog = gLog & p.Name & ": revolve failed (profile not closed or self-intersecting?)" & vbCrLf
         Exit Function
     End If
+BodyDone:
     body.Name = "Body"
 
     ' --- flats and keyways ---
@@ -611,7 +639,10 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
         m.ClearSelection2 True
         sk.Select2 False, 0
         Set cut = CutExtrude(m, True, rev, swEndCondBlind, c.Depth * MM)
-        If Not cut Is Nothing Then Exit For
+        If Not cut Is Nothing Then
+            If CutSide(cut, c.X, c.Dir) Then Exit For
+            DeleteFeature m, cut                    ' went to the wrong side of the plane
+        End If
     Next attempt
     If cut Is Nothing Then
         gLog = gLog & p.Name & ": " & nm & " failed (X=" & c.X & ")" & vbCrLf
@@ -626,6 +657,88 @@ Private Sub SnapOff(ByVal sm As SldWorks.SketchManager, ByVal onOff As Boolean)
     sm.AddToDB = onOff
     sm.DisplayWhenAdded = Not onOff
 End Sub
+
+' True if the faces of a cut reach beyond its sketch plane X = x on the side dir
+' (the default direction of a cut is not the same as of a boss - so it is checked, not assumed)
+Private Function CutSide(ByVal cut As Object, ByVal x As Double, ByVal dir As Integer) As Boolean
+    Dim faces As Variant, fc As Variant, bx As Variant, lo As Double, hi As Double
+    lo = 1E+30: hi = -1E+30
+    faces = cut.GetFaces
+    If IsEmpty(faces) Then CutSide = True: Exit Function
+    For Each fc In faces
+        bx = fc.GetBox
+        If bx(0) < lo Then lo = bx(0)
+        If bx(3) > hi Then hi = bx(3)
+    Next fc
+    If dir > 0 Then
+        CutSide = (hi > x * MM + 0.00001)
+    Else
+        CutSide = (lo < x * MM - 0.00001)
+    End If
+End Function
+
+Private Sub DeleteFeature(ByVal m As SldWorks.ModelDoc2, ByVal f As Object)
+    m.ClearSelection2 True
+    f.Select2 False, 0
+    m.EditDelete
+    m.ClearSelection2 True
+End Sub
+
+' BOX part: rectangle (radial BR0..BR1, BW wide, direction BAng) on the plane X = BX0, extruded to BX1.
+' The side of the extrusion is checked by the part box.
+Private Function AddBox(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.Feature, _
+                        p As PartSpec) As SldWorks.Feature
+    Dim pl As SldWorks.Feature, sm As SldWorks.SketchManager, xf As SldWorks.MathTransform
+    Dim pt(0 To 3) As Variant, k As Long, a As Double, sk As SldWorks.Feature
+    Dim fm As Object, f As Object, attempt As Long, bx As Variant, lo As Double, hi As Double
+    Set pl = GetOffsetPlane(m, rightPlane, p.BX0)
+    If pl Is Nothing Then
+        gLog = gLog & p.Name & ": cannot create plane at X=" & p.BX0 & " for BOX" & vbCrLf
+        Exit Function
+    End If
+    Set sm = m.SketchManager
+    m.ClearSelection2 True
+    pl.Select2 False, 0
+    sm.InsertSketch True
+    Set xf = sm.ActiveSketch.ModelToSketchTransform
+    SnapOff sm, True
+    a = p.BAng * PI / 180#
+    pt(0) = SlotPt(xf, p.BX0, p.BR0, -p.BW / 2, a)
+    pt(1) = SlotPt(xf, p.BX0, p.BR1, -p.BW / 2, a)
+    pt(2) = SlotPt(xf, p.BX0, p.BR1, p.BW / 2, a)
+    pt(3) = SlotPt(xf, p.BX0, p.BR0, p.BW / 2, a)
+    For k = 0 To 3
+        sm.CreateLine pt(k)(0), pt(k)(1), 0, pt((k + 1) Mod 4)(0), pt((k + 1) Mod 4)(1), 0
+    Next k
+    SnapOff sm, False
+    sm.InsertSketch True
+    Set sk = m.FeatureByPositionReverse(0)
+    sk.Name = "Box_Sketch"
+
+    lo = IIf(p.BX0 < p.BX1, p.BX0, p.BX1) * MM
+    hi = IIf(p.BX0 < p.BX1, p.BX1, p.BX0) * MM
+    Set fm = m.FeatureManager
+    For attempt = 0 To 1
+        m.ClearSelection2 True
+        sk.Select2 False, 0
+        On Error Resume Next
+        Set f = Nothing
+        Set f = fm.FeatureExtrusion2(True, False, (attempt = 1), swEndCondBlind, swEndCondBlind, _
+                                     hi - lo, 0, False, False, False, False, 0, 0, _
+                                     False, False, False, False, True, True, True, 0, 0, False)
+        On Error GoTo 0
+        If Not f Is Nothing Then
+            m.EditRebuild3
+            bx = PartBox(m)
+            If Abs(bx(0) - lo) < 0.00001 And Abs(bx(3) - hi) < 0.00001 Then
+                Set AddBox = f
+                Exit Function
+            End If
+            DeleteFeature m, f
+        End If
+    Next attempt
+    gLog = gLog & p.Name & ": BOX extrusion failed" & vbCrLf
+End Function
 
 ' Point at radius r (mm), angle angDeg (0 = +Z, 90 = +Y) in the plane X = x -> sketch coordinates
 Private Function PolarPt(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
@@ -689,7 +802,10 @@ Private Sub AddHoles(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks
             m.ClearSelection2 True
             sk.Select2 False, 0
             Set cut = CutExtrude(m, True, rev, swEndCondBlind, h.Depth * MM)
-            If Not cut Is Nothing Then Exit For
+            If Not cut Is Nothing Then
+                If CutSide(cut, h.X, h.Dir) Then Exit For
+                DeleteFeature m, cut                ' went to the wrong side of the plane
+            End If
         Next attempt
     End If
 

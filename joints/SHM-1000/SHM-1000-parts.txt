@@ -9,7 +9,9 @@
 #              placed with PLACE motor -2 in SHM-1000.txt (card x=0 -> x=-2)
 #   coupling   skirt bore D48 on the actuator output band D48, face on the output face at x=-2,
 #              flange D54 x -4.6..6, neck D18 x 6..19, shaft D22 x 19..49 in the bore D22H7 of the
-#              input shaft (bore 19..60), key slot 8 for a key 8x7 (key not modelled)
+#              input shaft (bore 19..60), key slot 8 x 4 on the D22 shaft x 21..47
+#   key        8 x 7 x 26 (x 21..47, r 7..14): in the coupling slot and in the slot of the input-shaft
+#              bore (r 11..14.3) - the torque goes coupling -> key -> input shaft
 # Fasteners:
 #   plate -> reducer   4 x M8 into the 4-M8 of the square flange (D145, 45 deg), holes D9 in the plate
 #   AK -> plate        8 x M3 from the spigot side into the 8-M3 of the actuator (D85, 22.5 deg),
@@ -61,4 +63,11 @@ HOLES  -2    1    2   28     3    4      90       # 2 x D3 dowels (AK80-9 output
 KEYWAY  21    1    26      8      12      90     7      # key slot 8 x 4 (key 8x7, bottom at r 7)
 PORT  motor    -2  -1  role=on_output fit=48 bolts=6xM4 pcd=28 ang=0
 PORT  reducer  19  1   role=in_input_bore fit=22 key=8 ang=90
+END
+
+# ---- key 8 x 7 x 26 (turns with the reducer input shaft) ----------------------------------------
+PART SHM-1000-03_Key
+MOTION rotate
+#    x0    x1    r0   r1   width  angle
+BOX  21    47    7    14   8      90       # top: coupling slot r 7..11, hub slot r 11..14.3 (0.3 top clearance)
 END
