@@ -26,8 +26,6 @@ JOIN motor.rotor            rotor_cup.rotor
 JOIN motor.stator           motor_housing.stator
 JOIN motor_housing.rear     rear_cover.housing
 # Interfaces of the joint for the arm layout
-OUT  base     reducer.base       # TO DECIDE: the motor housing now sits on this pilot - the previous link
-#                                  goes on the motor housing flange or through the same bolts
-# OUT base   reducer.base       # housing -> link: 94h7 + 12xD4.5 PCD102
+OUT  base     motor_housing.base   # the reducer mounting repeated on the motor housing flange (same pilot + holes)
 OUT  output   reducer.output     # output shaft -> next link: 86h7 + 16xM4 PCD77
 END
