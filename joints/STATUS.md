@@ -35,6 +35,4 @@ Reducer T: catalog rated / start-stop / momentary max at the output.
 - links: OK
 - to fill: DMRD-80E: DATA ratio
 - to fill: DMRD-80E: DATA mass
-- to fill: AK80-9-V3-KV100: PORT base
-- to fill: AK80-9-V3-KV100: PORT output
 - to fill: sensor: component not chosen

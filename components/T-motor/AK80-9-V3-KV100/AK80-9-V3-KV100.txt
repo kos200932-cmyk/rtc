@@ -1,11 +1,22 @@
 # T-motor (CubeMars) AK80-9 V3.0 KV100 - complete actuator: motor + 9:1 planetary gear + driver (CAN), own housing and bearings
-# Source: https://www.cubemars.com/goods.php?id=982 (comparison table, 2026-10-17)
+# Source: https://www.cubemars.com/goods.php?id=982 (comparison table, 2026-10-17); drawing AK80-9.png and STEP from the user.
 # Units: mm, kg, N*m, rpm at the ACTUATOR OUTPUT (after 9:1), 48 V.
 COMPONENT AK80-9-V3-KV100
 TYPE actuator
 DATA OD=98 L=38.5 mass=0.490 U=48 KV=100 ratio=9 T_rated=9 T_peak=22 I_rated=12 I_peak=28 n_rated=390 n0=570
-STEP AK80-9-V3-KV100.step  # NOT IN REPO: no STEP on the page; need the 2D drawing or STEP from CubeMars
-# Flange patterns are on the drawing image only - TO FILL.
-PORT  base     ?  -1   role=fixed  bolts=? pcd=?    # housing (stator side) mounting
-PORT  output   ?   1   role=output bolts=? pcd=?    # 9:1 output flange
+STEP  AK80-9.step       # one solid (housing and output not separated)
+FRAME axis=+Z origin=0,0,0   # STEP coordinates: actuator axis -> X of this card, x=0 - output face
+# Card frame: X - actuator axis, x=0 - output face, +X - out of the output face; the body is at x -38.5..0.
+# Measured from the STEP with tools/step_inspect.py and checked against the drawing AK80-9.png:
+#   output (rotating): spigot D48 x -3..-1.8, step D37 x -1.3..-0.5, face D36 at x=0,
+#           6-M4 depth 6 on D28 (0/60/.. deg), 2 dowel holes D3 depth 3 on D28 (90/270 deg),
+#           centre recess D22 x -2..0 and D14 x -7..-2
+#   housing: D98 x -26.5..-3.5 (chamfers to the faces x=-3 and x=-27.5),
+#           8-M3 through on D85 (22.5 + 45k deg) - usable from the front face x=-3 or the back face x=-27.5,
+#           back part (driver) D71 x -38..-27.5, back face x=-38.5; no pilot - located by the D98 OD
+# Angles: 0 = +Z, 90 = +Y of the card frame (card Y = STEP Y, card Z = -STEP X).
+#     name     x      dir  parameters
+PORT  output   0      1    role=output fit=48 fit_x=-3..-1.8 bolts=6xM4 bolt_depth=6 pcd=28 ang=0 dowels=2xD3_depth3_on_D28_at_90 mate=coupling
+PORT  base     -3     1    role=fixed od=98 holes=8xM3_through pcd=85 ang=22.5 mate=adapter_plate   # front face of the housing (output side)
+PORT  base_back -27.5 -1   role=fixed od=98 holes=8xM3_through pcd=85 ang=22.5                       # back shoulder (driver side), same holes
 END
