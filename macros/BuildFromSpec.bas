@@ -25,7 +25,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v16 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v17 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -543,6 +543,7 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
     pl.Select2 False, 0
     sm.InsertSketch True
     Set xf = sm.ActiveSketch.ModelToSketchTransform
+    SnapOff sm, True
 
     If c.Kind = 1 Then
         n = CLng(c.B)
@@ -568,6 +569,7 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
             sm.CreateLine pt(k)(0), pt(k)(1), 0, pt((k + 1) Mod 4)(0), pt((k + 1) Mod 4)(1), 0
         Next k
     End If
+    SnapOff sm, False
     sm.InsertSketch True
 
     Dim sk As SldWorks.Feature, cut As SldWorks.Feature, attempt As Long, rev As Boolean
@@ -585,6 +587,13 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
     Else
         cut.Name = nm
     End If
+End Sub
+
+' Sketch entities straight into the database: no snapping / automatic relations to the
+' edges of the face the sketch lies on (snapping depends on the zoom and moved holes).
+Private Sub SnapOff(ByVal sm As SldWorks.SketchManager, ByVal onOff As Boolean)
+    sm.AddToDB = onOff
+    sm.DisplayWhenAdded = Not onOff
 End Sub
 
 ' Point at radius r (mm), angle angDeg (0 = +Z, 90 = +Y) in the plane X = x -> sketch coordinates
@@ -618,12 +627,14 @@ Private Sub AddHoles(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks
     pl.Select2 False, 0
     sm.InsertSketch True
     Set xf = sm.ActiveSketch.ModelToSketchTransform
+    SnapOff sm, True        ' no snapping to edges of the face under the sketch
     For i = 0 To h.N - 1
         a = (h.Ang + i * 360# / h.N) * PI / 180#
         ' hole centre in model coordinates -> sketch coordinates
         sp = ModelToSketch(xf, h.X * MM, h.Pcd / 2 * Sin(a) * MM, h.Pcd / 2 * Cos(a) * MM)
         sm.CreateCircleByRadius sp(0), sp(1), 0, h.D / 2 * MM
     Next i
+    SnapOff sm, False
     sm.InsertSketch True
 
     Dim sk As SldWorks.Feature
@@ -635,6 +646,11 @@ Private Sub AddHoles(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks
         m.ClearSelection2 True
         sk.Select2 False, 0
         Set cut = CutExtrude(m, False, False, swEndCondThroughAll, 0.01)
+        If cut Is Nothing Then            ' fallback: blind 0.5 m in both directions
+            m.ClearSelection2 True
+            sk.Select2 False, 0
+            Set cut = CutExtrude(m, False, False, swEndCondBlind, 0.5)
+        End If
     Else
         ' first try the given direction; if the cut misses the body, try the other one
         For attempt = 0 To 1
@@ -900,6 +916,11 @@ Private Function RayPickHoleEdge(ByVal m As SldWorks.ModelDoc2, h As HoleSpec, B
     m.ClearSelection2 True
     RayPickHoleEdge = m.Extension.SelectByRay(h.X * MM - h.Dir * 0.0005, r * Sin(a) * MM, r * Cos(a) * MM, _
                                               h.Dir, 0, 0, 0.0002, swSelEDGES, False, 0, 0)
+    If Not RayPickHoleEdge Then         ' fallback: the edge nearest to a point on it
+        m.ClearSelection2 True
+        RayPickHoleEdge = m.Extension.SelectByID2("", "EDGE", h.X * MM, r * Sin(a) * MM, r * Cos(a) * MM, _
+                                                  False, 0, Nothing, 0)
+    End If
 End Function
 
 ' Circular edges of the cut lying in the plane X = x0 with the hole radius.
