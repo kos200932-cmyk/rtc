@@ -25,7 +25,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v15 (2026-10-17)"
+Private Const MACRO_VERSION As String = "v16 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -71,6 +71,8 @@ Private swApp As SldWorks.SldWorks
 Private gParts() As PartSpec
 Private gNParts As Long
 Private gAsmName As String
+Private gTplPart As String        ' templates found once per run (FindTemplate)
+Private gTplAsm As String
 Private gData As String          ' "key=value key=value ..." from DATA lines
 Private gLog As String
 
@@ -103,9 +105,71 @@ Sub main()
     If gAsmName <> "" Then BuildAssembly folder & gAsmName & ".SLDASM", partPaths
 
     If gLog <> "" Then
-        MsgBox "Finished with warnings (" & MACRO_VERSION & "):" & vbCrLf & gLog, vbInformation
+        MsgBox "Finished with warnings (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gLog, vbInformation
+    Else
+        MsgBox "Done (" & MACRO_VERSION & ", " & SwVersion() & "): " & gNParts & " part(s)" & _
+               IIf(gAsmName <> "", " + assembly " & gAsmName, "") & vbCrLf & _
+               "Part template: " & gTplPart & IIf(gAsmName <> "", vbCrLf & "Assembly template: " & gTplAsm, ""), _
+               vbInformation
     End If
 End Sub
+
+Private Function SwVersion() As String
+    Dim rev As String
+    rev = swApp.RevisionNumber                          ' e.g. "29.5.1" -> SOLIDWORKS 2021
+    SwVersion = "SOLIDWORKS " & SwYear() & " (" & rev & ")"
+End Function
+
+' Major revision -> year: 25 -> 2017, 29 -> 2021
+Private Function SwYear() As Long
+    SwYear = CLng(Val(Split(swApp.RevisionNumber, ".")(0))) + 1992
+End Function
+
+' Document template: 1) the default template from Options if the file exists;
+' 2) the first *.<ext> in the template folders from Options - File Locations;
+' 3) the first *.<ext> in ProgramData\SOLIDWORKS\SOLIDWORKS <year>\templates;
+' 4) ask the user to pick a template file.
+' Files whose name contains 'hint' (e.g. "part", "assem") are preferred.
+Private Function FindTemplate(ByVal ext As String, ByVal pref As Long, ByVal hint As String) As String
+    Dim t As String, folders() As String, i As Long, f As String, opts As Long, cfg As String, disp As String
+    t = swApp.GetUserPreferenceStringValue(pref)
+    If t <> "" Then
+        If FileExists(t) Then FindTemplate = t: Exit Function
+    End If
+
+    folders = Split(swApp.GetUserPreferenceStringValue(swFileLocationsDocumentTemplates), ";")
+    For i = LBound(folders) To UBound(folders)
+        f = FirstFile(Trim(folders(i)), ext, hint)
+        If f <> "" Then FindTemplate = f: Exit Function
+    Next i
+
+    f = FirstFile(Environ("ProgramData") & "\SOLIDWORKS\SOLIDWORKS " & SwYear() & _
+                  "\templates", ext, hint)
+    If f <> "" Then FindTemplate = f: Exit Function
+
+    On Error Resume Next
+    f = swApp.GetOpenFileName("Pick a " & ext & " template", "", "Template (*." & ext & ")|*." & ext & "|", _
+                              opts, cfg, disp)
+    On Error GoTo 0
+    FindTemplate = Trim(Replace(f, """", ""))
+End Function
+
+' First file *.<ext> in a folder, preferring names with 'hint'; "" if none
+Private Function FirstFile(ByVal folder As String, ByVal ext As String, ByVal hint As String) As String
+    Dim nm As String, firstAny As String
+    If folder = "" Then Exit Function
+    If Right(folder, 1) <> "\" Then folder = folder & "\"
+    On Error Resume Next
+    nm = Dir(folder & "*." & ext)
+    If Err.Number <> 0 Then Exit Function
+    On Error GoTo 0
+    Do While nm <> ""
+        If firstAny = "" Then firstAny = folder & nm
+        If InStr(1, nm, hint, vbTextCompare) > 0 Then FirstFile = folder & nm: Exit Function
+        nm = Dir
+    Loop
+    FirstFile = firstAny
+End Function
 
 ' ---------------------------------------------------------------------------
 ' Choosing the spec file
@@ -374,9 +438,11 @@ End Function
 ' ---------------------------------------------------------------------------
 Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     Dim m As SldWorks.ModelDoc2
-    Set m = swApp.NewDocument(swApp.GetUserPreferenceStringValue(swDefaultTemplatePart), 0, 0, 0)
+    If gTplPart = "" Then gTplPart = FindTemplate("prtdot", swDefaultTemplatePart, "part")
+    If gTplPart <> "" Then Set m = swApp.NewDocument(gTplPart, 0, 0, 0)
     If m Is Nothing Then
-        gLog = gLog & "Cannot create a part - check the default part template." & vbCrLf
+        gLog = gLog & "Cannot create a part from the template:" & vbCrLf & "  '" & gTplPart & "'" & vbCrLf & _
+               "Set it in Options - Default Templates (Part) or pick a *.prtdot when asked." & vbCrLf
         Exit Function
     End If
 
@@ -953,9 +1019,11 @@ End Function
 ' ---------------------------------------------------------------------------
 Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
     Dim am As SldWorks.ModelDoc2, asm As SldWorks.AssemblyDoc
-    Set am = swApp.NewDocument(swApp.GetUserPreferenceStringValue(swDefaultTemplateAssembly), 0, 0, 0)
+    If gTplAsm = "" Then gTplAsm = FindTemplate("asmdot", swDefaultTemplateAssembly, "assem")
+    If gTplAsm <> "" Then Set am = swApp.NewDocument(gTplAsm, 0, 0, 0)
     If am Is Nothing Then
-        gLog = gLog & "Cannot create an assembly - check the default assembly template." & vbCrLf
+        gLog = gLog & "Cannot create an assembly from the template:" & vbCrLf & "  '" & gTplAsm & "'" & vbCrLf & _
+               "Set it in Options - Default Templates (Assembly) or pick a *.asmdot when asked." & vbCrLf
         Exit Sub
     End If
     Set asm = am
