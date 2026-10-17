@@ -21,6 +21,7 @@ ASSEMBLY DMRD-KB25
 # ---- 01: housing (simplified, one solid; fixed) ------------------------------
 PART DMRD-KB25-01_Housing
 MOTION fixed
+MASS 1.38   # kg: 60% of 2.3 kg (catalog mass split by the user)
 P 6.5   19
 P 6.5   32.5     # D65, 10 long
 P 16.5  32.5
@@ -43,6 +44,7 @@ END
 # ---- 02: input shaft D38h7 (rotates) -----------------------------------------
 PART DMRD-KB25-02_InputShaft
 MOTION rotate
+MASS 0.23   # kg: 10% of 2.3 kg (catalog mass split by the user)
 P 0     14.5     # bore D29 at the left end, 10 deep
 P 0     19       # outer D38h7
 P 59.5  19
@@ -60,6 +62,7 @@ END
 # ---- 03: output shaft D86h7 (rotates; 9 outside + 9.5 inside the housing) -----
 PART DMRD-KB25-03_OutputShaft
 MOTION rotate
+MASS 0.69   # kg: 30% of 2.3 kg (catalog mass split by the user)
 P 41    19
 P 41    43
 P 59.5  43

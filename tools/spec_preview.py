@@ -26,7 +26,7 @@ def num(s):
 
 
 def parse(path):
-    parts, cur, asm = [], None, None
+    parts, cur, asm, data = [], None, None, {}
     with open(path, encoding="utf-8-sig") as f:
         for raw in f:
             s = re.split(r"[#;]", raw, maxsplit=1)[0].split()
@@ -35,8 +35,10 @@ def parse(path):
             kw = s[0].upper()
             if kw == "ASSEMBLY":
                 asm = s[1]
+            elif kw == "DATA":
+                data.update(kv.split("=", 1) for kv in s[1:] if "=" in kv)
             elif kw == "PART":
-                cur = {"name": s[1], "pts": [], "holes": [], "ports": [], "motion": "fixed"}
+                cur = {"name": s[1], "pts": [], "holes": [], "ports": [], "motion": "fixed", "mass": None}
                 parts.append(cur)
             elif kw == "END":
                 cur = None
@@ -44,6 +46,8 @@ def parse(path):
                 continue
             elif kw == "P":
                 cur["pts"].append((num(s[1]), num(s[2])))
+            elif kw == "MASS":
+                cur["mass"] = num(s[1])
             elif kw == "MOTION":
                 cur["motion"] = s[1].lower()
             elif kw in ("HOLES", "THREAD"):
@@ -59,7 +63,30 @@ def parse(path):
             elif kw == "PORT":
                 cur["ports"].append({"name": s[1], "x": num(s[2]), "dir": num(s[3]),
                                      "info": " ".join(s[4:])})
-    return asm, parts
+    parts_data = data
+    return asm, parts, parts_data
+
+
+def volume(p):
+    """Volume of the revolved profile minus the holes (hole length taken inside the part), m^3."""
+    pts, a, cy = p["pts"], 0.0, 0.0
+    for i in range(len(pts)):
+        (x1, y1), (x2, y2) = pts[i], pts[(i + 1) % len(pts)]
+        c = x1 * y2 - x2 * y1
+        a += c
+        cy += (y1 + y2) * c
+    a /= 2
+    cy /= 6 * a
+    v = 2 * math.pi * abs(a) * cy
+    xs = [x for x, _ in pts]
+    for h in p["holes"]:
+        if h["depth"] <= 0:
+            L = max(xs) - min(xs)
+        else:
+            x0, x1 = sorted((h["x"], h["x"] + h["dir"] * h["depth"]))
+            L = max(0.0, min(x1, max(xs)) - max(x0, min(xs)))
+        v -= h["n"] * math.pi * h["d"] ** 2 / 4 * L
+    return v * 1e-9
 
 
 def inside(poly, x, y):
@@ -189,8 +216,21 @@ def main():
     ap.add_argument("spec")
     ap.add_argument("--png")
     a = ap.parse_args()
-    asm, parts = parse(a.spec)
+    asm, parts, data = parse(a.spec)
     errs, notes = check(parts)
+    masses = [p["mass"] for p in parts if p["mass"]]
+    for p in parts:
+        if p["mass"]:
+            v = volume(p)
+            print(f"mass: {p['name']}: {p['mass']:g} kg, model volume {v * 1e6:.1f} cm3 "
+                  f"-> density {p['mass'] / v:.0f} kg/m3")
+    if masses and "mass" in data:
+        try:
+            total = float(data["mass"].replace(",", "."))
+            if abs(sum(masses) - total) > 1e-6:
+                errs.append(f"sum of part MASS {sum(masses):g} kg != DATA mass {total:g} kg")
+        except ValueError:
+            pass
     for e in errs:
         print("ERROR:", e)
     for n in notes:

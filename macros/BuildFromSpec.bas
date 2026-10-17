@@ -12,7 +12,8 @@ Attribute VB_Name = "BuildFromSpec"
 '       MOTION rotate          - axis on the AXIS of the first fixed part +
 '                                Right plane on Right plane: free rotation about X.
 '   * DATA key=value lines -> custom properties of the assembly,
-'     PORT lines -> "PORT_<name>" plane + custom property of the part.
+'     PORT lines -> "PORT_<name>" plane + custom property of the part,
+'     MASS <kg> -> part density set so that the part has exactly this mass.
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -22,7 +23,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v13 (2026-10-17)"
+Private Const MACRO_VERSION As String = "v14 (2026-10-17)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -49,6 +50,7 @@ Private Type PartSpec
     PortX() As Double
     PortInfo() As String
     NPort As Long
+    Mass As Double      ' kg; 0 - not set
 End Type
 
 Private swApp As SldWorks.SldWorks
@@ -150,6 +152,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             ReDim gParts(cur).PY(0 To 63)
             ReDim gParts(cur).H(0 To 15)
             gParts(cur).Motion = 0
+            gParts(cur).Mass = 0
             gParts(cur).NPort = 0
             ReDim gParts(cur).PortName(0 To 7)
             ReDim gParts(cur).PortX(0 To 7)
@@ -225,6 +228,12 @@ Private Function ReadSpec(ByVal path As String) As Boolean
                 Case "rotate": gParts(cur).Motion = 1
                 Case Else: errMsg = "expected 'MOTION fixed' or 'MOTION rotate'": GoTo Bad
             End Select
+
+        Case "MASS"
+            If cur < 0 Then errMsg = "'MASS' outside of PART ... END": GoTo Bad
+            If UBound(t) < 1 Then errMsg = "expected 'MASS kg'": GoTo Bad
+            gParts(cur).Mass = Num(t(1))
+            If gParts(cur).Mass <= 0 Then errMsg = "mass must be > 0": GoTo Bad
 
         Case "PORT"
             ' PORT name x dir [key=value ...]; outside PART (purchased parts) - ignored
@@ -377,6 +386,9 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
         End If
     Next i
 
+    ' --- mass (uniform density so that the part has the given mass) ---
+    If p.Mass > 0 Then SetPartMass m, p
+
     ' --- axis of rotation and interface planes ---
     AddAxis m, planes, p.Name
     For i = 0 To p.NPort - 1
@@ -517,6 +529,43 @@ Private Function NewPlaneAtX(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As 
     m.ClearSelection2 True
     Set NewPlaneAtX = f
 End Function
+
+' Part mass from MASS: document density = mass / volume (uniform material, so the
+' centre of mass and inertia follow the geometry). Works when the part template has
+' no material assigned; otherwise the mass properties are overridden.
+Private Sub SetPartMass(ByVal m As SldWorks.ModelDoc2, p As PartSpec)
+    Dim mp As Object, vol As Double, got As Double
+    m.EditRebuild3
+    Set mp = m.Extension.CreateMassProperty
+    If mp Is Nothing Then
+        gLog = gLog & p.Name & ": mass properties not available, MASS not applied" & vbCrLf
+        Exit Sub
+    End If
+    vol = mp.Volume                                     ' m^3
+    If vol <= 0 Then
+        gLog = gLog & p.Name & ": zero volume, MASS not applied" & vbCrLf
+        Exit Sub
+    End If
+    m.SetUserPreferenceDoubleValue swMaterialPropertyDensity, p.Mass / vol   ' kg/m^3
+    m.EditRebuild3
+    Set mp = m.Extension.CreateMassProperty
+    got = mp.Mass
+    If Abs(got - p.Mass) > 0.0005 * p.Mass Then
+        ' a material from the template wins over the document density - override instead
+        On Error Resume Next
+        mp.OverrideMass = True
+        mp.SetOverrideMassValue p.Mass
+        On Error GoTo 0
+        m.EditRebuild3
+        Set mp = m.Extension.CreateMassProperty
+        got = mp.Mass
+    End If
+    If Abs(got - p.Mass) > 0.0005 * p.Mass Then
+        gLog = gLog & p.Name & ": mass is " & Format(got, "0.000") & " kg instead of " & p.Mass & _
+               " kg - remove the material from the part template" & vbCrLf
+    End If
+    SetProp m, "Mass_kg", CStr(p.Mass)
+End Sub
 
 ' Reference axis along X (Front x Top) named AXIS - used for the rotation mates
 Private Sub AddAxis(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, ByVal partName As String)

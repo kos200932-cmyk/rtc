@@ -20,6 +20,7 @@ ASSEMBLY DMRD-KB32
 # ---- 01: housing (simplified, one solid; fixed) ------------------------------
 PART DMRD-KB32-01_Housing
 MOTION fixed
+MASS 2.46   # kg: 60% of 4.1 kg (catalog mass split by the user)
 P 7     22.5
 P 7     40       # D80, 10 long
 P 17    40
@@ -41,6 +42,7 @@ END
 # ---- 02: input shaft D45h7 (rotates) -----------------------------------------
 PART DMRD-KB32-02_InputShaft
 MOTION rotate
+MASS 0.41   # kg: 10% of 4.1 kg (catalog mass split by the user)
 P 0     18       # bore D36 at the left end, 12 deep
 P 0     22.5     # outer D45h7
 P 65.5  22.5
@@ -57,6 +59,7 @@ END
 # ---- 03: output shaft D112h7 (rotates; 9 outside + 10.5 inside the housing) ---
 PART DMRD-KB32-03_OutputShaft
 MOTION rotate
+MASS 1.23   # kg: 30% of 4.1 kg (catalog mass split by the user)
 P 46    22.5
 P 46    56
 P 65.5  56
