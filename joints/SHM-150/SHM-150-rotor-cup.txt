@@ -14,7 +14,7 @@
 # Rotor / stator placement - Hall / leads side OUTWARD, away from the reducer
 # (card RI80-V2-KV75, card +X -> -X here): rotor x -19..0,
 # stator lamination D85 x -16..0, windings x -22.5..4 (3 mm clear of the housing D80 boss at x=7).
-# The flange sticks out 3 mm beyond the output face (x 65.5..68.5, D46, turns with the INPUT shaft):
+# The flange sticks out 3 mm beyond the output face (x 65.5..68.5, D45, turns with the INPUT shaft):
 # the next link needs a central recess >= D50 x 4.
 
 # ---- rotor cup ----------------------------------------------------------------------------
@@ -38,8 +38,8 @@ END
 PART SHM-150-02_ClampFlange
 MOTION rotate
 P 65.5  14
-P 65.5  23       # D46
-P 68.5  23
+P 65.5  22.5     # D45 (= shaft OD) - does not touch the output shaft face (r >= 22.5)
+P 68.5  22.5
 P 68.5  14
 #      x     dir  n   pcd    d    depth  angle
 HOLES  68.5  -1   6   40.5   3.4  0      90       # 6 x D3.4 -> 6-M3 of the shaft end (D40.5)

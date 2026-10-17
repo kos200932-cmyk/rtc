@@ -6,6 +6,9 @@ TYPE frameless_motor
 DATA OD=85 L=27 bore=40.5 mass=0.411 U=48 KV=75 Kt=0.155 T_rated=1.45 T_peak=4.1 I_rated=9.4 I_peak=27.6 n_rated=2430 n0=2960 J_rotor=212.49 pole_pairs=8
 STEP  RI80-V2.step     # from https://www.cubemars.com/goods-860-RI80+V20.html (3D drawing without Hall sensor)
 FRAME axis=+Z origin=-6.415,15.376,-9.25   # STEP coordinates: motor axis -> X of this card, origin -> x=0
+# Rotor and stator split by tools/step_split.py, already in the card frame (axis X, origin 0):
+BODY  rotor   RI80-V2-rotor.step
+BODY  stator  RI80-V2-stator.step
 # Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
 # +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
 # with tools/step_inspect.py (STEP: stator and rotor as separate solids):

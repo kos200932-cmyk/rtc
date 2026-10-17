@@ -7,6 +7,9 @@ TYPE frameless_motor
 DATA OD=115 L=42 bore=74 mass=1.108 U=48 KV=40 Kt=0.29 T_rated=5.5 T_peak=16 I_rated=20 I_peak=52 n_rated=1430 n0=1920 J_rotor=3461 pole_pairs=20
 STEP  RI115-PH.step     # from https://www.cubemars.com/product/ri115-ph-kv40-potting-frameless-torque-motor.html ("3D drawing" archive)
 FRAME axis=+Z origin=0,0,-13.5   # STEP coordinates: motor axis -> X of this card, origin -> x=0
+# Rotor and stator split by tools/step_split.py, already in the card frame (axis X, origin 0):
+BODY  rotor   RI115-PH-rotor.step
+BODY  stator  RI115-PH-stator.step
 # Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
 # +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
 # with tools/step_inspect.py (STEP: stator (potted, with the sensor board) and rotor as separate solids):

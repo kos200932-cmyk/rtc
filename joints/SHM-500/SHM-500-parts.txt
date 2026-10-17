@@ -1,0 +1,28 @@
+# SHM-500: adapter cup for the RI115-PH rotor on the DMRD-KB45 input shaft (level 2: interfaces,
+# no chamfers / fillets / standard fasteners). Coordinates: the frame of DMRD-KB45 (x=0 - motor end of
+# the input shaft), mm. Here the screws fit: the 6-M4 of the shaft end are on D57.5 (heads r 25.25..32.25)
+# and the cup bore is D65 (r 32.5), so the heads are reached from inside the cup.
+#   cup: bottom 6 mm on the shaft face, 6xM4 into the shaft, centring spigot D50 in the shaft bore
+#   (left bore D50 x 14), rotor seat D74 x 32 (rotor bore 74), collar D80
+#   torque: shaft -> 6xM4 -> cup -> rotor (RI115 peak 16 N*m)
+#   rotor (Hall / board side outward): x -32..0; stator lamination x -27..0, potting to x 4
+#   (6 mm clear of the housing boss D106 at x 10), board outward to x -35.1
+#   cables: D44. The M4 heads have 0.25 mm to the cup bore - low-head screws at the design stage.
+
+PART SHM-500-01_RotorCup
+MOTION rotate
+P -35   32.5
+P -35   40       # collar D80 - axial stop of the rotor
+P -32   40
+P -32   37       # rotor seat D74 x 32
+P 0     37
+P 0     25       # bottom face on the shaft end face (r 25..32.5)
+P 10    25       # centring spigot D50 in the left bore of the shaft (14 deep)
+P 10    22       # bore D44 - cables
+P -6    22
+P -6    32.5     # bottom 6 thick; inside the cup bore D65 for the screw heads
+#      x     dir  n   pcd    d    depth  angle
+HOLES  -6    1    6   57.5   4.5  6      90       # 6 x D4.5 -> 6-M4 of the shaft end (D57.5)
+PORT  shaft  0     1   role=on_shaft_end fit=50g6 fit_x=0..10 bolts=6xM4 pcd=57.5 ang=90
+PORT  rotor  -32   -1  role=rotor_seat fit=74 fit_x=-32..0 collar=80
+END

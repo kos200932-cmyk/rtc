@@ -6,6 +6,9 @@ TYPE frameless_motor
 DATA OD=76 L=24 bore=38 mass=0.2704 U=48 KV=95 Kt=0.130 T_rated=0.94 T_peak=2.68 I_rated=7.1 I_peak=21 n_rated=2710 n0=3912 J_rotor=92.15 pole_pairs=14
 STEP  RI70.step     # from https://www.cubemars.com/goods-858-RI70.html ("without Hall sensor" archive - it still contains the Hall board solid)
 FRAME axis=+Y origin=0,0,0   # STEP coordinates: motor axis -> X of this card, origin -> x=0
+# Rotor and stator split by tools/step_split.py, already in the card frame (axis X, origin 0):
+BODY  rotor   RI70-rotor.step
+BODY  stator  RI70-stator.step
 # Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
 # +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
 # with tools/step_inspect.py (STEP: stator, rotor, Hall board (+ lead wires) as separate solids):

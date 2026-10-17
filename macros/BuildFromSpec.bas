@@ -24,7 +24,10 @@ Attribute VB_Name = "BuildFromSpec"
 '                                        turned so that its axis is X, AXIS + PORT planes added)
 '       PARTS <file>                   - parts designed for the joint, in the joint frame
 '       PLACE <role> <x> [flip]        - card x=0 of that component at joint x (flip: card +X -> -X)
-'       LINK <part> <child part>       - a designed part moves with a part of a sub-assembly
+'       LINK <part> <child part>       - a designed part (3 coincident planes) or an imported body
+'                                        (lock mate) moves with a part of a sub-assembly
+'     A card with BODY <name> <step> lines gives one part per body (<COMPONENT>-<name>), e.g.
+'     rotor and stator of a frameless motor; those STEP files are already in the card frame.
 '     The joint frame is the frame of the first USE (the reducer).
 ' Files are saved into the folder of the spec file.
 '
@@ -35,7 +38,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v19 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v20 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -1351,7 +1354,11 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
         Exit Function
     End If
 
-    ' 1. components: specs are built, cards with STEP are imported
+    ' 1. components: specs are built, cards with STEP / BODY are imported;
+    '    every model becomes an entry (a card with BODY lines gives several)
+    Dim eModel(0 To 31) As String, eName(0 To 31) As String, eIsAsm(0 To 31) As Boolean
+    Dim ePlaced(0 To 31) As Boolean, eX(0 To 31) As Double, eFlip(0 To 31) As Boolean, nE As Long
+    Dim mp() As String, q As Long
     For k = 0 To nU - 1
         If FileHasKeyword(uFile(k), "PART") Then
             If Not BuildSpecFile(uFile(k), uModel(k)) Then Exit Function
@@ -1360,7 +1367,7 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
                 Exit Function
             End If
             uIsAsm(k) = True
-        ElseIf FileHasKeyword(uFile(k), "STEP") Then
+        ElseIf FileHasKeyword(uFile(k), "STEP") Or FileHasKeyword(uFile(k), "BODY") Then
             uModel(k) = ImportCard(uFile(k))
             If uModel(k) = "" Then Exit Function
             gSummary = gSummary & Mid(uFile(k), InStrRev(uFile(k), "\") + 1) & ": STEP imported" & vbCrLf
@@ -1368,6 +1375,16 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
             gLog = gLog & uRole(k) & ": neither PARTs nor STEP in " & uFile(k) & vbCrLf
             Exit Function
         End If
+        mp = Split(uModel(k), "|")
+        For q = 0 To UBound(mp)
+            If nE <= 31 Then
+                eModel(nE) = mp(q)
+                eName(nE) = Mid(mp(q), InStrRev(mp(q), "\") + 1)
+                eName(nE) = Left(eName(nE), InStrRev(eName(nE), ".") - 1)
+                eIsAsm(nE) = uIsAsm(k): ePlaced(nE) = uPlaced(k): eX(nE) = uX(k): eFlip(nE) = uFlip(k)
+                nE = nE + 1
+            End If
+        Next q
     Next k
 
     ' 2. designed parts (they stay in gParts / gPartPaths)
@@ -1392,24 +1409,50 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
         Exit Function
     End If
 
-    Dim uComp(0 To 15) As SldWorks.Component2, co As Object
-    For k = 0 To nU - 1
-        Set uComp(k) = InsertFloating(am, asm, uModel(k))
-        If uComp(k) Is Nothing Then Exit Function
-        If uIsAsm(k) Then
-            Set co = uComp(k)
-            On Error Resume Next
-            co.Solving = 1                 ' flexible: the shafts of the sub-assembly can turn
-            On Error GoTo 0
-        End If
-        If uPlaced(k) Then
-            PlaceAndFix am, asm, uComp(k), uX(k), uFlip(k)
-        Else
-            MateToPlanes am, asm, uComp(k), asmPlanes
-        End If
-    Next k
-
+    ' sub-assemblies first (the LINK targets are inside them), then the other entries
+    Dim eComp(0 To 31) As SldWorks.Component2, co As Object, pass As Long, tgt As String, jj As Long
     Dim dc As SldWorks.Component2, child As SldWorks.Component2, target As String, j As Long
+    For pass = 0 To 1
+        For k = 0 To nE - 1
+            If eIsAsm(k) = (pass = 0) Then
+                Set eComp(k) = InsertFloating(am, asm, eModel(k))
+                If eComp(k) Is Nothing Then Exit Function
+                If eIsAsm(k) Then
+                    Set co = eComp(k)
+                    On Error Resume Next
+                    co.Solving = 1                 ' flexible: the shafts of the sub-assembly can turn
+                    On Error GoTo 0
+                End If
+                tgt = ""
+                For jj = 0 To nL - 1
+                    If StrComp(lnkPart(jj), eName(k), vbTextCompare) = 0 Then tgt = lnkTo(jj)
+                Next jj
+                If tgt <> "" Then
+                    ' imported body moving with a part of a sub-assembly: placed, then locked to it
+                    PlaceComp eComp(k), eX(k), eFlip(k), ePlaced(k)
+                    Set child = Nothing
+                    For jj = 0 To nE - 1
+                        If eIsAsm(jj) And child Is Nothing And Not eComp(jj) Is Nothing Then
+                            Set child = FindChild(eComp(jj), tgt)
+                        End If
+                    Next jj
+                    If child Is Nothing Then
+                        gLog = gLog & "LINK " & eName(k) & ": part '" & tgt & "' not found - fixed instead" & vbCrLf
+                        FixComp am, asm, eComp(k)
+                    ElseIf MateLock(am, asm, child, eComp(k)) Is Nothing Then
+                        gLog = gLog & "LINK " & eName(k) & ": lock mate failed - fixed instead" & vbCrLf
+                        FixComp am, asm, eComp(k)
+                    End If
+                ElseIf ePlaced(k) Then
+                    PlaceComp eComp(k), eX(k), eFlip(k), True
+                    FixComp am, asm, eComp(k)
+                Else
+                    MateToPlanes am, asm, eComp(k), asmPlanes
+                End If
+            End If
+        Next k
+    Next pass
+
     For i = 0 To nD - 1
         Set dc = InsertFloating(am, asm, gPartPaths(i))
         If dc Is Nothing Then Exit Function
@@ -1421,8 +1464,8 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
             MateToPlanes am, asm, dc, asmPlanes
         Else
             Set child = Nothing
-            For k = 0 To nU - 1
-                If uIsAsm(k) And child Is Nothing Then Set child = FindChild(uComp(k), target)
+            For k = 0 To nE - 1
+                If eIsAsm(k) And child Is Nothing Then Set child = FindChild(eComp(k), target)
             Next k
             If child Is Nothing Then
                 gLog = gLog & "LINK " & gParts(i).Name & ": part '" & target & "' not found - fixed instead" & vbCrLf
@@ -1441,7 +1484,7 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
     If Not SaveDoc(am, folder & jName & ".SLDASM") Then Exit Function
-    gSummary = gSummary & "joint " & jName & ": " & nU & " component(s) + " & nD & " designed part(s)" & vbCrLf
+    gSummary = gSummary & "joint " & jName & ": " & nE & " component(s) + " & nD & " designed part(s)" & vbCrLf
     BuildJoint = True
 End Function
 
@@ -1474,10 +1517,11 @@ Private Function FirstPlanes(ByVal c As SldWorks.Component2, ByVal k As Long) As
     If GetRefPlanes(c.FirstFeature, cp) Then Set FirstPlanes = cp(k)
 End Function
 
-' Component turned by 180 deg about Y if flip, moved to x (mm), then fixed
-Private Sub PlaceAndFix(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
-                        ByVal c As SldWorks.Component2, ByVal x As Double, ByVal flip As Boolean)
+' Component turned by 180 deg about Y if flip and moved to x (mm); identity if not placed
+Private Sub PlaceComp(ByVal c As SldWorks.Component2, ByVal x As Double, ByVal flip As Boolean, _
+                      ByVal placed As Boolean)
     Dim d(0 To 15) As Double, mu As SldWorks.MathUtility, xf As Object, co As Object
+    If Not placed Then x = 0: flip = False
     d(0) = IIf(flip, -1, 1): d(4) = 1: d(8) = IIf(flip, -1, 1)
     d(9) = x * MM
     d(12) = 1
@@ -1488,11 +1532,29 @@ Private Sub PlaceAndFix(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.As
     If Not co.SetTransformAndSolve2(xf) Then gLog = gLog & c.Name2 & ": cannot place the component" & vbCrLf
     If Err.Number <> 0 Then gLog = gLog & c.Name2 & ": cannot place the component (" & Err.Description & ")" & vbCrLf
     On Error GoTo 0
+End Sub
+
+Private Sub FixComp(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, ByVal c As SldWorks.Component2)
     am.ClearSelection2 True
     c.Select4 False, Nothing, False
     asm.FixComponent
     am.ClearSelection2 True
 End Sub
+
+' Lock mate (keeps the present relative position) between two components
+Private Function MateLock(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
+                          ByVal a As SldWorks.Component2, ByVal b As SldWorks.Component2) As Object
+    Dim sd As SldWorks.SelectData, errStat As Long
+    am.ClearSelection2 True
+    Set sd = am.SelectionManager.CreateSelectData
+    sd.Mark = 1
+    a.Select4 False, sd, False
+    b.Select4 True, sd, False
+    On Error Resume Next
+    Set MateLock = asm.AddMate3(swMateLOCK, swMateAlignALIGNED, False, 0, 0, 0, 0, 0, 0, 0, 0, False, errStat)
+    On Error GoTo 0
+    am.ClearSelection2 True
+End Function
 
 ' Child component of a sub-assembly whose name contains partName
 Private Function FindChild(ByVal parent As SldWorks.Component2, ByVal partName As String) As SldWorks.Component2
@@ -1508,11 +1570,14 @@ Private Function FindChild(ByVal parent As SldWorks.Component2, ByVal partName A
 End Function
 
 ' Component card with STEP: import, turn the card axis onto +X with the card origin at 0,
-' add AXIS and the PORT planes, save as <COMPONENT>.SLDPRT next to the card.
+' add AXIS and the PORT planes, save as <COMPONENT>.SLDPRT next to the card. With BODY lines:
+' one part per body, <COMPONENT>-<body>.SLDPRT, with the PORTs named like the body.
+' Returns the part path(s), several joined by "|"; "" on failure.
 Private Function ImportCard(ByVal cardPath As String) As String
     Dim lines() As String, li As Long, s As String, t() As String, folder As String, q As Long
     Dim cName As String, stepFile As String, axis As String, ox As Double, oy As Double, oz As Double
     Dim pName(0 To 15) As String, pX(0 To 15) As Double, pInfo(0 To 15) As String, nP As Long, o() As String
+    Dim bName(0 To 7) As String, bFile(0 To 7) As String, nB As Long, k As Long, path As String, res As String
     folder = Left(cardPath, InStrRev(cardPath, "\"))
     axis = "+X"
     lines = ReadLines(cardPath)
@@ -1523,6 +1588,8 @@ Private Function ImportCard(ByVal cardPath As String) As String
             Select Case UCase(t(0))
             Case "COMPONENT": cName = t(1)
             Case "STEP": stepFile = t(1)
+            Case "BODY"
+                If UBound(t) >= 2 And nB <= 7 Then bName(nB) = t(1): bFile(nB) = t(2): nB = nB + 1
             Case "FRAME"
                 For q = 1 To UBound(t)
                     If LCase(Left(t(q), 5)) = "axis=" Then axis = UCase(Mid(t(q), 6))
@@ -1545,60 +1612,79 @@ Private Function ImportCard(ByVal cardPath As String) As String
             End Select
         End If
     Next li
-    If cName = "" Or stepFile = "" Then
-        gLog = gLog & cardPath & ": COMPONENT and STEP lines are needed" & vbCrLf
-        Exit Function
-    End If
-    If Not FileExists(folder & stepFile) Then
-        gLog = gLog & "STEP not found: " & folder & stepFile & vbCrLf
+    If cName = "" Or (stepFile = "" And nB = 0) Then
+        gLog = gLog & cardPath & ": COMPONENT and STEP (or BODY) lines are needed" & vbCrLf
         Exit Function
     End If
 
-    ' import with a working part template (the default one is restored afterwards)
+    If nB = 0 Then
+        ImportCard = ImportStepPart(folder & stepFile, axis, ox, oy, oz, cName, pName, pX, pInfo, nP, "", _
+                                    folder & cName & ".SLDPRT")
+        Exit Function
+    End If
+    For k = 0 To nB - 1
+        path = ImportStepPart(folder & bFile(k), "+X", 0, 0, 0, cName & "-" & bName(k), pName, pX, pInfo, nP, _
+                              bName(k), folder & cName & "-" & bName(k) & ".SLDPRT")
+        If path = "" Then Exit Function
+        res = res & IIf(res = "", "", "|") & path
+    Next k
+    ImportCard = res
+End Function
+
+' One STEP file -> part: import (with a working part template), turn onto +X if needed, AXIS,
+' PORT planes (only the ports named onlyPort when it is given), properties, save as outPath.
+Private Function ImportStepPart(ByVal stepPath As String, ByVal axis As String, ByVal ox As Double, _
+                                ByVal oy As Double, ByVal oz As Double, ByVal pname As String, _
+                                portName() As String, portX() As Double, portInfo() As String, _
+                                ByVal nP As Long, ByVal onlyPort As String, ByVal outPath As String) As String
+    If Not FileExists(stepPath) Then
+        gLog = gLog & "STEP not found: " & stepPath & vbCrLf
+        Exit Function
+    End If
     Dim m As SldWorks.ModelDoc2, impData As Object, errs As Long, oldTpl As String
     If gTplPart = "" Then gTplPart = FindTemplate("prtdot", swDefaultTemplatePart, "part")
     oldTpl = swApp.GetUserPreferenceStringValue(swDefaultTemplatePart)
     If gTplPart <> "" Then swApp.SetUserPreferenceStringValue swDefaultTemplatePart, gTplPart
     On Error Resume Next
-    Set impData = swApp.GetImportFileData(folder & stepFile)
+    Set impData = swApp.GetImportFileData(stepPath)
     On Error GoTo 0
-    Set m = swApp.LoadFile4(folder & stepFile, "r", impData, errs)
+    Set m = swApp.LoadFile4(stepPath, "r", impData, errs)
     swApp.SetUserPreferenceStringValue swDefaultTemplatePart, oldTpl
     If m Is Nothing Then
-        gLog = gLog & "STEP import failed (" & stepFile & ", error " & errs & ")" & vbCrLf
+        gLog = gLog & "STEP import failed (" & stepPath & ", error " & errs & ")" & vbCrLf
         Exit Function
     End If
     If m.GetType <> swDocPART Then
-        gLog = gLog & stepFile & " opens as an assembly - not supported yet (save it as one part)" & vbCrLf
+        gLog = gLog & stepPath & " opens as an assembly - split it into BODY files (tools/step_split.py)" & vbCrLf
         Exit Function
     End If
 
-    If Not NormalizeFrame(m, axis, ox, oy, oz, cName) Then Exit Function
+    If Not NormalizeFrame(m, axis, ox, oy, oz, pname) Then Exit Function
 
     Dim planes(0 To 2) As SldWorks.Feature, f As SldWorks.Feature, k As Long
     If Not GetRefPlanes(m.FirstFeature, planes) Then
-        gLog = gLog & cName & ": reference planes not found" & vbCrLf
+        gLog = gLog & pname & ": reference planes not found" & vbCrLf
         Exit Function
     End If
-    AddAxis m, planes, cName
+    AddAxis m, planes, pname
     For k = 0 To nP - 1
-        Set f = NewPlaneAtX(m, planes(2), pX(k))
-        If f Is Nothing Then
-            gLog = gLog & cName & ": plane PORT_" & pName(k) & " was not created" & vbCrLf
-        Else
-            f.Name = "PORT_" & pName(k)
+        If onlyPort = "" Or StrComp(portName(k), onlyPort, vbTextCompare) = 0 Then
+            Set f = NewPlaneAtX(m, planes(2), portX(k))
+            If f Is Nothing Then
+                gLog = gLog & pname & ": plane PORT_" & portName(k) & " was not created" & vbCrLf
+            Else
+                f.Name = "PORT_" & portName(k)
+            End If
+            SetProp m, "PORT_" & portName(k), portInfo(k)
         End If
-        SetProp m, "PORT_" & pName(k), pInfo(k)
     Next k
-    SetProp m, "STEP", stepFile
+    SetProp m, "STEP", Mid(stepPath, InStrRev(stepPath, "\") + 1)
     SetProp m, "FRAME", "axis=" & axis & " origin=" & ox & "," & oy & "," & oz
     m.ClearSelection2 True
     m.EditRebuild3
     m.ShowNamedView2 "*Isometric", swIsometricView
     m.ViewZoomtofit2
-
-    ImportCard = folder & cName & ".SLDPRT"
-    If Not SaveDoc(m, ImportCard) Then ImportCard = ""
+    If SaveDoc(m, outPath) Then ImportStepPart = outPath
 End Function
 
 ' Move the bodies so that the card origin is at 0 and the card axis is +X. The axial span is

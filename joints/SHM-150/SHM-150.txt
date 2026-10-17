@@ -9,6 +9,13 @@ USE   motor    RI80-V2-KV75   components/T-motor/RI80-V2-KV75/RI80-V2-KV75.txt
 # Sensors - not in the joint yet (for now a joint = reducer + motor), space to be kept for:
 LATER sensor_out     # angle sensor of the output shaft
 LATER sensor_motor   # rotor angle sensor for motor control, driven from the rotor by a belt
+# Build in SolidWorks: run BuildFromSpec on this file (reducer + motor bodies + parts + joint assembly).
+# The joint frame is the frame of DMRD-KB32 (x=0 - motor end of the input shaft, reducer at x > 0).
+PARTS  SHM-150-rotor-cup.txt
+PLACE  motor  0  flip            # motor card x=0 (rotor / lamination face) at x=0, Hall side outward (-X)
+LINK   SHM-150-01_RotorCup      DMRD-KB32-02_InputShaft
+LINK   SHM-150-02_ClampFlange   DMRD-KB32-02_InputShaft
+LINK   RI80-V2-KV75-rotor      DMRD-KB32-02_InputShaft   # the rotor turns with the input shaft
 # Parts designed for this joint (geometry generated from the ports)
 DESIGN rotor_cup       # SHM-150-rotor-cup.txt: tube D36 through the input shaft (centred in both D36 bores), rotor seat D40.5
 DESIGN clamp_flange    # SHM-150-rotor-cup.txt: on the output end of the input shaft, 6xM3 D40.5 + 3xM3 into the cup tube
