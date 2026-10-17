@@ -1,0 +1,64 @@
+# SHM-1000: parts designed for the joint - adapter plate (AK80-9 -> DMRD-80E) and coupling
+# (AK80-9 output -> DMRD-80E input shaft). Coordinates: the frame of DMRD-80E (X - axis,
+# x=0 - face of the square flange, the reducer is at x > 0, the actuator at x < 0), mm.
+#
+# Stack along X:
+#   plate      x -10..0 (D165 milled to the 130 square like the reducer flange), spigot D110 x 0..6
+#              in the recess D110H7 (6.5 deep), pocket D98 x -10..-5 for the actuator housing
+#   AK80-9     front face of the housing at x=-5 (on the pocket bottom), output face at x=-2,
+#              placed with PLACE motor -2 in SHM-1000.txt (card x=0 -> x=-2)
+#   coupling   skirt bore D48 on the actuator output band D48, face on the output face at x=-2,
+#              flange D54 x -4.6..6, neck D18 x 6..19, shaft D22 x 19..49 in the bore D22H7 of the
+#              input shaft (bore 19..60), key slot 8 for a key 8x7 (key not modelled)
+# Fasteners:
+#   plate -> reducer   4 x M8 into the 4-M8 of the square flange (D145, 45 deg), holes D9 in the plate
+#   AK -> plate        8 x M3 from the spigot side into the 8-M3 of the actuator (D85, 22.5 deg),
+#                      holes D3.4 + counterbores D6.5 x 3.5 (screw before the plate goes onto the reducer)
+#   coupling -> AK     6 x M4 into the 6-M4 of the output (D28, 0 deg), holes D4.5 + counterbores
+#                      D7.5 x 4.5 from the shaft side (neck D18 leaves room for the heads), 2 dowels D3 (90 deg)
+
+# ---- adapter plate (fixed) ------------------------------------------------------------------------
+PART SHM-1000-01_AdapterPlate
+MOTION fixed
+P -10   49       # pocket D98 x 5 for the AK80-9 housing
+P -10   82.5     # D165 blank, milled to 130 x 130
+P 0     82.5
+P 0     55       # spigot D110 (h7 into the recess D110H7)
+P 6     55
+P 6     32       # bore D64 (= reducer cavity)
+P 0     32
+P 0     30       # bore D60 around the coupling flange D54
+P -5    30
+P -5    49
+#      x0    x1   across  n   angle
+FLATS  -10   0    130     4   0
+#      x     dir  n   pcd    d    depth  angle
+HOLES  -10   1    4   145    9    0      45       # 4 x D9 for M8 into the reducer flange
+HOLES  6     -1   8   85     3.4  0      22.5     # 8 x D3.4 for M3 into the AK80-9
+HOLES  6     -1   8   85     6.5  3.5    22.5     # counterbores for the M3 heads
+PORT  reducer  0   1   role=on_reducer fit=110h7 fit_x=0..6 bolts=4xM8 pcd=145 ang=45
+PORT  motor    -5  -1  role=motor_seat fit=98 pocket_x=-10..-5 bolts=8xM3 pcd=85 ang=22.5
+END
+
+# ---- coupling (turns with the reducer input shaft) ----------------------------------------------------
+PART SHM-1000-02_Coupling
+MOTION rotate
+P -2    0
+P -2    24       # skirt bore D48 on the output band D48 of the actuator
+P -4.6  24
+P -4.6  27       # flange D54
+P 6     27
+P 6     9        # neck D18
+P 19    9
+P 19    11       # shaft D22 in the bore D22H7 of the input shaft
+P 49    11
+P 49    0
+#      x     dir  n   pcd    d    depth  angle
+HOLES  6     -1   6   28     4.5  8      0        # 6 x D4.5 for M4 into the AK80-9 output
+HOLES  6     -1   6   28     7.5  4.5    0        # counterbores for the M4 heads
+HOLES  -2    1    2   28     3    4      90       # 2 x D3 dowels (AK80-9 output has D3 x 3)
+#       x     dir  length  width  bottom  angle  from
+KEYWAY  21    1    26      8      12      90     7      # key slot 8 x 4 (key 8x7, bottom at r 7)
+PORT  motor    -2  -1  role=on_output fit=48 bolts=6xM4 pcd=28 ang=0
+PORT  reducer  19  1   role=in_input_bore fit=22 key=8 ang=90
+END

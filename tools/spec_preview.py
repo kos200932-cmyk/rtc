@@ -70,7 +70,8 @@ def parse(path):
                 x, d_, L = num(s[1]), num(s[2]), num(s[3])
                 x1 = x + (L if d_ >= 0 else -L)
                 cur["cuts"].append({"kind": "keyway", "x0": min(x, x1), "x1": max(x, x1), "width": num(s[4]),
-                                    "bottom": num(s[5]), "ang": num(s[6])})
+                                    "bottom": num(s[5]), "ang": num(s[6]),
+                                    "from": num(s[7]) if len(s) > 7 else 0.0})
             elif kw == "PORT":
                 cur["ports"].append({"name": s[1], "x": num(s[2]), "dir": num(s[3]),
                                      "info": " ".join(s[4:])})
@@ -226,7 +227,7 @@ def draw(asm, parts, png):
                 ax.plot([c["x0"], c["x1"]], [-c["across"] / 2] * 2, color="purple", ls="--", lw=1)
                 ax.text(c["x0"], c["across"] / 2 + 1, f"flats {c['across']:g}", fontsize=7, color="purple")
             else:
-                ax.add_patch(Rectangle((c["x0"], 0), c["x1"] - c["x0"], c["bottom"], fc="none",
+                ax.add_patch(Rectangle((c["x0"], c["from"]), c["x1"] - c["x0"], c["bottom"] - c["from"], fc="none",
                                        ec="purple", lw=0.8, ls="--"))
                 ax.text(c["x1"], c["bottom"], f" key {c['width']:g}", fontsize=7, color="purple")
         for po in p["ports"]:
@@ -274,8 +275,8 @@ def draw_ends(asm, parts, png):
                     ax.add_patch(Polygon(vs, closed=True, fill=False, ec="purple", lw=1.2))
                 elif side < 0:
                     a = math.radians(c["ang"])
-                    u, w = c["bottom"], c["width"] / 2
-                    pts = [(0, -w), (u, -w), (u, w), (0, w)]
+                    u, w, u0 = c["bottom"], c["width"] / 2, c["from"]
+                    pts = [(u0, -w), (u, -w), (u, w), (u0, w)]
                     ax.add_patch(Polygon([(sx * (uu * math.cos(a) - vv * math.sin(a)), uu * math.sin(a) + vv * math.cos(a))
                                           for uu, vv in pts], closed=True, fill=False, ec="purple", lw=1.2))
             for h in p["holes"]:

@@ -15,7 +15,15 @@ Attribute VB_Name = "BuildFromSpec"
 '     PORT lines -> "PORT_<name>" plane + custom property of the part,
 '     MASS <kg> -> part density set so that the part has exactly this mass,
 '     FLATS  -> "FlatsN" (milled flats, e.g. a square flange cut from a turned disc),
-'     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore).
+'     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore or on a shaft).
+'   * a JOINT file (joints/*/*.txt) builds a whole joint in one run:
+'       USE <role> <component> <file>  - a spec with PARTs (built, inserted as a flexible
+'                                        sub-assembly) or a component card with STEP (imported,
+'                                        turned so that its axis is X, AXIS + PORT planes added)
+'       PARTS <file>                   - parts designed for the joint, in the joint frame
+'       PLACE <role> <x> [flip]        - card x=0 of that component at joint x (flip: card +X -> -X)
+'       LINK <part> <child part>       - a designed part moves with a part of a sub-assembly
+'     The joint frame is the frame of the first USE (the reducer).
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -25,7 +33,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v17 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v18 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -48,6 +56,7 @@ Private Type CutSpec        ' FLATS / KEYWAY
     A As Double         ' FLATS: size across flats; KEYWAY: width, mm
     B As Double         ' FLATS: number of flats; KEYWAY: bottom - distance from the axis, mm
     Ang As Double       ' FLATS: normal of the first flat; KEYWAY: slot direction, deg (0 = +Z, 90 = +Y)
+    U0 As Double        ' KEYWAY: start of the slot - distance from the axis, mm (0 - from the axis)
 End Type
 
 Private Type PartSpec
@@ -73,46 +82,66 @@ Private gNParts As Long
 Private gAsmName As String
 Private gTplPart As String        ' templates found once per run (FindTemplate)
 Private gTplAsm As String
-Private gData As String          ' "key=value key=value ..." from DATA lines
+Private gData As String
+Private gPartPaths() As String  ' parts built by the last BuildSpecFile
+Private gSummary As String          ' "key=value key=value ..." from DATA lines
 Private gLog As String
 
 Sub main()
     Set swApp = Application.SldWorks
-    gLog = ""
+    gLog = "": gSummary = "": gTplPart = "": gTplAsm = ""
 
-    Dim specPath As String
+    Dim specPath As String, asmPath As String, ok As Boolean
     specPath = PickSpecFile()
     If specPath = "" Then Exit Sub
     If Not FileExists(specPath) Then
         MsgBox "File not found or bad path:" & vbCrLf & specPath, vbExclamation
         Exit Sub
     End If
-    If Not ReadSpec(specPath) Then Exit Sub
 
-    Dim folder As String
-    folder = Left(specPath, InStrRev(specPath, "\"))
-
-    Dim partPaths() As String, i As Long
-    ReDim partPaths(0 To gNParts - 1)
-    For i = 0 To gNParts - 1
-        partPaths(i) = folder & gParts(i).Name & ".SLDPRT"
-        If Not BuildPart(gParts(i), partPaths(i)) Then
-            MsgBox "Part " & gParts(i).Name & " was not built:" & vbCrLf & gLog, vbExclamation
-            Exit Sub
-        End If
-    Next i
-
-    If gAsmName <> "" Then BuildAssembly folder & gAsmName & ".SLDASM", partPaths
-
-    If gLog <> "" Then
-        MsgBox "Finished with warnings (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gLog, vbInformation
+    If FileHasKeyword(specPath, "JOINT") Then
+        ok = BuildJoint(specPath)
     Else
-        MsgBox "Done (" & MACRO_VERSION & ", " & SwVersion() & "): " & gNParts & " part(s)" & _
-               IIf(gAsmName <> "", " + assembly " & gAsmName, "") & vbCrLf & _
-               "Part template: " & gTplPart & IIf(gAsmName <> "", vbCrLf & "Assembly template: " & gTplAsm, ""), _
-               vbInformation
+        ok = BuildSpecFile(specPath, asmPath)
+    End If
+
+    If Not ok Then
+        MsgBox "Stopped (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gLog, vbExclamation
+    ElseIf gLog <> "" Then
+        MsgBox "Finished with warnings (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & _
+               gSummary & vbCrLf & gLog, vbInformation
+    Else
+        MsgBox "Done (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gSummary & vbCrLf & _
+               "Part template: " & gTplPart & vbCrLf & "Assembly template: " & gTplAsm, vbInformation
     End If
 End Sub
+
+' Parts (and the assembly, if ASSEMBLY is given) of one spec file, saved next to it.
+' asmPath returns the assembly path or "". Part paths stay in gPartPaths, the specs in gParts.
+Private Function BuildSpecFile(ByVal specPath As String, asmPath As String) As Boolean
+    Dim folder As String, i As Long
+    asmPath = ""
+    If Not ReadSpec(specPath) Then
+        gLog = gLog & "Spec not read: " & specPath & vbCrLf
+        Exit Function
+    End If
+    folder = Left(specPath, InStrRev(specPath, "\"))
+    ReDim gPartPaths(0 To gNParts - 1)
+    For i = 0 To gNParts - 1
+        gPartPaths(i) = folder & gParts(i).Name & ".SLDPRT"
+        If Not BuildPart(gParts(i), gPartPaths(i)) Then
+            gLog = gLog & "Part " & gParts(i).Name & " was not built." & vbCrLf
+            Exit Function
+        End If
+    Next i
+    If gAsmName <> "" Then
+        asmPath = folder & gAsmName & ".SLDASM"
+        BuildAssembly asmPath, gPartPaths
+    End If
+    gSummary = gSummary & Mid(specPath, InStrRev(specPath, "\") + 1) & ": " & gNParts & " part(s)" & _
+               IIf(gAsmName <> "", " + assembly " & gAsmName, "") & vbCrLf
+    BuildSpecFile = True
+End Function
 
 Private Function SwVersion() As String
     Dim rev As String
@@ -310,7 +339,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             End Select
 
         Case "FLATS", "KEYWAY"
-            ' FLATS x0 x1 across [n] [angle]  |  KEYWAY x dir length width bottom angle
+            ' FLATS x0 x1 across [n] [angle]  |  KEYWAY x dir length width bottom angle [from]
             If cur < 0 Then errMsg = "'" & t(0) & "' outside of PART ... END": GoTo Bad
             k = gParts(cur).NC
             If k > UBound(gParts(cur).C) Then ReDim Preserve gParts(cur).C(0 To 2 * k)
@@ -335,7 +364,9 @@ Private Function ReadSpec(ByVal path As String) As Boolean
                 gParts(cur).C(k).A = Num(t(4))
                 gParts(cur).C(k).B = Num(t(5))
                 gParts(cur).C(k).Ang = Num(t(6))
-                If gParts(cur).C(k).A <= 0 Or gParts(cur).C(k).B <= 0 Then errMsg = "bad KEYWAY width or bottom": GoTo Bad
+                gParts(cur).C(k).U0 = 0
+                If UBound(t) >= 7 Then gParts(cur).C(k).U0 = Num(t(7))
+                If gParts(cur).C(k).A <= 0 Or gParts(cur).C(k).B <= gParts(cur).C(k).U0 Then errMsg = "bad KEYWAY width, bottom or from": GoTo Bad
             End If
             If gParts(cur).C(k).Depth <= 0 Then errMsg = "cut length must be > 0": GoTo Bad
             gParts(cur).NC = k + 1
@@ -561,10 +592,10 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
     Else
         ' corners in (radial u, tangential v): (0,-w/2) (bottom,-w/2) (bottom,w/2) (0,w/2)
         a = c.Ang * PI / 180#
-        pt(0) = SlotPt(xf, c.X, 0, -c.A / 2, a)
+        pt(0) = SlotPt(xf, c.X, c.U0, -c.A / 2, a)
         pt(1) = SlotPt(xf, c.X, c.B, -c.A / 2, a)
         pt(2) = SlotPt(xf, c.X, c.B, c.A / 2, a)
-        pt(3) = SlotPt(xf, c.X, 0, c.A / 2, a)
+        pt(3) = SlotPt(xf, c.X, c.U0, c.A / 2, a)
         For k = 0 To 3
             sm.CreateLine pt(k)(0), pt(k)(1), 0, pt((k + 1) Mod 4)(0), pt((k + 1) Mod 4)(1), 0
         Next k
@@ -1143,6 +1174,403 @@ Private Function MatePair(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.
         gLog = gLog & errName & " failed (status " & errStat & ")" & vbCrLf
     End If
     am.ClearSelection2 True
+End Function
+
+' ---------------------------------------------------------------------------
+' Joint: sub-assemblies / imported components / designed parts in one assembly
+' ---------------------------------------------------------------------------
+Private Function BuildJoint(ByVal jointPath As String) As Boolean
+    Dim lines() As String, li As Long, s As String, t() As String, folder As String
+    Dim jName As String, partsFile As String
+    Dim uRole(0 To 15) As String, uFile(0 To 15) As String, uModel(0 To 15) As String
+    Dim uIsAsm(0 To 15) As Boolean, uPlaced(0 To 15) As Boolean, uX(0 To 15) As Double, uFlip(0 To 15) As Boolean
+    Dim nU As Long, k As Long, i As Long
+    Dim lnkPart(0 To 15) As String, lnkTo(0 To 15) As String, nL As Long
+
+    folder = Left(jointPath, InStrRev(jointPath, "\"))
+    lines = ReadLines(jointPath)
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            Select Case UCase(t(0))
+            Case "JOINT"
+                jName = t(1)
+            Case "USE"
+                If UBound(t) >= 3 Then
+                    If t(2) <> "?" And nU <= 15 Then
+                        uRole(nU) = t(1)
+                        uFile(nU) = ResolvePath(folder, t(3))
+                        If uFile(nU) = "" Then
+                            gLog = gLog & "USE " & t(1) & ": file not found: " & t(3) & vbCrLf
+                            Exit Function
+                        End If
+                        nU = nU + 1
+                    End If
+                End If
+            Case "PARTS"
+                If UBound(t) < 1 Then gLog = gLog & "PARTS needs a file" & vbCrLf: Exit Function
+                partsFile = ResolvePath(folder, t(1))
+                If partsFile = "" Then
+                    gLog = gLog & "PARTS: file not found: " & t(1) & vbCrLf
+                    Exit Function
+                End If
+            Case "PLACE"
+                If UBound(t) < 2 Then gLog = gLog & "PLACE needs <role> <x>" & vbCrLf: Exit Function
+                For k = 0 To nU - 1
+                    If uRole(k) = t(1) Then
+                        uPlaced(k) = True
+                        uX(k) = Num(t(2))
+                        If UBound(t) >= 3 Then uFlip(k) = (LCase(t(3)) = "flip")
+                    End If
+                Next k
+            Case "LINK"
+                If UBound(t) < 2 Then gLog = gLog & "LINK needs <part> <child part>" & vbCrLf: Exit Function
+                If nL <= 15 Then lnkPart(nL) = t(1): lnkTo(nL) = t(2): nL = nL + 1
+            End Select
+        End If
+    Next li
+    If jName = "" Or nU = 0 Then
+        gLog = gLog & "JOINT file needs JOINT <name> and at least one USE line." & vbCrLf
+        Exit Function
+    End If
+
+    ' 1. components: specs are built, cards with STEP are imported
+    For k = 0 To nU - 1
+        If FileHasKeyword(uFile(k), "PART") Then
+            If Not BuildSpecFile(uFile(k), uModel(k)) Then Exit Function
+            If uModel(k) = "" Then
+                gLog = gLog & uRole(k) & ": the spec has no ASSEMBLY line" & vbCrLf
+                Exit Function
+            End If
+            uIsAsm(k) = True
+        ElseIf FileHasKeyword(uFile(k), "STEP") Then
+            uModel(k) = ImportCard(uFile(k))
+            If uModel(k) = "" Then Exit Function
+            gSummary = gSummary & Mid(uFile(k), InStrRev(uFile(k), "\") + 1) & ": STEP imported" & vbCrLf
+        Else
+            gLog = gLog & uRole(k) & ": neither PARTs nor STEP in " & uFile(k) & vbCrLf
+            Exit Function
+        End If
+    Next k
+
+    ' 2. designed parts (they stay in gParts / gPartPaths)
+    Dim dummy As String, nD As Long
+    If partsFile <> "" Then
+        If Not BuildSpecFile(partsFile, dummy) Then Exit Function
+        nD = gNParts
+    End If
+
+    ' 3. the joint assembly
+    Dim am As SldWorks.ModelDoc2, asm As SldWorks.AssemblyDoc
+    If gTplAsm = "" Then gTplAsm = FindTemplate("asmdot", swDefaultTemplateAssembly, "assem")
+    If gTplAsm <> "" Then Set am = swApp.NewDocument(gTplAsm, 0, 0, 0)
+    If am Is Nothing Then
+        gLog = gLog & "Cannot create the joint assembly from '" & gTplAsm & "'" & vbCrLf
+        Exit Function
+    End If
+    Set asm = am
+    Dim asmPlanes(0 To 2) As SldWorks.Feature, cp(0 To 2) As SldWorks.Feature
+    If Not GetRefPlanes(am.FirstFeature, asmPlanes) Then
+        gLog = gLog & "Reference planes not found in the assembly template." & vbCrLf
+        Exit Function
+    End If
+
+    Dim uComp(0 To 15) As SldWorks.Component2, co As Object
+    For k = 0 To nU - 1
+        Set uComp(k) = InsertFloating(am, asm, uModel(k))
+        If uComp(k) Is Nothing Then Exit Function
+        If uIsAsm(k) Then
+            Set co = uComp(k)
+            On Error Resume Next
+            co.Solving = 1                 ' flexible: the shafts of the sub-assembly can turn
+            On Error GoTo 0
+        End If
+        If uPlaced(k) Then
+            PlaceAndFix am, asm, uComp(k), uX(k), uFlip(k)
+        Else
+            MateToPlanes am, asm, uComp(k), asmPlanes
+        End If
+    Next k
+
+    Dim dc As SldWorks.Component2, child As SldWorks.Component2, target As String, j As Long
+    For i = 0 To nD - 1
+        Set dc = InsertFloating(am, asm, gPartPaths(i))
+        If dc Is Nothing Then Exit Function
+        target = ""
+        For j = 0 To nL - 1
+            If StrComp(lnkPart(j), gParts(i).Name, vbTextCompare) = 0 Then target = lnkTo(j)
+        Next j
+        If target = "" Then
+            MateToPlanes am, asm, dc, asmPlanes
+        Else
+            Set child = Nothing
+            For k = 0 To nU - 1
+                If uIsAsm(k) And child Is Nothing Then Set child = FindChild(uComp(k), target)
+            Next k
+            If child Is Nothing Then
+                gLog = gLog & "LINK " & gParts(i).Name & ": part '" & target & "' not found - fixed instead" & vbCrLf
+                MateToPlanes am, asm, dc, asmPlanes
+            ElseIf GetRefPlanes(child.FirstFeature, cp) Then
+                For j = 0 To 2
+                    MatePair am, asm, cp(j), FirstPlanes(dc, j), swMateCOINCIDENT, _
+                             dc.Name2 & ": link mate " & (j + 1)
+                Next j
+            End If
+        End If
+    Next i
+
+    am.ClearSelection2 True
+    am.EditRebuild3
+    am.ShowNamedView2 "*Isometric", swIsometricView
+    am.ViewZoomtofit2
+    If Not SaveDoc(am, folder & jName & ".SLDASM") Then Exit Function
+    gSummary = gSummary & "joint " & jName & ": " & nU & " component(s) + " & nD & " designed part(s)" & vbCrLf
+    BuildJoint = True
+End Function
+
+Private Function InsertFloating(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
+                                ByVal path As String) As SldWorks.Component2
+    Dim c As SldWorks.Component2
+    Set c = asm.AddComponent5(path, swAddComponentConfigOptions_CurrentSelectedConfig, "", False, "", 0, 0, 0)
+    If c Is Nothing Then
+        gLog = gLog & "Cannot insert " & path & vbCrLf
+        Exit Function
+    End If
+    am.ClearSelection2 True
+    c.Select4 False, Nothing, False
+    asm.UnfixComponent
+    am.ClearSelection2 True
+    Set InsertFloating = c
+End Function
+
+' Front/Top/Right of the component <-> Front/Top/Right of the assembly
+Private Sub MateToPlanes(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
+                         ByVal c As SldWorks.Component2, asmPlanes() As SldWorks.Feature)
+    Dim k As Long
+    For k = 0 To 2
+        MatePair am, asm, asmPlanes(k), FirstPlanes(c, k), swMateCOINCIDENT, c.Name2 & ": mate " & (k + 1)
+    Next k
+End Sub
+
+Private Function FirstPlanes(ByVal c As SldWorks.Component2, ByVal k As Long) As SldWorks.Feature
+    Dim cp(0 To 2) As SldWorks.Feature
+    If GetRefPlanes(c.FirstFeature, cp) Then Set FirstPlanes = cp(k)
+End Function
+
+' Component turned by 180 deg about Y if flip, moved to x (mm), then fixed
+Private Sub PlaceAndFix(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
+                        ByVal c As SldWorks.Component2, ByVal x As Double, ByVal flip As Boolean)
+    Dim d(0 To 15) As Double, mu As SldWorks.MathUtility, xf As Object, co As Object
+    d(0) = IIf(flip, -1, 1): d(4) = 1: d(8) = IIf(flip, -1, 1)
+    d(9) = x * MM
+    d(12) = 1
+    Set mu = swApp.GetMathUtility
+    Set xf = mu.CreateTransform(d)
+    Set co = c
+    On Error Resume Next
+    If Not co.SetTransformAndSolve2(xf) Then gLog = gLog & c.Name2 & ": cannot place the component" & vbCrLf
+    If Err.Number <> 0 Then gLog = gLog & c.Name2 & ": cannot place the component (" & Err.Description & ")" & vbCrLf
+    On Error GoTo 0
+    am.ClearSelection2 True
+    c.Select4 False, Nothing, False
+    asm.FixComponent
+    am.ClearSelection2 True
+End Sub
+
+' Child component of a sub-assembly whose name contains partName
+Private Function FindChild(ByVal parent As SldWorks.Component2, ByVal partName As String) As SldWorks.Component2
+    Dim ch As Variant, c As Variant
+    ch = parent.GetChildren
+    If IsEmpty(ch) Then Exit Function
+    For Each c In ch
+        If InStr(1, c.Name2, partName, vbTextCompare) > 0 Then
+            Set FindChild = c
+            Exit Function
+        End If
+    Next c
+End Function
+
+' Component card with STEP: import, turn the card axis onto +X with the card origin at 0,
+' add AXIS and the PORT planes, save as <COMPONENT>.SLDPRT next to the card.
+Private Function ImportCard(ByVal cardPath As String) As String
+    Dim lines() As String, li As Long, s As String, t() As String, folder As String, q As Long
+    Dim cName As String, stepFile As String, axis As String, ox As Double, oy As Double, oz As Double
+    Dim pName(0 To 15) As String, pX(0 To 15) As Double, pInfo(0 To 15) As String, nP As Long, o() As String
+    folder = Left(cardPath, InStrRev(cardPath, "\"))
+    axis = "+X"
+    lines = ReadLines(cardPath)
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            Select Case UCase(t(0))
+            Case "COMPONENT": cName = t(1)
+            Case "STEP": stepFile = t(1)
+            Case "FRAME"
+                For q = 1 To UBound(t)
+                    If LCase(Left(t(q), 5)) = "axis=" Then axis = UCase(Mid(t(q), 6))
+                    If LCase(Left(t(q), 7)) = "origin=" Then
+                        o = Split(Mid(t(q), 8), ",")
+                        If UBound(o) >= 2 Then ox = Num(o(0)): oy = Num(o(1)): oz = Num(o(2))
+                    End If
+                Next q
+            Case "PORT"
+                If UBound(t) >= 3 And nP <= 15 Then
+                    If IsNumeric(Replace(t(2), ".", Mid(CStr(0.5), 2, 1))) Then
+                        pName(nP) = t(1): pX(nP) = Num(t(2))
+                        pInfo(nP) = "x=" & t(2) & " dir=" & t(3)
+                        For q = 4 To UBound(t)
+                            pInfo(nP) = pInfo(nP) & " " & t(q)
+                        Next q
+                        nP = nP + 1
+                    End If
+                End If
+            End Select
+        End If
+    Next li
+    If cName = "" Or stepFile = "" Then
+        gLog = gLog & cardPath & ": COMPONENT and STEP lines are needed" & vbCrLf
+        Exit Function
+    End If
+    If Not FileExists(folder & stepFile) Then
+        gLog = gLog & "STEP not found: " & folder & stepFile & vbCrLf
+        Exit Function
+    End If
+
+    ' import with a working part template (the default one is restored afterwards)
+    Dim m As SldWorks.ModelDoc2, imp As Object, errs As Long, oldTpl As String
+    If gTplPart = "" Then gTplPart = FindTemplate("prtdot", swDefaultTemplatePart, "part")
+    oldTpl = swApp.GetUserPreferenceStringValue(swDefaultTemplatePart)
+    If gTplPart <> "" Then swApp.SetUserPreferenceStringValue swDefaultTemplatePart, gTplPart
+    On Error Resume Next
+    Set imp = swApp.GetImportFileData(folder & stepFile)
+    On Error GoTo 0
+    Set m = swApp.LoadFile4(folder & stepFile, "r", imp, errs)
+    swApp.SetUserPreferenceStringValue swDefaultTemplatePart, oldTpl
+    If m Is Nothing Then
+        gLog = gLog & "STEP import failed (" & stepFile & ", error " & errs & ")" & vbCrLf
+        Exit Function
+    End If
+    If m.GetType <> swDocPART Then
+        gLog = gLog & stepFile & " opens as an assembly - not supported yet (save it as one part)" & vbCrLf
+        Exit Function
+    End If
+
+    If Not NormalizeFrame(m, axis, ox, oy, oz, cName) Then Exit Function
+
+    Dim planes(0 To 2) As SldWorks.Feature, f As SldWorks.Feature, k As Long
+    If Not GetRefPlanes(m.FirstFeature, planes) Then
+        gLog = gLog & cName & ": reference planes not found" & vbCrLf
+        Exit Function
+    End If
+    AddAxis m, planes, cName
+    For k = 0 To nP - 1
+        Set f = NewPlaneAtX(m, planes(2), pX(k))
+        If f Is Nothing Then
+            gLog = gLog & cName & ": plane PORT_" & pName(k) & " was not created" & vbCrLf
+        Else
+            f.Name = "PORT_" & pName(k)
+        End If
+        SetProp m, "PORT_" & pName(k), pInfo(k)
+    Next k
+    SetProp m, "STEP", stepFile
+    SetProp m, "FRAME", "axis=" & axis & " origin=" & ox & "," & oy & "," & oz
+    m.ClearSelection2 True
+    m.EditRebuild3
+    m.ShowNamedView2 "*Isometric", swIsometricView
+    m.ViewZoomtofit2
+
+    ImportCard = folder & cName & ".SLDPRT"
+    If Not SaveDoc(m, ImportCard) Then ImportCard = ""
+End Function
+
+' Move the bodies so that the card origin is at 0 and the card axis is +X. The axial span is
+' compared before / after the turn: if the turn went the other way, 180 deg about Y is added.
+Private Function NormalizeFrame(ByVal m As SldWorks.ModelDoc2, ByVal axis As String, ByVal ox As Double, _
+                                ByVal oy As Double, ByVal oz As Double, ByVal cName As String) As Boolean
+    Dim fm As Object, f As Object, bx As Variant, a0 As Double, a1 As Double   ' late-bound: argument lists differ between versions
+    Dim rx As Double, ry As Double, rz As Double, ax As Integer, sg As Integer
+    Set fm = m.FeatureManager
+    If ox <> 0 Or oy <> 0 Or oz <> 0 Then
+        SelectBodies m
+        Set f = fm.InsertMoveCopyBody2(-ox * MM, -oy * MM, -oz * MM, 0, 0, 0, 0, 0, 0, 0, False, 1)
+        If f Is Nothing Then gLog = gLog & cName & ": move to the card origin failed" & vbCrLf: Exit Function
+    End If
+    sg = IIf(Left(axis, 1) = "-", -1, 1)
+    Select Case Right(axis, 1)
+        Case "X": ax = 0: If sg < 0 Then ry = PI
+        Case "Y": ax = 1: rz = -sg * PI / 2
+        Case "Z": ax = 2: ry = sg * PI / 2
+        Case Else
+            gLog = gLog & cName & ": bad FRAME axis '" & axis & "'" & vbCrLf
+            Exit Function
+    End Select
+    If rx = 0 And ry = 0 And rz = 0 Then NormalizeFrame = True: Exit Function
+
+    m.EditRebuild3
+    bx = PartBox(m)
+    If sg > 0 Then a0 = bx(ax): a1 = bx(ax + 3) Else a0 = -bx(ax + 3): a1 = -bx(ax)
+    SelectBodies m
+    Set f = fm.InsertMoveCopyBody2(0, 0, 0, 0, 0, 0, 0, rx, ry, rz, False, 1)
+    If f Is Nothing Then gLog = gLog & cName & ": turn onto the X axis failed" & vbCrLf: Exit Function
+    m.EditRebuild3
+    bx = PartBox(m)
+    If Abs(bx(0) - a0) > 0.0001 Or Abs(bx(3) - a1) > 0.0001 Then
+        SelectBodies m
+        Set f = fm.InsertMoveCopyBody2(0, 0, 0, 0, 0, 0, 0, 0, PI, 0, False, 1)
+        m.EditRebuild3
+        bx = PartBox(m)
+        If Abs(bx(0) - a0) > 0.0001 Or Abs(bx(3) - a1) > 0.0001 Then
+            gLog = gLog & cName & ": the axis could not be turned onto +X - check FRAME" & vbCrLf
+            Exit Function
+        End If
+    End If
+    NormalizeFrame = True
+End Function
+
+Private Function PartBox(ByVal m As SldWorks.ModelDoc2) As Variant
+    Dim pd As SldWorks.PartDoc
+    Set pd = m
+    PartBox = pd.GetPartBox(True)
+End Function
+
+Private Sub SelectBodies(ByVal m As SldWorks.ModelDoc2)
+    Dim pd As SldWorks.PartDoc, bodies As Variant, b As Variant, sd As SldWorks.SelectData
+    Set pd = m
+    m.ClearSelection2 True
+    bodies = pd.GetBodies2(swSolidBody, True)
+    If IsEmpty(bodies) Then Exit Sub
+    Set sd = m.SelectionManager.CreateSelectData
+    sd.Mark = 1
+    For Each b In bodies
+        b.Select2 True, sd
+    Next b
+End Sub
+
+' Path from a USE / PARTS line: relative to the file's folder or to one of its parents
+Private Function ResolvePath(ByVal folder As String, ByVal rel As String) As String
+    Dim k As Long, f As String
+    rel = Replace(rel, "/", "\")
+    If Mid(rel, 2, 1) = ":" Then
+        If FileExists(rel) Then ResolvePath = rel
+        Exit Function
+    End If
+    f = folder
+    For k = 0 To 5
+        If FileExists(f & rel) Then ResolvePath = f & rel: Exit Function
+        If Len(f) < 4 Then Exit Function
+        f = Left(f, InStrRev(Left(f, Len(f) - 1), "\"))
+    Next k
+End Function
+
+Private Function FileHasKeyword(ByVal path As String, ByVal kw As String) As Boolean
+    Dim lines() As String, li As Long, s As String
+    lines = ReadLines(path)
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If UCase(Split(s & " ", " ")(0)) = kw Then FileHasKeyword = True: Exit Function
+    Next li
 End Function
 
 ' Save a new document. The return value of Extension.SaveAs is not reliable,
