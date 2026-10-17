@@ -4,7 +4,9 @@
 # The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
 # section B-B shows the RIGHT (output) end (x = 99) and vice versa.
 # Axial stack: 10 (shaft end) + 30 (D106 17 + D168 13) + 46 (D190) + 13 (D158 output) = 99
-# Output shaft D158h7: 13 outside the housing + 6 inside (pocket D158 x 6 in the housing).
+# Output shaft D158h7: 13 outside the housing + 13 inside (pocket D158 x 13 in the housing).
+# Inside depth from section A-A: the blind holes of the output face must fit -
+# smooth D9 x 11.5 + thread M8 x 10 + drill tail 2.5 (measured) + drill point ~2 = 26 total length.
 # The drawing writes the outer diameter as "D190H7" - taken as D190 (outer surface).
 # PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
 
@@ -25,9 +27,9 @@ P 27    84       # D168h7 pilot, 13 long
 P 40    84
 P 40    95       # D190, 46 long
 P 86    95
-P 86    79       # pocket D158 x 6 deep for the output shaft
-P 80    79
-P 80    32.5
+P 86    79       # pocket D158 x 13 deep for the output shaft
+P 73    79
+P 73    32.5
 #      x     dir  n   pcd    d    depth  angle
 HOLES  40    1    18  180    6.6  0      90       # 18-D6.6 through (the drawing repeats this callout at 20 deg)
 HOLES  27    1    2   116    6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D168 step face), PCD 116
@@ -51,17 +53,18 @@ THREAD  99    -1   6   57.5   M4   9      90     # 6-M4 depth 9, right end
 PORT  input 0     -1   role=input fit=65h7 fit_x=0..10 bolts=6xM4 pcd=57.5 ang=90 mate=rotor_cup   # motor rotor via an adapter cup
 END
 
-# ---- 03: output shaft D158h7 (rotates; 13 outside + 6 inside the housing) -----
+# ---- 03: output shaft D158h7 (rotates; 13 outside + 13 inside the housing) ----
 PART DMRD-KB45-03_OutputShaft
 MOTION rotate
-P 80    32.5
-P 80    79
+P 73    32.5
+P 73    79
 P 99    79
 P 99    32.5
-#       x     dir  n   pcd    size depth  angle  drillDepth
-THREAD  99    -1   16  140    M8   10     101.25 10     # 16-M8 thread depth 10, RIGHT end
-THREAD  99    -1   4   140    M6   10     90            # 4-M6 on the same circle between the M8 (depth ASSUMED 10)
+# Blind holes on the output face (section A-A): smooth D9 x 11.5 at the face, then M8 thread 10 (drill 12.5).
 #      x     dir  n   pcd    d    depth  angle
-HOLES  89    -1   16  140    9    11.5   101.25         # 16-D9 x 11.5 behind the thread (section A-A); goes through here
+HOLES  99    -1   16  140    9    11.5   101.25         # 16-D9 x 11.5 at the face
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  87.5  -1   16  140    M8   10     101.25 12.5   # 16-M8 thread 10 below the smooth part, drill 12.5
+THREAD  99    -1   4   140    M6   10     90            # 4-M6 on the same circle between the M8 (depth ASSUMED 10)
 PORT  output 99   1    role=output fit=158h7 fit_x=86..99 bolts=16xM8 pcd=140 ang=101.25 mate=next_link
 END

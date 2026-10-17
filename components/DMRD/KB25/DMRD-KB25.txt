@@ -4,7 +4,9 @@
 # The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
 # section B-B shows the RIGHT (output) end (x = 59.5) and vice versa.
 # Axial stack: 6.5 (shaft end) + 15 (D65 10 + D94 5) + 29 (D110) + 9 (D86 output) = 59.5
-# Output shaft D86h7: 9 outside the housing + 6 inside (pocket D86 x 6 in the housing).
+# Output shaft D86h7: 9 outside the housing + 9.5 inside (pocket D86 x 9.5 in the housing).
+# Inside depth from section A-A: the blind holes of the output face must fit -
+# smooth D4.5 x 7.5 + thread M4 x 8 + drill tail 2 (measured) + drill point ~1 = 18.5 total length.
 # PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
 
 COMPONENT DMRD-KB25
@@ -26,9 +28,9 @@ P 16.5  47       # D94h7 pilot, 5 long
 P 21.5  47
 P 21.5  55       # D110h7, 29 long
 P 50.5  55
-P 50.5  43       # pocket D86 x 6 deep for the output shaft
-P 44.5  43
-P 44.5  19
+P 50.5  43       # pocket D86 x 9.5 deep for the output shaft
+P 41    43
+P 41    19
 #      x     dir  n   pcd    d    depth  angle
 HOLES  21.5  1    12  102    4.5  0      90       # 12-D4.5 through
 HOLES  16.5  1    2   73     6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D94 step face)
@@ -55,16 +57,17 @@ THREAD  59.5  -1   6   33.5   M3   6      90     # 6-M3 depth 6, right end
 PORT  input 0     -1   role=input fit=38h7 fit_x=0..6.5 bolts=6xM3 pcd=33.5 ang=90 mate=rotor_cup   # motor rotor via an adapter cup
 END
 
-# ---- 03: output shaft D86h7 (rotates; 9 outside + 6 inside the housing) -------
+# ---- 03: output shaft D86h7 (rotates; 9 outside + 9.5 inside the housing) -----
 PART DMRD-KB25-03_OutputShaft
 MOTION rotate
-P 44.5  19
-P 44.5  43
+P 41    19
+P 41    43
 P 59.5  43
 P 59.5  19
-#       x     dir  n   pcd    size depth  angle  drillDepth
-THREAD  59.5  -1   16  77     M4   8      101.25 8      # 16-M4 thread depth 8, RIGHT end
+# Blind holes on the output face (section A-A): smooth D4.5 x 7.5 at the face, then M4 thread 8 (drill 10).
 #      x     dir  n   pcd    d    depth  angle
-HOLES  51.5  -1   16  77     4.5  7.5    101.25         # 16-D4.5 x 7.5 behind the thread (section A-A); goes through here
+HOLES  59.5  -1   16  77     4.5  7.5    101.25         # 16-D4.5 x 7.5 at the face
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  52    -1   16  77     M4   8      101.25 10     # 16-M4 thread 8 below the smooth part, drill 10
 PORT  output 59.5 1    role=output fit=86h7 fit_x=50.5..59.5 bolts=16xM4 pcd=77 ang=101.25 mate=next_link
 END
