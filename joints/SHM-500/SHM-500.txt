@@ -17,7 +17,7 @@ LINK   SHM-500-01_RotorCup      DMRD-KB45-02_InputShaft
 LINK   RI115-PH-KV40-rotor     DMRD-KB45-02_InputShaft   # the rotor turns with the input shaft
 # Parts designed for this joint (geometry generated from the ports)
 DESIGN rotor_cup       # adapter cup: on reducer.input (65h7, 6xM4 PCD57.5 on the shaft end), carries the rotor ID74
-DESIGN motor_housing   # stator OD115 holder; fixed to the base link - TO DEFINE
+DESIGN motor_housing   # in the PARTS file: on the reducer pilot (base port), stator seat, outer D129 / flange D190
 DESIGN rear_cover      # closes the motor housing, carries the angle sensor
 #    port A                 port B
 JOIN reducer.input          rotor_cup.reducer
@@ -25,6 +25,8 @@ JOIN motor.rotor            rotor_cup.rotor
 JOIN motor.stator           motor_housing.stator
 JOIN motor_housing.rear     rear_cover.housing
 # Interfaces of the joint for the arm layout
-OUT  base     reducer.base       # housing -> link: 168h7 + 18xD6.6 PCD180
+OUT  base     reducer.base       # TO DECIDE: the motor housing now sits on this pilot - the previous link
+#                                  goes on the motor housing flange or through the same bolts
+# OUT base   reducer.base       # housing -> link: 168h7 + 18xD6.6 PCD180
 OUT  output   reducer.output     # output shaft -> next link: 158h7 + 16xM8 PCD140
 END

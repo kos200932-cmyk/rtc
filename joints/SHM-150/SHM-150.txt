@@ -19,7 +19,7 @@ LINK   RI80-V2-KV75-rotor      DMRD-KB32-02_InputShaft   # the rotor turns with 
 # Parts designed for this joint (geometry generated from the ports)
 DESIGN rotor_cup       # SHM-150-rotor-cup.txt: tube D36 through the input shaft (centred in both D36 bores), rotor seat D40.5
 DESIGN clamp_flange    # SHM-150-rotor-cup.txt: on the output end of the input shaft, 6xM3 D40.5 + 3xM3 into the cup tube
-DESIGN motor_housing   # stator OD85 holder; fixed to the base link - TO DEFINE
+DESIGN motor_housing   # in the PARTS file: on the reducer pilot (base port), stator seat, outer D99 / flange D142
 DESIGN rear_cover      # closes the motor housing, carries the angle sensor
 #    port A                 port B
 JOIN reducer.input          rotor_cup.shaft
@@ -28,6 +28,8 @@ JOIN motor.rotor            rotor_cup.rotor
 JOIN motor.stator           motor_housing.stator
 JOIN motor_housing.rear     rear_cover.housing
 # Interfaces of the joint for the arm layout
-OUT  base     reducer.base       # housing -> link: 122h7 + 12xD5.5 PCD132
+OUT  base     reducer.base       # TO DECIDE: the motor housing now sits on this pilot - the previous link
+#                                  goes on the motor housing flange or through the same bolts
+# OUT base   reducer.base       # housing -> link: 122h7 + 12xD5.5 PCD132
 OUT  output   reducer.output     # output shaft -> next link: 112h7 + 16xM5 PCD100
 END
