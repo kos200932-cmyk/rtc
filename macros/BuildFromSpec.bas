@@ -40,7 +40,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v21 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v22 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -529,6 +529,7 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     m.ClearSelection2 True
     planes(0).Select2 False, 0
     sm.InsertSketch True
+    SnapOff sm, True        ' short segments (thin lips) must not snap to their neighbours
 
     Dim i As Long, j As Long, xMin As Double, xMax As Double
     xMin = p.PX(0): xMax = p.PX(0)
@@ -539,6 +540,7 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
         If p.PX(i) > xMax Then xMax = p.PX(i)
     Next i
     sm.CreateCenterLine xMin * MM, 0, 0, xMax * MM, 0, 0
+    SnapOff sm, False
     sm.InsertSketch True
 
     Dim sk As SldWorks.Feature
