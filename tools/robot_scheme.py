@@ -20,8 +20,8 @@ import sys
 
 import numpy as np
 
-R_SYMBOL = {"SHM-60": 43, "SHM-150": 56, "SHM-500": 79, "SHM-1000": 95, "SHM-150m": 120}
-L_SYMBOL = {"SHM-60": 70, "SHM-150": 80, "SHM-500": 110, "SHM-1000": 150, "SHM-150m": 60}
+R_SYMBOL = {"SHM-60": 55, "SHM-150": 71, "SHM-500": 95, "SHM-1000": 95, "SHM-150m": 120}   # ~ real envelope radius
+L_SYMBOL = {"SHM-60": 85, "SHM-150": 100, "SHM-500": 140, "SHM-1000": 190, "SHM-150m": 100}  # ~ real envelope length
 
 
 def read_layout(path):
@@ -37,7 +37,8 @@ def read_layout(path):
             lay["axes"].append({"name": t[1], "joint": t[2],
                                 "p": np.array([float(v) for v in t[3:6]]),
                                 "w": np.array([float(v) for v in t[6:9]]),
-                                "motor": kv.get("motor"), "output": kv.get("output")})
+                                "motor": kv.get("motor"), "output": kv.get("output"),
+                                "at": float(kv["at"]) if "at" in kv else None})
         elif t[0] == "FLANGE":
             lay["flange"] = {"p": np.array([float(v) for v in t[1:4]]),
                              "w": np.array([float(v) for v in t[4:7]]),
@@ -190,6 +191,9 @@ def body_centres(lay, pts, dirs, flange_p):
     n = len(pts)
     for i in range(n):
         j = lay["axes"][i]["joint"]
+        if lay["axes"][i].get("at") is not None:           # body position given in the layout
+            out.append(pts[i] + dirs[i] * lay["axes"][i]["at"])
+            continue
         if i == 0:
             out.append(pts[0] - dirs[0] * L_SYMBOL[j] / 2)
             continue
@@ -211,79 +215,70 @@ def body_centres(lay, pts, dirs, flange_p):
 
 
 def draw_side(ax, lay):
-    """Zero pose in the orientation of the user's scheme: base on the right, arm to the left, +X up."""
+    """Zero pose as on the user's scheme: base at the bottom, +Z up, +X to the right (view along +Y)."""
     from matplotlib.patches import Rectangle
     n = len(lay["axes"])
     pts, dirs, Tf = fk_poe(lay, np.zeros(n))
     cen = body_centres(lay, pts, dirs, Tf[:3, 3])
-    uv = lambda P: (-P[2], P[0])                    # drawing coords: u = -Z, v = X
-    # arm lines
+    uv = lambda P: (P[0], P[2])
     chain = [pts[0]]
     for i in range(n - 1):
         _, c1, c2 = line_relation(pts[i], dirs[i], pts[i + 1], dirs[i + 1])
         chain += [c1, c2]
     chain.append(Tf[:3, 3])
-    U = [uv(P) for P in chain]
-    ax.plot([u for u, _ in U], [v for _, v in U], color="0.3", lw=2.5, zorder=1)
+    U = np.array([uv(P) for P in chain])
+    ax.plot(U[:, 0], U[:, 1], color="0.3", lw=2.5, zorder=1)
     for i, a in enumerate(lay["axes"]):
         j, c, w = a["joint"], cen[i], dirs[i]
-        r, L = R_SYMBOL[j] * 0.55, L_SYMBOL[j]
+        r, L = R_SYMBOL[j], L_SYMBOL[j]
         along_z = abs(w[2]) > 0.5
         cu, cv = uv(c)
-        wu, hv = (L, 2 * r) if along_z else (2 * r, L)
+        wu, hv = (2 * r, L) if along_z else (L, 2 * r)
         ax.add_patch(Rectangle((cu - wu / 2, cv - hv / 2), wu, hv, fc=COLORS[j], ec="k", alpha=0.8, zorder=2))
-        # motor end: darker band on the motor side
         sgn = 1 if a["motor"].startswith("+") else -1
         md = np.zeros(3); md["XYZ".index(a["motor"][1])] = sgn
-        mc = c + md * (L / 2 - 9)
-        mu, mv = uv(mc)
-        bw, bh = (18, 2 * r) if along_z else (2 * r, 18)
-        ax.add_patch(Rectangle((mu - bw / 2, mv - bh / 2), bw, bh, fc="0.2", ec="k", zorder=3))
-        # axis line
-        e = w * (L / 2 + 45)
+        mu, mv = uv(c + md * (L / 2 - 12))
+        bw, bh = (2 * r, 24) if along_z else (24, 2 * r)
+        ax.add_patch(Rectangle((mu - bw / 2, mv - bh / 2), bw, bh, fc="none", ec="k", hatch="////", zorder=3))
+        e = w * (L / 2 + 60)
         (u0, v0), (u1, v1) = uv(c - e), uv(c + e)
-        ax.plot([u0, u1], [v0, v1], "k-.", lw=0.8, zorder=4)
+        ax.plot([u0, u1], [v0, v1], color="#e67e22", ls="-.", lw=1, zorder=4)
         ax.annotate("", xy=(u1, v1), xytext=(u0 + (u1 - u0) * 0.8, v0 + (v1 - v0) * 0.8),
                     arrowprops=dict(arrowstyle="->", color="r", lw=1.3), zorder=5)
-        lu, lv = (cu, cv - r - 40) if along_z else (cu, cv - L / 2 - 40)
-        if (not along_z and i % 2) or i == n - 1:
-            lv = (cv + L / 2 + 25) if not along_z else (cv + r + 50)
-        ax.text(lu, lv, f"{a['name']} {j}", ha="center", fontsize=8.5, zorder=6)
+        ax.text(cu, cv, f"{a['name']}\n{j}", ha="center", va="center", fontsize=8, zorder=6)
     fu, fv = uv(Tf[:3, 3])
-    ax.plot([fu, fu], [fv - 45, fv + 45], color="k", lw=3)
-    ax.text(fu - 60, fv + 55, "flange\n(position assumed)" if lay["flange"]["assumed"] else "flange",
-            ha="center", fontsize=8)
-    # dimensions as on the scheme (between axis positions along Z)
-    zs = [0] + [p[2] for p, w in zip(pts, dirs) if abs(w[0]) > 0.5]
-    y = -230
+    ax.plot([fu - 50, fu + 50], [fv, fv], color="k", lw=3)
+    ax.text(fu, fv + 25, "flange (estimated)" if lay["flange"]["assumed"] else "flange", ha="center", fontsize=8)
+    # dimensions: heights of the horizontal axes, lateral offsets of the vertical ones
+    zs = [0] + [p[2] for p, w in zip(pts, dirs) if abs(w[2]) < 0.5]
+    xs = sorted({round(p[0], 3) for p, w in zip(pts, dirs) if abs(w[2]) > 0.5})
+    xr = max(xs) + 250
     for z0, z1 in zip(zs[:-1], zs[1:]):
-        ax.annotate("", xy=(-z0, y), xytext=(-z1, y), arrowprops=dict(arrowstyle="<->", lw=0.8, color="b"))
-        ax.text(-(z0 + z1) / 2, y + 10, f"{z1 - z0:.0f}", color="b", ha="center", fontsize=9)
-        for z in (z0, z1):
-            ax.plot([-z, -z], [y - 10, 0], color="b", lw=0.4)
-    ax.annotate("", xy=(60, 0), xytext=(60, 70), arrowprops=dict(arrowstyle="<->", lw=0.8, color="b"))
-    ax.text(68, 35, "70", color="b", fontsize=9, va="center")
-    # world frame
-    ax.annotate("", xy=(-120, 0), xytext=(0, 0), arrowprops=dict(arrowstyle="->", color="b", lw=1.5))
-    ax.text(-125, -22, "+Z", color="b")
-    ax.annotate("", xy=(0, 120), xytext=(0, 0), arrowprops=dict(arrowstyle="->", color="r", lw=1.5))
-    ax.text(5, 125, "+X", color="r")
+        ax.annotate("", xy=(xr, z0), xytext=(xr, z1), arrowprops=dict(arrowstyle="<->", lw=0.8, color="b"))
+        ax.text(xr + 15, (z0 + z1) / 2, f"{z1 - z0:.0f}", color="b", va="center", fontsize=9, rotation=90)
+        ax.plot([xs[0], xr + 10], [z1, z1], color="b", lw=0.3)
+    if len(xs) > 1:
+        ax.annotate("", xy=(xs[0], -120), xytext=(xs[-1], -120), arrowprops=dict(arrowstyle="<->", lw=0.8, color="b"))
+        ax.text((xs[0] + xs[-1]) / 2, -110, f"{xs[-1] - xs[0]:.0f}", color="b", ha="center", fontsize=9)
+    ax.annotate("", xy=(150, 0), xytext=(0, 0), arrowprops=dict(arrowstyle="->", color="r", lw=1.5))
+    ax.text(155, -10, "X", color="r")
+    ax.annotate("", xy=(0, 150), xytext=(0, 0), arrowprops=dict(arrowstyle="->", color="b", lw=1.5))
+    ax.text(-30, 155, "Z", color="b")
     ax.set_aspect("equal")
-    ax.set_xlim(-1300, 200), ax.set_ylim(-280, 260)
+    ax.set_xlim(min(xs) - 450, xr + 120), ax.set_ylim(-250, fv + 150)
     ax.axis("off")
-    ax.set_title("zero pose, as on the scheme (base on the right; dark band = motor side; red arrow = + axis)",
-                 fontsize=10)
+    ax.set_title("zero pose (view along +Y): hatched = motor side, red arrow = + axis", fontsize=10)
 
 
 def draw(lay, q_test, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=(16, 14))
-    draw_side(fig.add_subplot(2, 1, 1), lay)
+    fig = plt.figure(figsize=(16, 15))
+    draw_side(fig.add_subplot(1, 2, 1), lay)
     for k, (q, title) in enumerate([(np.zeros(len(lay["axes"])), "zero pose, 3D"),
                                     (q_test, "test pose q = " + ", ".join(f"{math.degrees(v):.0f}" for v in q_test))]):
-        ax = fig.add_subplot(2, 2, k + 3, projection="3d")
+        ax = fig.add_subplot(2, 2, 2 * k + 2, projection="3d")
         pts, dirs, Tf = fk_poe(lay, q)
         cen = body_centres(lay, pts, dirs, Tf[:3, 3])
         # links: chain of the common-normal points
@@ -296,7 +291,7 @@ def draw(lay, q_test, path):
         ax.plot(C[:, 0], C[:, 1], C[:, 2], color="0.25", lw=3, solid_capstyle="round")
         for i, a in enumerate(lay["axes"]):
             j = a["joint"]
-            cylinder(ax, cen[i], dirs[i], R_SYMBOL[j] * 0.6, L_SYMBOL[j], COLORS[j])
+            cylinder(ax, cen[i], dirs[i], R_SYMBOL[j], L_SYMBOL[j], COLORS[j])
             e = dirs[i] * (L_SYMBOL[j] / 2 + 70)
             ax.plot(*np.c_[cen[i] - e, cen[i] + e], color="k", lw=0.8, ls="-.")
             ax.quiver(*(cen[i] + e * 0.6), *(dirs[i] * 45), color="r", lw=1.2, arrow_length_ratio=0.5)
@@ -313,7 +308,7 @@ def draw(lay, q_test, path):
         for col, vec, nm in zip("rgb", np.eye(3), "XYZ"):
             ax.quiver(0, 0, 0, *(vec * 150), color=col, lw=1, arrow_length_ratio=0.15)
             ax.text(*(vec * 175), nm, color=col, fontsize=9)
-        lim = 650
+        lim = 0.55 * (np.linalg.norm(fk_poe(lay, np.zeros(len(q)))[2][:3, 3]) + 200)
         ax.set_xlim(-lim, lim), ax.set_ylim(-lim, lim), ax.set_zlim(-150, 2 * lim - 150)
         ax.set_box_aspect((1, 1, 1))
         ax.set_xlabel("X"), ax.set_ylabel("Y"), ax.set_zlabel("Z")
@@ -348,7 +343,7 @@ def main():
 
     out = [f"# {lay['name']}: kinematics (`python tools/robot_scheme.py {a.layout}`)", "",
            "Zero configuration = the arm stretched as on the scheme. World frame: origin on the J1 axis at the",
-           "mounting face of the slewing bearing, +Z along J1 toward the arm, +X toward the 70 mm offsets.", "",
+           "mounting face of the slewing bearing, +Z along J1 toward the arm, +X toward the lateral offsets.", "",
            "## Joint axes (zero configuration)", "",
            "| Joint | Drive | Point on the axis, mm | Direction | Motor side | Relation to the previous axis |",
            "|---|---|---|---|---|---|"]
@@ -379,8 +374,9 @@ def main():
             f"- shoulder (J2 x J1) at z = {sh[2]:.0f}; flange at zero pose {', '.join(f'{v:.0f}' for v in Tz[:3, 3])}",
             f"- J2 -> J6 (shoulder -> wrist pitch) along the arm: {np.linalg.norm(wr - sh):.0f} mm" if wr is not None else "",
             f"- reach from the shoulder axis to the flange: {np.linalg.norm(Tz[:3, 3] - sh):.0f} mm (with the assumed flange)",
-            "- consecutive axes all intersect (each 70 mm offset lies along a pitch axis, i.e. sideways, out of the arm plane);",
-            "  J1, J5 are on one line and J3, J7 on another, 70 mm apart, at the zero pose."]
+            "- consecutive axes all intersect: the lateral offsets lie along the pitch axes (out of the bending plane)"
+            if all(line_relation(x["p"], x["w"], y["p"], y["w"])[0] == "intersect"
+                   for x, y in zip(lay["axes"][:-1], lay["axes"][1:])) else "- not all consecutive axes intersect (see the table)"]
     report = "\n".join(x for x in out if x is not None) + "\n"
     print(report)
     if a.md:
