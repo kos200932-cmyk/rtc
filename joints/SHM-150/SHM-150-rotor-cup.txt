@@ -29,7 +29,7 @@ P 0     18       # shoulder on the left shaft face; tube D36 through the shaft (
 P 65.5  18
 P 65.5  14       # bore D28 - cable passage
 #       x     dir  n   pcd    size depth  angle
-THREAD  65.5  -1   3   32     M3   6      0       # 3-M3 in the tube end for the flange
+THREAD  65.5  -1   3   32.5   M3   6      0       # 3-M3 in the tube end for the flange (D32.5)
 PORT  shaft  0     1   role=fit_in_shaft fit=36g6 fit_x=0..12,41.5..65.5 shoulder_x=0
 PORT  rotor  -19   -1  role=rotor_seat fit=40.5 fit_x=-19..0 collar=46
 END
@@ -43,7 +43,7 @@ P 68.5  22.5
 P 68.5  14
 #      x     dir  n   pcd    d    depth  angle
 HOLES  68.5  -1   6   40.5   3.4  0      90       # 6 x D3.4 -> 6-M3 of the shaft end (D40.5)
-HOLES  68.5  -1   3   32     3.4  0      0        # 3 x D3.4 -> 3-M3 of the cup tube (D32)
+HOLES  68.5  -1   3   32.5   3.4  0      0        # 3 x D3.4 -> 3-M3 of the cup tube (D32.5)
 PORT  shaft  65.5  -1  role=on_shaft_end bolts=6xM3 pcd=40.5 ang=90
 END
 

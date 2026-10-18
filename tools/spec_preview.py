@@ -173,9 +173,10 @@ def check(parts):
                 errs.append(f"{p['name']}: {h['label']} at x={h['x']} r={r} cuts no material")
                 continue
             # wall break-out: at every x where the hole axis is in material, both hole edges must be too
+            wall = 0.5      # minimum material left between a hole and an outer / inner surface, mm
             bad = [x0 + (x1 - x0) * k / steps for k in range(steps + 1) if on_mat[k] and not (
-                inside(poly, x0 + (x1 - x0) * k / steps, r - h["d"] / 2) and
-                inside(poly, x0 + (x1 - x0) * k / steps, r + h["d"] / 2))]
+                inside(poly, x0 + (x1 - x0) * k / steps, r - h["d"] / 2 - wall) and
+                inside(poly, x0 + (x1 - x0) * k / steps, r + h["d"] / 2 + wall))]
             if bad:
                 errs.append(f"{p['name']}: {h['label']} on D{h['pcd']} breaks through a wall at x={bad[0]:.2f}")
             # holes that pass through a FLATS zone must stay inside the polygon

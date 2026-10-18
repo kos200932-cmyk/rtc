@@ -65,19 +65,19 @@ END
 # ---- stator clamp ring (fixed) - axial stop of the stator from behind --------------------------------
 # Lip D115 / D113.2 x -31.5..-27 on the lamination face at x=-27 (potting D113 - only 1 mm of the
 # lamination is free, lip 0.9 mm: glue the stator as well), D104 behind (the board is inside D112.5 ->
-# the clamp clears it radially from x -35.1), flange D132 x -41..-38 with 4 x M4 into the housing.
+# the clamp clears it radially from x -35.1), flange D136 x -41..-38 with 4 x M4 into the housing.
 PART SHM-500-03_StatorClamp
 MOTION fixed
 P -41   52
-P -41   66       # flange D132
-P -38   66
+P -41   68       # flange D136 (holes D4.5 on D127.5 keep 1.75 mm to the edge)
+P -38   68
 P -38   57.5     # in the housing bore D115
 P -27   57.5
 P -27   56.6     # lip on the lamination face
 P -35.5 56.6     # lip root ends before the flange line (no collinear edges at x=-38); board starts at x -35.1
 P -35.5 52
 #      x     dir  n   pcd    d    depth  angle
-HOLES  -41   1    4   127.5  4.5  3      45       # 4 x D4.5 -> 4-M4 of the housing
+HOLES  -41   1    4   127.5  4.5  0      45       # 4 x D4.5 -> 4-M4 of the housing
 PORT  housing  -38   1   role=on_housing bolts=4xM4 pcd=127.5 ang=45
 PORT  stator   -27   1   role=stator_stop
 END
