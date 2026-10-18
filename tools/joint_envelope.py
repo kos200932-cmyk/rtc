@@ -70,7 +70,7 @@ def motor_envelope(card_path, x_place, flip):
     return out
 
 
-def envelope(joint_path, rear_allowance=10.0):
+def envelope(joint_path, rear_allowance=25.0):   # 25 mm on the rear cover for the sensors (user, 2026-10-18)
     j = read_joint(joint_path)
     red = os.path.join(ROOT, j["use"]["reducer"])
     _, rparts, _ = sp.parse(red)
