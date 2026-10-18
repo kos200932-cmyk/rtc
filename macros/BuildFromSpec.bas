@@ -16,7 +16,9 @@ Attribute VB_Name = "BuildFromSpec"
 '     MASS <kg> -> part density set so that the part has exactly this mass,
 '     FLATS  -> "FlatsN" (milled flats, e.g. a square flange cut from a turned disc),
 '     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore or on a shaft),
-'     BOX    -> a prismatic part instead of a revolved one (e.g. a key).
+'     BOX    -> a prismatic part instead of a revolved one (e.g. a key),
+'     COLOR r g b (0..255) -> part colour; without it the colour comes from the part name
+'                            (housing, input / output shaft, cup, rotor, stator ...).
 '   Every blind cut / extrusion is checked to go to the requested side of its sketch plane.
 '   * a JOINT file (joints/*/*.txt) builds a whole joint in one run:
 '       USE <role> <component> <file>  - a spec with PARTs (built, inserted as a flexible
@@ -38,7 +40,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v20 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v21 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -79,6 +81,7 @@ Private Type PartSpec
     Mass As Double      ' kg; 0 - not set
     C() As CutSpec
     NC As Long
+    Color As String     ' "r g b" from COLOR, "" - by the part name
     HasBox As Boolean   ' BOX x0 x1 r0 r1 width angle - prism instead of the revolved profile
     BX0 As Double
     BX1 As Double
@@ -275,6 +278,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             gParts(cur).NC = 0
             ReDim gParts(cur).C(0 To 7)
             gParts(cur).HasBox = False
+            gParts(cur).Color = ""
             gParts(cur).NPort = 0
             ReDim gParts(cur).PortName(0 To 7)
             ReDim gParts(cur).PortX(0 To 7)
@@ -394,6 +398,11 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             gParts(cur).BW = Num(t(5)): gParts(cur).BAng = Num(t(6))
             If gParts(cur).BX1 = gParts(cur).BX0 Or gParts(cur).BR1 <= gParts(cur).BR0 Or gParts(cur).BW <= 0 Then _
                 errMsg = "bad BOX size": GoTo Bad
+
+        Case "COLOR"
+            If cur < 0 Then errMsg = "'COLOR' outside of PART ... END": GoTo Bad
+            If UBound(t) < 3 Then errMsg = "expected 'COLOR r g b' (0..255)": GoTo Bad
+            gParts(cur).Color = t(1) & " " & t(2) & " " & t(3)
 
         Case "MASS"
             If cur < 0 Then errMsg = "'MASS' outside of PART ... END": GoTo Bad
@@ -580,6 +589,7 @@ BodyDone:
     m.ShowNamedView2 "*Isometric", swIsometricView
     m.ViewZoomtofit2
 
+    ApplyColor m, p.Name, p.Color
     If Not SaveDoc(m, outPath) Then Exit Function
     BuildPart = True
 End Function
@@ -742,6 +752,62 @@ Private Function AddBox(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWo
     Next attempt
     gLog = gLog & p.Name & ": BOX extrusion failed" & vbCrLf
 End Function
+
+' Part colour: "r g b" (0..255) or, if empty, by keywords in the part name
+Private Sub ApplyColor(ByVal m As SldWorks.ModelDoc2, ByVal nm As String, ByVal rgb As String)
+    Dim t() As String, r As Double, g As Double, b As Double, v(0 To 8) As Double
+    If rgb <> "" Then
+        t = Split(rgb, " ")
+        r = Num(t(0)): g = Num(t(1)): b = Num(t(2))
+    Else
+        DefaultColor nm, r, g, b
+    End If
+    v(0) = r / 255: v(1) = g / 255: v(2) = b / 255
+    v(3) = 1: v(4) = 1: v(5) = 0.4: v(6) = 0.3: v(7) = 0: v(8) = 0   ' ambient, diffuse, specular, shininess, transparency, emission
+    On Error Resume Next
+    m.MaterialPropertyValues = v
+    If Err.Number <> 0 Then gLog = gLog & nm & ": colour not set" & vbCrLf
+    On Error GoTo 0
+End Sub
+
+Private Sub DefaultColor(ByVal nm As String, r As Double, g As Double, b As Double)
+    Dim n As String
+    n = LCase(nm)
+    If InStr(n, "motorhousing") > 0 Then
+        r = 176: g = 186: b = 196          ' light steel
+    ElseIf InStr(n, "statorclamp") > 0 Then
+        r = 230: g = 190: b = 60           ' yellow
+    ElseIf InStr(n, "rotorcup") > 0 Then
+        r = 200: g = 80: b = 70            ' red
+    ElseIf InStr(n, "clampflange") > 0 Then
+        r = 150: g = 100: b = 200          ' violet
+    ElseIf InStr(n, "coupling") > 0 Then
+        r = 110: g = 90: b = 210           ' blue-violet
+    ElseIf InStr(n, "_key") > 0 Then
+        r = 60: g = 60: b = 60             ' dark
+    ElseIf InStr(n, "adapterplate") > 0 Then
+        r = 70: g = 160: b = 160           ' teal
+    ElseIf InStr(n, "inputshaft") > 0 Then
+        r = 240: g = 150: b = 40           ' orange
+    ElseIf InStr(n, "outputshaft") > 0 Then
+        r = 90: g = 170: b = 90            ' green
+    ElseIf InStr(n, "housing") > 0 Then
+        r = 110: g = 130: b = 150          ' reducer housing: blue-grey
+    ElseIf Right(n, 6) = "-rotor" Then
+        r = 184: g = 115: b = 51           ' copper
+    ElseIf Right(n, 7) = "-stator" Then
+        r = 75: g = 75: b = 90             ' dark grey
+    ElseIf InStr(n, "ak80") > 0 Then
+        r = 45: g = 45: b = 50             ' actuator: black
+    Else
+        Select Case Len(n) Mod 4           ' anything else: a few calm colours
+            Case 0: r = 120: g = 160: b = 210
+            Case 1: r = 210: g = 160: b = 120
+            Case 2: r = 140: g = 190: b = 140
+            Case Else: r = 190: g = 140: b = 180
+        End Select
+    End If
+End Sub
 
 ' Point at radius r (mm), angle angDeg (0 = +Z, 90 = +Y) in the plane X = x -> sketch coordinates
 Private Function PolarPt(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
@@ -1684,6 +1750,7 @@ Private Function ImportStepPart(ByVal stepPath As String, ByVal axis As String, 
     m.EditRebuild3
     m.ShowNamedView2 "*Isometric", swIsometricView
     m.ViewZoomtofit2
+    ApplyColor m, pname, ""
     If SaveDoc(m, outPath) Then ImportStepPart = outPath
 End Function
 
