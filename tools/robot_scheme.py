@@ -38,7 +38,8 @@ def read_layout(path):
                                 "p": np.array([float(v) for v in t[3:6]]),
                                 "w": np.array([float(v) for v in t[6:9]]),
                                 "motor": kv.get("motor"), "output": kv.get("output"),
-                                "at": float(kv["at"]) if "at" in kv else None})
+                                "at": float(kv["at"]) if "at" in kv else None,
+                                "face": np.array([float(v) for v in kv["face"].split(",")]) if "face" in kv else None})
         elif t[0] == "FLANGE":
             lay["flange"] = {"p": np.array([float(v) for v in t[1:4]]),
                              "w": np.array([float(v) for v in t[4:7]]),
@@ -80,13 +81,52 @@ def flange_M(lay):
 def fk_poe(lay, q):
     """Frames of all joints (as moved) and of the flange for joint angles q (rad)."""
     T = np.eye(4)
-    pts, dirs = [], []
+    pts, dirs, Ts = [], [], []
     for a, qi in zip(lay["axes"], q):
         # axis i is moved by joints 1..i-1
         pts.append((T @ np.r_[a["p"], 1])[:3])
         dirs.append(T[:3, :3] @ a["w"])
+        Ts.append(T.copy())
         T = T @ screw_T(a["w"], a["p"], qi)
+    lay["_Ts"] = Ts
     return pts, dirs, T @ flange_M(lay)
+
+
+_ENV = None
+
+
+def joint_bodies(lay):
+    """Real envelopes (tools/joint_envelope.py) placed by face= of the layout, for the last fk_poe pose.
+    Returns per joint a list of (centre, axis unit, radius, length, kind) or None."""
+    global _ENV
+    if _ENV is None:
+        try:
+            import joint_envelope
+            _ENV = joint_envelope.all_joints()
+        except Exception as ex:          # noqa: BLE001
+            print("no joint envelopes:", ex)
+            _ENV = {}
+    out = []
+    for a, T in zip(lay["axes"], lay.get("_Ts", [])):
+        e = _ENV.get(a["joint"])
+        if e is None or a.get("face") is None:
+            out.append(None)
+            continue
+        md = np.zeros(3)
+        md["XYZ".index(a["motor"][1])] = 1 if a["motor"][0] == "+" else -1
+        u = -md                                    # joint local +X (toward the output) in the world
+        segs = []
+        for kind, lst in (("fixed", e["fixed"]), ("rot", e["rot"])):
+            for x0, x1, r, name in lst:
+                k = "motor" if name == "motor" else kind
+                c = a["face"] + u * ((x0 + x1) / 2 - e["x_out"])
+                segs.append(((T @ np.r_[c, 1])[:3], T[:3, :3] @ u, r, x1 - x0, k))
+        # rear allowance (cover) as a thin disc
+        xr = e["x_rear"]
+        c = a["face"] + u * (xr + e["rear_allowance"] / 2 - e["x_out"])
+        segs.append(((T @ np.r_[c, 1])[:3], T[:3, :3] @ u, e["R"] * 0.7, e["rear_allowance"], "cover"))
+        out.append(segs)
+    return out
 
 
 # ---------------------------------------------------------------- DH
@@ -214,7 +254,7 @@ def body_centres(lay, pts, dirs, flange_p):
     return out
 
 
-def draw_side(ax, lay):
+def draw_side(ax, lay, zoom=None, title=None):
     """Zero pose as on the user's scheme: base at the bottom, +Z up, +X to the right (view along +Y)."""
     from matplotlib.patches import Rectangle
     n = len(lay["axes"])
@@ -228,24 +268,45 @@ def draw_side(ax, lay):
     chain.append(Tf[:3, 3])
     U = np.array([uv(P) for P in chain])
     ax.plot(U[:, 0], U[:, 1], color="0.3", lw=2.5, zorder=1)
+    bodies = joint_bodies(lay)
     for i, a in enumerate(lay["axes"]):
         j, c, w = a["joint"], cen[i], dirs[i]
         r, L = R_SYMBOL[j], L_SYMBOL[j]
         along_z = abs(w[2]) > 0.5
+        if bodies[i]:
+            style = {"fixed": dict(fc=COLORS[j], ec="k", alpha=0.55, lw=0.6),
+                     "rot": dict(fc="0.55", ec="k", alpha=0.9, lw=0.6),
+                     "motor": dict(fc="none", ec="k", hatch="////", lw=0.6),
+                     "cover": dict(fc="none", ec="0.4", ls=":", lw=0.8)}
+            for sc, su, sr, sl, kind in bodies[i]:
+                cu_, cv_ = uv(sc)
+                wu, hv = (2 * sr, sl) if abs(su[2]) > 0.5 else (sl, 2 * sr)
+                ax.add_patch(Rectangle((cu_ - wu / 2, cv_ - hv / 2), wu, hv, zorder=2 + (kind != "fixed"),
+                                       **style[kind]))
+            c = np.mean([b[0] for b in bodies[i]], axis=0)
+            cen[i] = c
+            r = max(b[2] for b in bodies[i])
+            L = max(np.abs((b[0] - c) @ w) + b[3] / 2 for b in bodies[i]) * 2
+        else:
+            cu, cv = uv(c)
+            wu, hv = (2 * r, L) if along_z else (L, 2 * r)
+            ax.add_patch(Rectangle((cu - wu / 2, cv - hv / 2), wu, hv, fc=COLORS[j], ec="k", alpha=0.8, zorder=2))
+            sgn = 1 if a["motor"].startswith("+") else -1
+            md = np.zeros(3); md["XYZ".index(a["motor"][1])] = sgn
+            mu, mv = uv(c + md * (L / 2 - 12))
+            bw, bh = (2 * r, 24) if along_z else (24, 2 * r)
+            ax.add_patch(Rectangle((mu - bw / 2, mv - bh / 2), bw, bh, fc="none", ec="k", hatch="////", zorder=3))
         cu, cv = uv(c)
-        wu, hv = (2 * r, L) if along_z else (L, 2 * r)
-        ax.add_patch(Rectangle((cu - wu / 2, cv - hv / 2), wu, hv, fc=COLORS[j], ec="k", alpha=0.8, zorder=2))
-        sgn = 1 if a["motor"].startswith("+") else -1
-        md = np.zeros(3); md["XYZ".index(a["motor"][1])] = sgn
-        mu, mv = uv(c + md * (L / 2 - 12))
-        bw, bh = (2 * r, 24) if along_z else (24, 2 * r)
-        ax.add_patch(Rectangle((mu - bw / 2, mv - bh / 2), bw, bh, fc="none", ec="k", hatch="////", zorder=3))
         e = w * (L / 2 + 60)
         (u0, v0), (u1, v1) = uv(c - e), uv(c + e)
         ax.plot([u0, u1], [v0, v1], color="#e67e22", ls="-.", lw=1, zorder=4)
         ax.annotate("", xy=(u1, v1), xytext=(u0 + (u1 - u0) * 0.8, v0 + (v1 - v0) * 0.8),
                     arrowprops=dict(arrowstyle="->", color="r", lw=1.3), zorder=5)
-        ax.text(cu, cv, f"{a['name']}\n{j}", ha="center", va="center", fontsize=8, zorder=6)
+        if bodies[i]:
+            ax.text(cu + (r + 15 if along_z else 0), cv + (0 if along_z else r + 15), f"{a['name']} {j}",
+                    ha="left" if along_z else "center", va="center" if along_z else "bottom", fontsize=8, zorder=6)
+        else:
+            ax.text(cu, cv, f"{a['name']}\n{j}", ha="center", va="center", fontsize=8, zorder=6)
     fu, fv = uv(Tf[:3, 3])
     ax.plot([fu - 50, fu + 50], [fv, fv], color="k", lw=3)
     ax.text(fu, fv + 25, "flange (estimated)" if lay["flange"]["assumed"] else "flange", ha="center", fontsize=8)
@@ -265,20 +326,40 @@ def draw_side(ax, lay):
     ax.annotate("", xy=(0, 150), xytext=(0, 0), arrowprops=dict(arrowstyle="->", color="b", lw=1.5))
     ax.text(-30, 155, "Z", color="b")
     ax.set_aspect("equal")
-    ax.set_xlim(min(xs) - 450, xr + 120), ax.set_ylim(-250, fv + 150)
-    ax.axis("off")
-    ax.set_title("zero pose (view along +Y): hatched = motor side, red arrow = + axis", fontsize=10)
+    if zoom:
+        ax.set_xlim(*zoom[0]), ax.set_ylim(*zoom[1])
+        for txt in ax.texts:
+            txt.set_clip_on(True)
+            if hasattr(txt, "set_annotation_clip"):
+                txt.set_annotation_clip(True)
+        ax.grid(True, lw=0.3, color="0.85")
+        ax.tick_params(labelsize=7)
+        for sp_ in ax.spines.values():
+            sp_.set_color("0.7")
+    else:
+        ax.set_xlim(min(xs) - 450, xr + 120), ax.set_ylim(-250, fv + 150)
+        ax.axis("off")
+    ax.set_title(title or "zero pose (view along +Y): hatched = motor, grey = rotating output", fontsize=10)
 
 
 def draw(lay, q_test, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=(16, 15))
-    draw_side(fig.add_subplot(1, 2, 1), lay)
+    fig = plt.figure(figsize=(20, 15))
+    gs = fig.add_gridspec(3, 3, width_ratios=[1.0, 1.1, 1.3])
+    draw_side(fig.add_subplot(gs[:, 0]), lay)
+    n = len(lay["axes"])
+    pts0, _, Tf0 = fk_poe(lay, np.zeros(n))
+    zz = [p[2] for p in pts0]
+    for k, (za, zb, nm) in enumerate([(zz[1], zz[2], "shoulder J1-J3"), (zz[3], zz[4], "elbow J4-J5"),
+                                      (zz[5], Tf0[2, 3], "wrist J6-J7, flange")]):
+        lo = min(za, zb)
+        draw_side(fig.add_subplot(gs[2 - k, 1]), lay, zoom=((-320, 330), (lo - 230, lo + 330)), title=nm)
+    fk_poe(lay, np.zeros(n))
     for k, (q, title) in enumerate([(np.zeros(len(lay["axes"])), "zero pose, 3D"),
                                     (q_test, "test pose q = " + ", ".join(f"{math.degrees(v):.0f}" for v in q_test))]):
-        ax = fig.add_subplot(2, 2, 2 * k + 2, projection="3d")
+        ax = fig.add_subplot(gs[k * 1:(k + 1) * 1 + (1 if k else 0), 2] if False else gs[(0 if k == 0 else 1):(1 if k == 0 else 3), 2], projection="3d")
         pts, dirs, Tf = fk_poe(lay, q)
         cen = body_centres(lay, pts, dirs, Tf[:3, 3])
         # links: chain of the common-normal points
@@ -289,9 +370,16 @@ def draw(lay, q_test, path):
         chain.append(Tf[:3, 3])
         C = np.array(chain)
         ax.plot(C[:, 0], C[:, 1], C[:, 2], color="0.25", lw=3, solid_capstyle="round")
+        bodies = joint_bodies(lay)
         for i, a in enumerate(lay["axes"]):
             j = a["joint"]
-            cylinder(ax, cen[i], dirs[i], R_SYMBOL[j], L_SYMBOL[j], COLORS[j])
+            if bodies[i]:
+                for sc, su, sr, sl, kind in bodies[i]:
+                    if kind in ("fixed", "motor") and sr > 30:
+                        cylinder(ax, sc, su, sr, sl, COLORS[j], alpha=0.35)
+                cen[i] = np.mean([b[0] for b in bodies[i]], axis=0)
+            else:
+                cylinder(ax, cen[i], dirs[i], R_SYMBOL[j], L_SYMBOL[j], COLORS[j])
             e = dirs[i] * (L_SYMBOL[j] / 2 + 70)
             ax.plot(*np.c_[cen[i] - e, cen[i] + e], color="k", lw=0.8, ls="-.")
             ax.quiver(*(cen[i] + e * 0.6), *(dirs[i] * 45), color="r", lw=1.2, arrow_length_ratio=0.5)
@@ -315,7 +403,7 @@ def draw(lay, q_test, path):
         ax.view_init(elev=22, azim=-55)
         ax.set_title(title, fontsize=10)
     fig.suptitle(f"{lay['name']}: kinematic scheme (red arrow = + direction of the axis)", fontsize=12)
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.04, wspace=0.12, hspace=0.25)
     fig.savefig(path, dpi=110)
 
 
