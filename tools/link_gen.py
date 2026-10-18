@@ -28,11 +28,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ОПУ RU178G (components/ISKRA/RU178G): inner ring bore 115, OD 177, B 28, 12 x D9 on 139 at 0 deg; ds 161
 OPU = {"B": 28.0, "d": 115.0, "pcd": 139.0, "n": 12, "hole": 9.0, "ang": 0.0, "ds": 161.0}
 P1 = {
-    "flange_D": 160.0, "flange_t": 20.0, "flange_bore": 112.0,     # base flange on the inner ring
-    "deck_bottom": 10.0, "deck_top": 30.0, "deck_gap_x": 10.0,     # deck: gap g over the outer ring; x <= -gap
-    "plate_t": 20.0, "plate_margin": 22.0,                         # J2 plate: half width = PCD/2 + margin
-    "rib_t": 12.0, "rib_gap": 2.0,                                 # side ribs outside the J2 flange
-    "cbore_D": 16.0, "cbore_floor": 11.4,                          # M8 heads (D14 x 8.6) + wrench access
+    "plate_half": 125.0, "plate_t": 20.0, "boss_h": 5.0, "boss_D": 160.0, "bore": 112.0,
+    # base plate: one machined plate over the whole ОПУ (D240): boss D160 (<= ds 161) x 5 on the inner ring,
+    # the rest of the plate 5 mm over the fixed outer ring
+    "j2plate_t": 20.0, "j2plate_margin": 22.0,                     # J2 plate: half width = PCD/2 + margin
+    "rib_t": 12.0, "rib_gap": 2.0,                                 # side ribs outside the J2 flange, full length
+    "j2_range": 90.0, "gap": 10.0,                                 # J2 travel the ribs must let link 2 / J3 pass over
+    "cbore_D": 16.0, "cbore_depth": 8.6,                           # M8 heads (D14 x 8.6) + wrench access
     "adapter_t": 15.0, "adapter_recess": 8.0, "adapter_D": 155.0, "adapter_hole": 50.0,
 }
 KB32_OUT = {"fit": 112.0, "pcd": 100.0, "n": 16, "hole": 5.5, "ang": 101.25}
@@ -43,33 +45,64 @@ def f(v):
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
+def sweep_min_z(z2, x3, r3, s_top, band, j2_range):
+    """Lowest point of link 2 + J3 (a column |y| <= r3, 0..s_top above the J2 axis) inside the band
+    band = (y0, y1) of |y| while J2 turns by +-j2_range deg."""
+    best = 1e9
+    s = np.linspace(0, s_top, 160)
+    for th in np.radians(np.linspace(-j2_range, j2_range, 361)):
+        for yr in np.linspace(-r3, r3, 49):
+            yp = yr * np.cos(th) - s * np.sin(th)
+            zp = z2 + yr * np.sin(th) + s * np.cos(th)
+            m = (np.abs(yp) >= band[0]) & (np.abs(yp) <= band[1])
+            if m.any():
+                best = min(best, zp[m].min())
+    return best
+
+
 def link1(lay):
     ax = {a["name"]: a for a in lay["axes"]}
     env = je.all_joints()
-    E2 = env["SHM-1000"]
-    j2, j1 = ax["J2"], ax["J1"]
+    E2, E3 = env["SHM-1000"], env["SHM-500"]
+    j1, j2, j3 = ax["J1"], ax["J2"], ax["J3"]
     z2 = j2["p"][2]
     xf2 = j2["face"][0]
-    x_base = xf2 + (E2["x_base"] - E2["x_out"])        # J2 base face (world x), plate on its -X side
-    x_pl0, x_pl1 = x_base - P1["plate_t"], x_base
-    half = J2_BASE["pcd"] / 2 + P1["plate_margin"]
+    g = P1["gap"]
+    x_base = xf2 + (E2["x_base"] - E2["x_out"])        # J2 base face (world x), J2 plate on its -X side
+    x_pl0, x_pl1 = x_base - P1["j2plate_t"], x_base
+    hw = J2_BASE["pcd"] / 2 + P1["j2plate_margin"]      # J2 plate half width
     R2 = E2["R"]
-    y_rib0 = R2 + P1["rib_gap"]
-    y_rib1 = y_rib0 + P1["rib_t"]
-    deck_x0 = x_pl0 - 10
-    deck_x1 = xf2 - P1["deck_gap_x"]
-    z_top = z2 + half
+    H = P1["plate_half"]
+    z_b0, z_b1 = P1["boss_h"], P1["boss_h"] + P1["plate_t"]   # base plate z (boss below it, 0..boss_h)
+    assert H >= 120, "the base plate must cover the ОПУ (D240)"
+    assert abs(z2 - (z_b1 + R2 + 1)) < 0.5, f"layout J2 axis {z2} != plate top {z_b1} + R2 + 1: run robot_layout.py --deck {z_b1}"
+    y_r0 = R2 + P1["rib_gap"]
+    y_r1 = min(y_r0 + P1["rib_t"], H)
+    z_j2top = z2 + hw
+    # ribs run over the whole plate; where link 2 / J3 pass over them (x >= J2 output face - g) they are low:
+    s_top = j3["face"][2] - z2                          # J3 output face above the J2 axis
+    zmin = sweep_min_z(z2, j3["p"][0], E3["R"], s_top, (y_r0 - g, y_r1 + g), P1["j2_range"])
+    z_strip = min(zmin - g, z_j2top)
+    x_sw = xf2 - g                                      # link-2 sweep zone starts here
     a_j2 = 90.0 - J2_BASE["ang_joint"]                  # joint angle (0 = +Zj, 90 = +Yj) -> plane angle in (y, z)
     z_ad1 = -OPU["B"]
     z_ad0 = z_ad1 - P1["adapter_t"]
     z_face1 = z_ad0 + P1["adapter_recess"]
     assert abs(z_face1 - j1["face"][2]) < 0.05, f"J1 face {j1['face'][2]} vs adapter recess floor {z_face1}"
-    assert P1["flange_D"] <= OPU["ds"] and P1["adapter_D"] <= OPU["ds"]
+    assert P1["boss_D"] <= OPU["ds"] and P1["adapter_D"] <= OPU["ds"]
+    rib = [(x_pl0, z_b1), (x_pl0, z_j2top - 20), (x_sw, max(z_strip, z_b1 + 60)), (x_sw, z_strip),
+           (H, z_strip), (H, z_b1)]
+    if z_strip <= z_b1 + 1:
+        rib = [(x_pl0, z_b1), (x_pl0, z_j2top - 20), (x_sw, z_b1 + 60), (x_sw, z_b1)]
+    poly = " ".join(f"{f(x)} {f(z)}" for x, z in rib)
     L = [
         "# LINK-1: J1 (ШМ-150м, ОПУ inner ring) -> J2 (ШМ-1000) - GENERATED by tools/link_gen.py 1",
         "# Coordinates: robot world frame at the zero pose (robot/RTC-7-layout.txt), mm.",
-        "# Welded aluminium link; machining after welding: flange faces, J2 bore and its face, holes.",
+        "# Welded aluminium link: base plate over the whole ОПУ + J2 plate + 2 full-length ribs;",
+        "# machining after welding: boss on the inner ring, J2 bore and its face, holes.",
         f"# J2 axis z={f(z2)}, J2 output face x={f(xf2)}, J2 base face (pilot {f(J2_BASE['pilot'])}h7) x={f(x_base)}.",
+        f"# Ribs over the link-2 sweep zone (x >= {f(x_sw)}): top z={f(z_strip)} - link 2 + J3 pass over them",
+        f"# with gap {f(g)} while J2 turns +-{f(P1['j2_range'])} deg (their lowest point there: z={zmin:.1f}).",
         "ASSEMBLY LINK-1",
         "DATA material=AlMg welded concept=1",
         "",
@@ -77,27 +110,25 @@ def link1(lay):
         "MOTION fixed",
         "DENSITY 2700",
         "COLOR 170 180 195",
-        f"# base flange on the ОПУ inner ring (D {f(P1['flange_D'])} <= ds {f(OPU['ds'])}), central hole for the J1 adapter screws",
-        f"PRISM Z 0 {f(P1['flange_t'])} RING 0 0 {f(P1['flange_D'])} {f(P1['flange_bore'])}",
-        f"# deck under the J2 flange: z {f(P1['deck_bottom'])}..{f(P1['deck_top'])} (gap over the fixed outer ring), "
-        f"x {f(deck_x0)}..{f(deck_x1)} (clear of link 2 at x >= 0)",
-        f"PRISM Z {f(P1['deck_bottom'])} {f(P1['deck_top'])} RECT {f(deck_x0)} {f(deck_x1)} {f(-y_rib1)} {f(y_rib1)}",
+        f"# base plate {f(2 * H)} x {f(2 * H)} x {f(P1['plate_t'])} over the whole ОПУ, {f(P1['boss_h'])} mm over the fixed outer ring",
+        f"PRISM Z {f(z_b0)} {f(z_b1)} RECT {f(-H)} {f(H)} {f(-H)} {f(H)}",
+        f"# machined boss on the ОПУ inner ring: D{f(P1['boss_D'])} (<= ds {f(OPU['ds'])}) x {f(P1['boss_h'])}",
+        f"PRISM Z 0 {f(z_b0)} CIRC 0 0 {f(P1['boss_D'])}",
+        f"CUT Z -1 {f(z_b1 + 1)} CIRC 0 0 {f(P1['bore'])}   # access to the J1 adapter screws",
         f"# J2 mounting plate (YZ plane) on the -X side of the J2 base face",
-        f"PRISM X {f(x_pl0)} {f(x_pl1)} RECT {f(-half)} {f(half)} {f(P1['deck_bottom'])} {f(z_top)}",
-        f"# side ribs outside the J2 flange (D {f(2 * R2)})",
-        f"PRISM Y {f(y_rib0)} {f(y_rib1)} POLY {f(x_pl0)} {f(P1['deck_bottom'])} {f(x_pl0)} {f(z_top - 20)} "
-        f"{f(deck_x1)} {f(P1['deck_top'])} {f(deck_x1)} {f(P1['deck_bottom'])}",
-        f"PRISM Y {f(-y_rib1)} {f(-y_rib0)} POLY {f(x_pl0)} {f(P1['deck_bottom'])} {f(x_pl0)} {f(z_top - 20)} "
-        f"{f(deck_x1)} {f(P1['deck_top'])} {f(deck_x1)} {f(P1['deck_bottom'])}",
+        f"PRISM X {f(x_pl0)} {f(x_pl1)} RECT {f(-hw)} {f(hw)} {f(z_b1)} {f(z_j2top)}",
+        f"# ribs outside the J2 flange (D {f(2 * R2)}), over the whole plate length",
+        f"PRISM Y {f(y_r0)} {f(y_r1)} POLY {poly}",
+        f"PRISM Y {f(-y_r1)} {f(-y_r0)} POLY {poly}",
         f"# J2 bore: pilot {f(J2_BASE['pilot'])}H7 (the motor and the adapter plate of J2 pass through)",
         f"CUT X {f(x_pl0 - 1)} {f(x_pl1 + 1)} CIRC 0 {f(z2)} {f(J2_BASE['pilot'])}",
         f"TAP X {f(x_pl0)} {f(x_pl1)} 0 {f(z2)} {J2_BASE['n']} {f(J2_BASE['pcd'])} {J2_BASE['size']} {f(a_j2)}"
         "   # J2 flange screws from the output side",
-        f"# 12 x M8 through the flange and the inner ring into the J1 adapter: D9 + head counterbore / wrench access",
-        f"CUT Z -1 {f(P1['flange_t'] + 1)} PATTERN 0 0 {OPU['n']} {f(OPU['pcd'])} {f(OPU['hole'])} {f(OPU['ang'])}",
-        f"CUT Z {f(P1['cbore_floor'])} {f(P1['deck_top'] + 1)} PATTERN 0 0 {OPU['n']} {f(OPU['pcd'])} "
+        f"# 12 x M8 through the plate and the inner ring into the J1 adapter: D9 + head counterbore from the top",
+        f"CUT Z -1 {f(z_b1 + 1)} PATTERN 0 0 {OPU['n']} {f(OPU['pcd'])} {f(OPU['hole'])} {f(OPU['ang'])}",
+        f"CUT Z {f(z_b1 - P1['cbore_depth'])} {f(z_b1 + 1)} PATTERN 0 0 {OPU['n']} {f(OPU['pcd'])} "
         f"{f(P1['cbore_D'])} {f(OPU['ang'])}",
-        f"PORTP j1_ring Z 0 -1 role=on_opu_inner_ring screws=12xM8_D139 ds<={f(OPU['ds'])}",
+        f"PORTP j1_ring Z 0 -1 role=on_opu_inner_ring screws=12xM8_D139 boss=D{f(P1['boss_D'])}",
         f"PORTP j2_base X {f(x_base)} 1 role=j2_housing fit={f(J2_BASE['pilot'])}H7 bolts={J2_BASE['n']}x{J2_BASE['size']}_D{f(J2_BASE['pcd'])}",
         "END",
         "",
@@ -110,12 +141,14 @@ def link1(lay):
         f"CUT Z {f(z_ad0 - 1)} {f(z_face1)} CIRC 0 0 {f(KB32_OUT['fit'])}   # recess {f(KB32_OUT['fit'])}H7 x {f(P1['adapter_recess'])}",
         f"CUT Z {f(z_face1 - 1)} {f(z_ad1 + 1)} CIRC 0 0 {f(P1['adapter_hole'])}   # clears the clamp flange of the J1 input shaft",
         f"CUT Z {f(z_face1 - 1)} {f(z_ad1 + 1)} PATTERN 0 0 {KB32_OUT['n']} {f(KB32_OUT['pcd'])} {f(KB32_OUT['hole'])} "
-        f"{f(KB32_OUT['ang'])}   # 16 x M5 into the KB32 output, heads on top (reached through the link-1 flange bore)",
+        f"{f(KB32_OUT['ang'])}   # 16 x M5 into the KB32 output, heads on top (reached through the plate bore)",
         f"TAP Z {f(z_ad0)} {f(z_ad1)} 0 0 {OPU['n']} {f(OPU['pcd'])} M8 {f(OPU['ang'])}   # the 12 ring screws",
         f"PORTP j1_output Z {f(z_face1)} -1 role=on_kb32_output fit={f(KB32_OUT['fit'])}H7 bolts=16xM5_D100",
         f"PORTP ring Z {f(z_ad1)} 1 role=under_opu_inner_ring",
         "END",
     ]
+    print(f"ribs: J2 +-{P1['j2_range']:g} deg -> link 2 / J3 lowest z {zmin:.1f} in the rib band; rib top there {z_strip:.1f} "
+          f"({z_strip - z_b1:.1f} over the plate)", file=sys.stderr)
     return "\n".join(L) + "\n"
 
 

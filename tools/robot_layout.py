@@ -52,8 +52,8 @@ def main():
     ap.add_argument("--l5", type=float, default=1150.0, help="J4 -> J6 along the arm, mm")
     ap.add_argument("--gap", type=float, default=10.0)
     ap.add_argument("--plate", type=float, default=10.0)
-    ap.add_argument("--deck", type=float, default=30.0,
-                    help="top of the link-1 deck under the J2 flange, above the ОПУ face (welded link 1)")
+    ap.add_argument("--deck", type=float, default=25.0,
+                    help="top of the link-1 base plate under the J2 flange, above the ОПУ face (boss 5 + plate 20)")
     ap.add_argument("--j1-adapter", type=float, default=15.0,
                     help="J1 drive adapter under the ОПУ inner ring (KB32 output -> ring), thickness")
     ap.add_argument("--j1-recess", type=float, default=8.0, help="its recess for the KB32 output spigot")
