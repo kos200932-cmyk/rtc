@@ -36,17 +36,17 @@ Tool-change interface 4 kg always on the flange (COM 30 mm out); payload COM 100
 
 ## Worst static torques
 
-| Joint | Drive | Self-weight, N·m | Per 1 kg payload, N·m/kg | With 8 kg, N·m | Reducer rated / start-stop, N·m | Payload at rated torque, kg | Ratio needed (motor rated) |
+| Joint | Drive | Self-weight, N·m | Per 1 kg payload, N·m/kg | With 8 kg, N·m | Reducer rated (T_design if set) / start-stop, N·m | Payload at rated torque, kg | Ratio needed (motor rated) |
 |---|---|---|---|---|---|---|---|
 | J1 | SHM-150m | 0 | 0.0 | 0 | 103 / 155 | - | - |
-| J2 | SHM-1000 | 803 | 27.3 | 1009 | 784 / 1960 | -0.7 | 140 -> 153 (n_out 3 rpm) |
+| J2 | SHM-1000 | 803 | 27.3 | 1009 | 1000 / 1960 | 7.2 | 140 -> 153 (n_out 3 rpm) |
 | J3 | SHM-500 | 234 | 14.3 | 349 | 375 / 675 | 9.9 | 79 -> 99 (n_out 14 rpm) |
 | J4 | SHM-500 | 202 | 14.0 | 312 | 375 / 675 | 12.3 | 71 -> 79 (n_out 18 rpm) |
 | J5 | SHM-150 | 28 | 3.0 | 54 | 103 / 155 | 24.6 | 46 -> 49 (n_out 50 rpm) |
 | J6 | SHM-150 | 13 | 2.6 | 33 | 103 / 155 | 35.3 | 28 -> 29 (n_out 84 rpm) |
 | J7 | SHM-60 | 0 | 0.0 | 0 | 62 / 93 | - | - |
 
-Static payload limit at the reducer rated torque: **-0.7 kg**, set by J2.
+Static payload limit at the reducer rated torque: **7.2 kg**, set by J2.
 J1 axis is vertical: no gravity torque, it carries only the inertia (and the ОПУ takes the tilting moment).
 Dynamic loads (accelerations) come on top; start-stop torque is the catalog limit for them.
 
@@ -61,6 +61,6 @@ Worst poses (deg, J1..J7):
 
 ## Payload zones (static, rated torques; poses in the arm plane, best configuration)
 
-- reach with 8 kg: flange up to 2166 mm from the J1 axis
-- full reach (any payload >= 0): 2614 mm
+- reach with 8 kg: flange up to 2621 mm from the J1 axis
+- full reach (any payload >= 0): 2641 mm
 - map: `robot/RTC-7-payload-zones.png`
