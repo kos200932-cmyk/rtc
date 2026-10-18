@@ -106,6 +106,9 @@ def joint_masses(name):
     return mf, mfx / mf, mo, mox / mo if mo else 0.0, notes
 
 
+IFACE = {"mass": 4.0, "com": 30.0}     # tool-change interface on J7 (user: 4 kg); COM ASSUMED 30 mm beyond the flange
+
+
 def bodies(lay, payload, tool):
     """List of (mass kg, point at zero pose [mm], link index the body moves with)."""
     env = je.all_joints()
@@ -145,12 +148,15 @@ def bodies(lay, payload, tool):
             out.append((spec["fitting"], base1, k, f"link {k} fitting (high)"))
         else:
             out.append((spec["fitting"], (a0 + base1) / 2, k, f"link {k} bracket"))
+    if IFACE["mass"]:
+        out.append((IFACE["mass"], lay["flange"]["p"] + lay["flange"]["w"] * IFACE["com"], len(ax),
+                    "tool interface"))
     if payload:
         out.append((payload, lay["flange"]["p"] + lay["flange"]["w"] * tool, len(ax), "payload"))
     return out, notes
 
 
-def torques(lay, bl, q):
+def torques(lay, bl, q, signed=False):
     """Gravity torque about every axis (N*m) at pose q."""
     pts, dirs, _ = rs.fk_poe(lay, q)
     Ts = lay["_Ts"]
@@ -162,8 +168,66 @@ def torques(lay, bl, q):
         for (m, p, k, _), r in zip(bl, pos):
             if k >= i + 1:   # bodies moved by joint i (link i and further)
                 f += np.cross(r - pts[i] * 1e-3, np.array([0, 0, -m * G]))
-        tau.append(abs(f @ dirs[i]))
+        tau.append(f @ dirs[i] if signed else abs(f @ dirs[i]))
     return np.array(tau)
+
+
+def capacity_map(lay, b0, b1, rated, png, payload, step=(5, 6, 15)):
+    """Payload the arm can hold statically at the reducer rated torques, over the reach plane.
+    Poses in the plane of the arm (J1 = J3 = J5 = J7 = 0; J2, J4, J6 on a grid); the cell keeps the best
+    pose (the controller may choose the configuration). Returns (r, z, capacity) arrays."""
+    n = len(lay["axes"])
+    R = np.array(rated)
+    rows = []
+    for q2 in np.arange(-150, 151, step[0]):
+        for q4 in np.arange(-170, 171, step[1]):
+            for q6 in np.arange(-135, 136, step[2]):
+                q = np.radians([0, q2, 0, q4, 0, q6, 0])
+                t0 = torques(lay, b0, q, signed=True)
+                t1 = torques(lay, b1, q, signed=True) - t0
+                cap = np.inf
+                for i in range(1, n):
+                    if abs(t0[i]) > R[i]:
+                        cap = -1
+                        break
+                    if abs(t1[i]) > 1e-9:   # |t0 + P t1| <= R  ->  P <= (R - sign*t0)/|t1|
+                        cap = min(cap, (R[i] - np.sign(t1[i]) * t0[i]) / abs(t1[i]))
+                _, _, Tf = rs.fk_poe(lay, q)
+                f = Tf[:3, 3]
+                if f[2] < -100:
+                    continue                 # below the base plane
+                rows.append((np.hypot(f[0], f[1]), f[2], cap))
+    A = np.array(rows)
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    cell = 50.0
+    rmax, zmin, zmax = A[:, 0].max(), -100, A[:, 1].max()
+    nr, nz = int(rmax // cell) + 1, int((zmax - zmin) // cell) + 1
+    Gm = np.full((nz, nr), np.nan)
+    for r, z, c in A:
+        i, j = int((z - zmin) // cell), int(r // cell)
+        c = min(c, 30)
+        Gm[i, j] = c if np.isnan(Gm[i, j]) else max(Gm[i, j], c)
+    fig, ax = plt.subplots(figsize=(8.5, 8))
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    bounds = [-1, 0, 2, 4, 6, 8, 10, 15, 30]
+    cmap = ListedColormap(["#d9d9d6", "#fde0c5", "#f9b98c", "#f0904f", "#d9682a",
+                           "#9fd3b8", "#4fb38a", "#1b8a5e"])
+    im = ax.imshow(Gm, origin="lower", extent=(0, nr * cell, zmin, zmin + nz * cell), cmap=cmap,
+                   norm=BoundaryNorm(bounds, cmap.N), aspect="equal", interpolation="nearest")
+    cb = fig.colorbar(im, ax=ax, shrink=0.75, ticks=bounds)
+    cb.set_label("payload at the reducer rated torques, kg (best configuration)")
+    ax.axhline(0, color="#52514e", lw=0.8)
+    ax.text(10, 15, "ОПУ face", fontsize=8, color="#52514e")
+    ax.set_xlabel("flange: horizontal distance from the J1 axis, mm")
+    ax.set_ylabel("flange height above the ОПУ face, mm")
+    ax.set_title(f"RTC-7: static payload zones (tool interface {IFACE['mass']:g} kg included)\n"
+                 f"green = {payload:g} kg and more", fontsize=10)
+    ax.grid(color="white", lw=0.3, alpha=0.5)
+    fig.tight_layout()
+    fig.savefig(png, dpi=120)
+    return A
 
 
 def worst(lay, bl, n_rand=4000, seed=1):
@@ -207,10 +271,13 @@ def main():
     ap.add_argument("--payload", type=float, default=5.0, help="kg at the flange, for the report")
     ap.add_argument("--tool", type=float, default=100.0, help="payload COM beyond the flange, mm")
     ap.add_argument("--eta", type=float, default=0.8)
+    ap.add_argument("--interface", type=float, default=4.0, help="tool-change interface on J7, kg (always on)")
     ap.add_argument("--md")
     ap.add_argument("--png")
+    ap.add_argument("--map", help="payload zone map PNG (static, rated torques)")
     a = ap.parse_args()
     lay = rs.read_layout(a.layout)
+    IFACE["mass"] = a.interface
     n = len(lay["axes"])
     b0, notes = bodies(lay, 0.0, a.tool)
     b1, _ = bodies(lay, 1.0, a.tool)
@@ -234,7 +301,7 @@ def main():
 
     L = [f"# RTC-7: static gravity torques (`python tools/robot_statics.py {a.layout}`)", "",
          "Gravity only (no accelerations), worst pose over all angles of J2..J7 (no joint limits yet).",
-         f"Payload centre of mass {a.tool:g} mm beyond the flange. Reducer efficiency eta = {a.eta}.", "",
+         f"Tool-change interface {a.interface:g} kg always on the flange (COM {IFACE['com']:g} mm out); payload COM {a.tool:g} mm beyond the flange. Reducer efficiency eta = {a.eta}.", "",
          "## Mass model", "", "| Body | Mass, kg | Moves with |", "|---|---|---|"]
     for m, p, k, nm in b0:
         L.append(f"| {nm} | {m:.2f} | link {k} |")
@@ -265,6 +332,13 @@ def main():
           "Worst poses (deg, J1..J7):", ""]
     for i in range(1, n):
         L.append(f"- J{i + 1}: " + ", ".join(f"{math.degrees(v):.0f}" for v in self_q[i]))
+    if a.map:
+        A = capacity_map(lay, b0, b1, rated, os.path.join(ROOT, a.map), a.payload)
+        ok = A[A[:, 2] >= a.payload]
+        L += ["", f"## Payload zones (static, rated torques; poses in the arm plane, best configuration)", "",
+              f"- reach with {a.payload:g} kg: flange up to {ok[:, 0].max():.0f} mm from the J1 axis"
+              if len(ok) else f"- {a.payload:g} kg: nowhere at the rated torques",
+              f"- full reach (any payload >= 0): {A[A[:, 2] >= 0][:, 0].max():.0f} mm", f"- map: `{a.map}`"]
     rep = "\n".join(L) + "\n"
     print(rep)
     if a.md:
