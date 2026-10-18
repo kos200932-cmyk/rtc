@@ -1,0 +1,60 @@
+# ISKRA RU178G-UU-CC0-P5 - crossed roller slewing bearing (ОПУ), analogue of IKO RU178.
+# Source: seller data RU178G-data.png + generic drawing RU178G-drawing.png (shape G).
+# Concept model: two rings, rollers / seals / V-grooves not modelled; the rings are split at the
+# roller pitch diameter Dp 178 with a 1 mm gap.
+# X - along the axis, 0 = bottom face (base side), 28 = top face (link side); Y - radius, mm.
+#
+# From the data sheet: D 240, d 115, Dp 178, C 80.3 kN, C0 135 kN, mass 6.8 kg, P5, CC0, seals UU,
+#   outer ring: 12 x D9 through on Fe 217, counterbore Le D14 x We 8.6;
+#   inner ring: 12 x D9 (Vi ASSUMED = Ve 9) through on Fi 139, counterbore Li D14 x Wi 8.6;
+#   lubrication hole s D3.1 (radial, in the outer ring - not modelled);
+#   mating parts: ds 161 = max shoulder diameter of the part on the inner ring,
+#                 dh 195 = min bore diameter of the part on the outer ring.
+# ASSUMED (not in the data sheet, TO CONFIRM by the ISKRA drawing):
+#   B = 28 (width of IKO RU178), both rings flush;
+#   shape G = outer ring bolted from the top (counterbores at x=28 -> screws go into the base),
+#             inner ring bolted from the bottom (counterbores at x=0 -> screws go into the link);
+#   hole angles: outer ring from 15 deg, inner ring from 0 deg (staggered by half a pitch).
+
+COMPONENT RU178G-UU-CC0-P5
+TYPE bearing
+DATA maker=ISKRA analog=IKO_RU178 D=240 d=115 B=28 Dp=178 C_kN=80.3 C0_kN=135 precision=P5 clearance=CC0
+DATA seals=UU shape=G ds=161 dh=195 lube_hole=3.1 mass=6.8
+
+ASSEMBLY RU178G-UU-CC0-P5
+
+# ---- 01: outer ring (fixed, to the base) -----------------------------------------
+PART RU178G-01_OuterRing
+MOTION fixed
+COLOR 150 150 160
+MASS 4.0    # kg: 6.8 kg split by ring volume (outer 59 %, rollers counted in the rings)
+P 0     89.5
+P 0     119
+P 1     120     # chamfer 1
+P 27    120
+P 28    119
+P 28    89.5
+#      x     dir  n   pcd    d    depth  angle
+HOLES  28    -1   12  217    14   8.6    15     # counterbores Le D14 x We 8.6, top face
+HOLES  28    -1   12  217    9    0      15     # 12 x D9 through (Ve)
+PORT  base  0  -1  role=fixed fit=dh195 holes=12xD9 pcd=217 ang=15 bolt_from=top mate=base   # bottom face -> base, mating bore >= D195
+END
+
+# ---- 02: inner ring (rotates, to the link) ---------------------------------------
+PART RU178G-02_InnerRing
+MOTION rotate
+COLOR 190 190 200
+MASS 2.8    # kg: 41 % of 6.8 kg
+P 0     57.5
+P 0     87.5
+P 1     88.5    # chamfer 1 at the roller side
+P 27    88.5
+P 28    87.5
+P 28    58.5
+P 27    57.5    # chamfer 1 in the bore
+P 1     57.5
+#      x     dir  n   pcd    d    depth  angle
+HOLES  0     1    12  139    14   8.6    0      # counterbores Li D14 x Wi 8.6, bottom face
+HOLES  0     1    12  139    9    0      0      # 12 x D9 through (Vi)
+PORT  output 28  1  role=output fit=ds161 holes=12xD9 pcd=139 ang=0 bolt_from=bottom mate=link   # top face -> link, mating shoulder <= D161
+END
