@@ -75,19 +75,19 @@ PORT  rear     -22   -1  role=rear_end bore=76 bolts=4xM3 pcd=85 ang=45
 END
 
 # ---- stator clamp ring (fixed) - axial stop of the stator from behind --------------------------------
-# Lip D76 / D73.6 x -19.5..-13 presses the lamination face at x=-13 (ring r 36.8..38 - the windings are
-# D73, 0.3 mm clear), D70 behind the windings (the leads are inside D68), flange D92 x -25..-22 on the
+# Lip D76 / D74 x -19.5..-13 presses the lamination face at x=-13 (ring r 37..38 - the end insulation
+# D74 sticks out of the lamination by 0.3 mm, the windings are D73), D70 behind the windings (the leads are inside D68), flange D92 x -25..-22 on the
 # rear face of the housing with 4 x M3. The lip is 1.2 mm thick - the lamination step is only 1.5 mm.
 PART SHM-60-04_StatorClamp
 MOTION fixed
-P -25   35
+P -25   35.5
 P -25   46       # flange D92
 P -22   46
 P -22   38       # in the housing bore D76
 P -13   38
-P -13   36.8     # lip on the lamination face
-P -19.5 36.8
-P -19.5 35       # bore D70 for the leads
+P -13   37       # lip on the lamination face (r 37..38; the end insulation D74 sticks out 0.3)
+P -19.5 37
+P -19.5 35.5     # bore D71 for the leads (lead wires up to r 35.2)
 #      x     dir  n   pcd    d    depth  angle
 HOLES  -25   1    4   85     3.4  3      45       # 4 x D3.4 -> 4-M3 of the housing
 PORT  housing  -22   1   role=on_housing bolts=4xM3 pcd=85 ang=45
