@@ -79,6 +79,7 @@ def envelope(joint_path, rear_allowance=25.0):   # 25 mm on the rear cover for t
         _, pp, _ = sp.parse(os.path.join(j["dir"], j["parts"]))
         parts += pp
     fixed, rot, out_shaft = [], [], None
+    profiles = []     # exact revolved profiles (joint frame) for interference checks
     bore = min((min(y for _, y in p["pts"]) for p in parts if p["pts"]), default=0.0)
     ports = {}
     for p in parts:
@@ -86,6 +87,7 @@ def envelope(joint_path, rear_allowance=25.0):   # 25 mm on the rear cover for t
             continue
         s = poly_segments(p["pts"])
         (fixed if p["motion"] == "fixed" else rot).append(s + (p["name"],))
+        profiles.append((p["name"], "fixed" if p["motion"] == "fixed" else "rot", list(p["pts"])))
         if p["name"].endswith("OutputShaft"):
             out_shaft = s
         for po in p["ports"]:
@@ -93,13 +95,17 @@ def envelope(joint_path, rear_allowance=25.0):   # 25 mm on the rear cover for t
     xp, flip = j["place"].get("motor", (0.0, False))
     for a, b, r in motor_envelope(os.path.join(ROOT, j["use"]["motor"]), xp, flip):
         fixed.append((a, b, r, "motor"))
+        profiles.append(("motor", "motor", [(a, 0.0), (b, 0.0), (b, r), (a, r)]))
     base_ref = j["out"].get("base", "reducer.base").split(".")[1]
     x_out = out_shaft[1]
     x_rear = min(s[0] for s in fixed + rot) - rear_allowance
     r_fixed = max(s[2] for s in fixed)
     return {"name": j["name"], "fixed": fixed, "rot": rot, "x_out": x_out, "x_rear": x_rear,
             "x_base": ports.get(base_ref, ports.get("base")), "R": r_fixed, "R_out": out_shaft[2],
-            "L": x_out - x_rear, "rear_allowance": rear_allowance, "bore": 2 * bore}
+            "L": x_out - x_rear, "rear_allowance": rear_allowance, "bore": 2 * bore,
+            "profiles": profiles + [("cover", "cover", [(x_rear, 0.0), (x_rear + rear_allowance, 0.0),
+                                                       (x_rear + rear_allowance, r_fixed * 0.7),
+                                                       (x_rear, r_fixed * 0.7)])]}
 
 
 def all_joints():

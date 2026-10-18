@@ -17,6 +17,10 @@ Attribute VB_Name = "BuildFromSpec"
 '     FLATS  -> "FlatsN" (milled flats, e.g. a square flange cut from a turned disc),
 '     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore or on a shaft),
 '     BOX    -> a prismatic part instead of a revolved one (e.g. a key),
+'     PRISM / CUT <X|Y|Z> a0 a1 <RECT|CIRC|RING|POLY|PATTERN ...> -> prismatic part (links, world
+'                            frame): sketch on a plane normal to the axis at a0, extruded / cut to a1;
+'     TAP <X|Y|Z> a0 a1 uc vc n pcd M.. ang -> tap-drill holes (thread size in property THREADS),
+'     DENSITY kg/m3, PORTP name <X|Y|Z> level dir [key=value] -> interface plane of a prismatic part,
 '     COLOR r g b (0..255) -> part colour; without it the colour comes from the part name
 '                            (housing, input / output shaft, cup, rotor, stator ...).
 '   Every blind cut / extrusion is checked to go to the requested side of its sketch plane.
@@ -40,7 +44,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v22 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v23 (2026-10-18)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -89,6 +93,17 @@ Private Type PartSpec
     BR1 As Double
     BW As Double
     BAng As Double
+    ' prismatic part (links): PRISM / CUT operations in the world frame
+    NOp As Long
+    OpKind() As Integer     ' 1 - PRISM (add), 2 - CUT
+    OpAxis() As Integer     ' 0 - X, 1 - Y, 2 - Z (normal of the sketch plane)
+    OpA0() As Double        ' sketch plane level along the axis, mm
+    OpA1() As Double        ' end level, mm
+    OpShape() As String     ' RECT / CIRC / RING / POLY / PATTERN
+    OpArgs() As String      ' numbers of the shape, space separated
+    Density As Double       ' kg/m3 from DENSITY (0 - not set)
+    PortAxis() As Integer   ' -1 - PORT of a revolved part (plane at X), 0..2 - PORTP axis
+    Threads As String       ' TAP notes -> custom property THREADS
 End Type
 
 Private swApp As SldWorks.SldWorks
@@ -283,6 +298,16 @@ Private Function ReadSpec(ByVal path As String) As Boolean
             ReDim gParts(cur).PortName(0 To 7)
             ReDim gParts(cur).PortX(0 To 7)
             ReDim gParts(cur).PortInfo(0 To 7)
+            ReDim gParts(cur).PortAxis(0 To 7)
+            gParts(cur).NOp = 0
+            ReDim gParts(cur).OpKind(0 To 15)
+            ReDim gParts(cur).OpAxis(0 To 15)
+            ReDim gParts(cur).OpA0(0 To 15)
+            ReDim gParts(cur).OpA1(0 To 15)
+            ReDim gParts(cur).OpShape(0 To 15)
+            ReDim gParts(cur).OpArgs(0 To 15)
+            gParts(cur).Density = 0
+            gParts(cur).Threads = ""
 
         Case "END"
             cur = -1
@@ -419,9 +444,11 @@ Private Function ReadSpec(ByVal path As String) As Boolean
                     ReDim Preserve gParts(cur).PortName(0 To 2 * k)
                     ReDim Preserve gParts(cur).PortX(0 To 2 * k)
                     ReDim Preserve gParts(cur).PortInfo(0 To 2 * k)
+                    ReDim Preserve gParts(cur).PortAxis(0 To 2 * k)
                 End If
                 gParts(cur).PortName(k) = t(1)
                 gParts(cur).PortX(k) = Num(t(2))
+                gParts(cur).PortAxis(k) = -1
                 info = "x=" & t(2) & " dir=" & t(3)
                 For q = 4 To UBound(t)
                     info = info & " " & t(q)
@@ -429,6 +456,81 @@ Private Function ReadSpec(ByVal path As String) As Boolean
                 gParts(cur).PortInfo(k) = info
                 gParts(cur).NPort = k + 1
             End If
+        Case "PRISM", "CUT", "TAP"
+            ' PRISM|CUT axis a0 a1 shape numbers... | TAP axis a0 a1 uc vc n pcd Msize ang
+            If cur < 0 Then errMsg = "'" & t(0) & "' outside of PART ... END": GoTo Bad
+            If UBound(t) < 5 Then errMsg = "expected '" & t(0) & " X|Y|Z a0 a1 ...'": GoTo Bad
+            k = gParts(cur).NOp
+            If k > UBound(gParts(cur).OpKind) Then
+                ReDim Preserve gParts(cur).OpKind(0 To 2 * k)
+                ReDim Preserve gParts(cur).OpAxis(0 To 2 * k)
+                ReDim Preserve gParts(cur).OpA0(0 To 2 * k)
+                ReDim Preserve gParts(cur).OpA1(0 To 2 * k)
+                ReDim Preserve gParts(cur).OpShape(0 To 2 * k)
+                ReDim Preserve gParts(cur).OpArgs(0 To 2 * k)
+            End If
+            gParts(cur).OpAxis(k) = InStr("XYZ", UCase(t(1))) - 1
+            If gParts(cur).OpAxis(k) < 0 Or Len(t(1)) <> 1 Then errMsg = "axis must be X, Y or Z": GoTo Bad
+            gParts(cur).OpA0(k) = Num(t(2))
+            gParts(cur).OpA1(k) = Num(t(3))
+            If gParts(cur).OpA0(k) = gParts(cur).OpA1(k) Then errMsg = "a0 = a1": GoTo Bad
+            info = ""
+            If UCase(t(0)) = "TAP" Then
+                If UBound(t) < 9 Then errMsg = "expected 'TAP axis a0 a1 uc vc n pcd Msize ang'": GoTo Bad
+                If TapDrill(t(8)) <= 0 Then errMsg = "unknown thread size '" & t(8) & "'": GoTo Bad
+                gParts(cur).OpKind(k) = 2
+                gParts(cur).OpShape(k) = "PATTERN"
+                info = t(4) & " " & t(5) & " " & t(6) & " " & t(7) & " " & CStr(TapDrill(t(8))) & " " & t(9)
+                gParts(cur).Threads = gParts(cur).Threads & IIf(gParts(cur).Threads = "", "", "; ") & _
+                    t(6) & "x" & UCase(t(8)) & " PCD" & t(7) & " " & UCase(t(1)) & t(2) & ".." & t(3)
+            Else
+                gParts(cur).OpKind(k) = IIf(UCase(t(0)) = "PRISM", 1, 2)
+                gParts(cur).OpShape(k) = UCase(t(4))
+                For q = 5 To UBound(t)
+                    info = info & IIf(info = "", "", " ") & t(q)
+                Next q
+                Select Case gParts(cur).OpShape(k)
+                    Case "RECT": If UBound(t) < 8 Then errMsg = "RECT u0 u1 v0 v1": GoTo Bad
+                    Case "CIRC": If UBound(t) < 7 Then errMsg = "CIRC uc vc D": GoTo Bad
+                    Case "RING": If UBound(t) < 8 Then errMsg = "RING uc vc D d": GoTo Bad
+                    Case "PATTERN": If UBound(t) < 10 Then errMsg = "PATTERN uc vc n pcd d ang": GoTo Bad
+                    Case "POLY": If UBound(t) < 10 Or ((UBound(t) - 4) Mod 2) <> 0 Then errMsg = "POLY u1 v1 u2 v2 u3 v3 ...": GoTo Bad
+                    Case Else: errMsg = "unknown shape '" & t(4) & "'": GoTo Bad
+                End Select
+            End If
+            gParts(cur).OpArgs(k) = info
+            gParts(cur).NOp = k + 1
+
+        Case "DENSITY"
+            If cur < 0 Then errMsg = "'DENSITY' outside of PART ... END": GoTo Bad
+            If UBound(t) < 1 Then errMsg = "expected 'DENSITY kg/m3'": GoTo Bad
+            gParts(cur).Density = Num(t(1))
+
+        Case "PORTP"
+            ' PORTP name axis level dir [key=value ...]
+            If cur < 0 Then errMsg = "'PORTP' outside of PART ... END": GoTo Bad
+            If UBound(t) < 4 Then errMsg = "expected 'PORTP name X|Y|Z level dir [key=value ...]'": GoTo Bad
+            k = gParts(cur).NPort
+            If k > UBound(gParts(cur).PortName) Then
+                ReDim Preserve gParts(cur).PortName(0 To 2 * k)
+                ReDim Preserve gParts(cur).PortX(0 To 2 * k)
+                ReDim Preserve gParts(cur).PortInfo(0 To 2 * k)
+                ReDim Preserve gParts(cur).PortAxis(0 To 2 * k)
+            End If
+            gParts(cur).PortName(k) = t(1)
+            gParts(cur).PortAxis(k) = InStr("XYZ", UCase(t(2))) - 1
+            If gParts(cur).PortAxis(k) < 0 Then errMsg = "axis must be X, Y or Z": GoTo Bad
+            gParts(cur).PortX(k) = Num(t(3))
+            info = LCase(t(2)) & "=" & t(3) & " dir=" & t(4)
+            For q = 5 To UBound(t)
+                info = info & " " & t(q)
+            Next q
+            gParts(cur).PortInfo(k) = info
+            gParts(cur).NPort = k + 1
+
+        Case "ROBOT", "UNITS", "AXIS", "FLANGE", "CABLE"
+            ' layout lines - not geometry of a part
+
         Case Else
             errMsg = "unknown keyword '" & t(0) & "'": GoTo Bad
         End Select
@@ -453,7 +555,7 @@ NextLine:
             If gParts(cur).PX(k - 1) = gParts(cur).PX(0) And _
                gParts(cur).PY(k - 1) = gParts(cur).PY(0) Then gParts(cur).NP = k - 1
         End If
-        If gParts(cur).NP < 3 And Not gParts(cur).HasBox Then
+        If gParts(cur).NP < 3 And Not gParts(cur).HasBox And gParts(cur).NOp = 0 Then
             MsgBox "Part " & gParts(cur).Name & ": profile needs at least 3 points.", vbExclamation
             Exit Function
         End If
@@ -517,6 +619,17 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     End If
 
     Dim body As SldWorks.Feature
+    If p.NOp > 0 Then
+        If Not BuildPrismatic(m, planes, p) Then Exit Function
+        If p.Density > 0 Then m.SetUserPreferenceDoubleValue swMaterialPropertyDensity, p.Density
+        If p.Mass > 0 Then SetPartMass m, p
+        If p.Threads <> "" Then SetProp m, "THREADS", p.Threads
+        Dim ip As Long
+        For ip = 0 To p.NPort - 1
+            If p.PortAxis(ip) >= 0 Then AddPortP m, planes, p, ip Else AddPort m, planes(2), p, ip
+        Next ip
+        GoTo Finish
+    End If
     If p.HasBox Then
         Set body = AddBox(m, planes(2), p)
         If body Is Nothing Then Exit Function
@@ -586,6 +699,7 @@ BodyDone:
         AddPort m, planes(2), p, i
     Next i
 
+Finish:
     m.ClearSelection2 True
     m.EditRebuild3
     m.ShowNamedView2 "*Isometric", swIsometricView
@@ -1198,6 +1312,232 @@ Private Function CosmeticThreadCall(ByVal m As SldWorks.ModelDoc2, ByVal majorDi
     If f Is Nothing And why = "" Then why = "API returned nothing"
     CosmeticThreadCall = Not (f Is Nothing)
 End Function
+
+' ---------------------------------------------------------------------------
+' Prismatic parts (links): PRISM / CUT on planes normal to X, Y or Z, world frame
+' ---------------------------------------------------------------------------
+Private Function BuildPrismatic(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, _
+                                p As PartSpec) As Boolean
+    Dim i As Long, hasBody As Boolean, f As SldWorks.Feature
+    For i = 0 To p.NOp - 1
+        If p.OpKind(i) = 2 And Not hasBody Then
+            gLog = gLog & p.Name & ": CUT #" & (i + 1) & " before any PRISM - skipped" & vbCrLf
+        Else
+            Set f = AddPrismOp(m, planes, p, i)
+            If f Is Nothing Then
+                If p.OpKind(i) = 1 And Not hasBody Then
+                    gLog = gLog & p.Name & ": first PRISM failed" & vbCrLf
+                    Exit Function
+                End If
+            ElseIf p.OpKind(i) = 1 Then
+                hasBody = True
+            End If
+        End If
+    Next i
+    BuildPrismatic = hasBody
+End Function
+
+' Base plane of an axis: X -> Right (YZ), Y -> Top (XZ), Z -> Front (XY)
+Private Function BasePlane(planes() As SldWorks.Feature, ByVal k As Integer) As SldWorks.Feature
+    Select Case k
+        Case 0: Set BasePlane = planes(2)
+        Case 1: Set BasePlane = planes(1)
+        Case Else: Set BasePlane = planes(0)
+    End Select
+End Function
+
+' Model point (m) from the axis k, level along it and the plane coordinates (u, v), mm:
+' X -> (level, u, v), Y -> (u, level, v), Z -> (u, v, level)
+Private Function AxisPt(ByVal xf As SldWorks.MathTransform, ByVal k As Integer, ByVal lev As Double, _
+                        ByVal u As Double, ByVal v As Double) As Variant
+    Select Case k
+        Case 0: AxisPt = ModelToSketch(xf, lev * MM, u * MM, v * MM)
+        Case 1: AxisPt = ModelToSketch(xf, u * MM, lev * MM, v * MM)
+        Case Else: AxisPt = ModelToSketch(xf, u * MM, v * MM, lev * MM)
+    End Select
+End Function
+
+Private Function AddPrismOp(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, _
+                            p As PartSpec, ByVal i As Long) As SldWorks.Feature
+    Dim k As Integer, a0 As Double, a1 As Double, nm As String, pl As SldWorks.Feature
+    Dim sm As SldWorks.SketchManager, xf As SldWorks.MathTransform, a() As String, nA As Long
+    Dim j As Long, q0 As Variant, q1 As Variant, n As Long, t As Double, sk As SldWorks.Feature
+    Dim f As Object, attempt As Long, rev As Boolean, dirSign As Integer
+    k = p.OpAxis(i): a0 = p.OpA0(i): a1 = p.OpA1(i)
+    nm = IIf(p.OpKind(i) = 1, "Prism", "Cut") & (i + 1)
+    Set pl = GetPlaneK(m, BasePlane(planes, k), k, a0)
+    If pl Is Nothing Then
+        gLog = gLog & p.Name & ": cannot create plane " & Mid("XYZ", k + 1, 1) & "=" & a0 & " for " & nm & vbCrLf
+        Exit Function
+    End If
+    a = Split(p.OpArgs(i), " ")
+    nA = UBound(a) + 1
+    Set sm = m.SketchManager
+    m.ClearSelection2 True
+    pl.Select2 False, 0
+    sm.InsertSketch True
+    Set xf = sm.ActiveSketch.ModelToSketchTransform
+    SnapOff sm, True
+    Select Case p.OpShape(i)
+    Case "RECT"
+        Dim uu(0 To 3) As Double, vv(0 To 3) As Double
+        uu(0) = Num(a(0)): vv(0) = Num(a(2)): uu(1) = Num(a(1)): vv(1) = Num(a(2))
+        uu(2) = Num(a(1)): vv(2) = Num(a(3)): uu(3) = Num(a(0)): vv(3) = Num(a(3))
+        For j = 0 To 3
+            q0 = AxisPt(xf, k, a0, uu(j), vv(j))
+            q1 = AxisPt(xf, k, a0, uu((j + 1) Mod 4), vv((j + 1) Mod 4))
+            sm.CreateLine q0(0), q0(1), 0, q1(0), q1(1), 0
+        Next j
+    Case "POLY"
+        n = nA \ 2
+        For j = 0 To n - 1
+            q0 = AxisPt(xf, k, a0, Num(a(2 * j)), Num(a(2 * j + 1)))
+            q1 = AxisPt(xf, k, a0, Num(a(2 * ((j + 1) Mod n))), Num(a(2 * ((j + 1) Mod n) + 1)))
+            sm.CreateLine q0(0), q0(1), 0, q1(0), q1(1), 0
+        Next j
+    Case "CIRC", "RING"
+        q0 = AxisPt(xf, k, a0, Num(a(0)), Num(a(1)))
+        sm.CreateCircleByRadius q0(0), q0(1), 0, Num(a(2)) / 2 * MM
+        If p.OpShape(i) = "RING" Then sm.CreateCircleByRadius q0(0), q0(1), 0, Num(a(3)) / 2 * MM
+    Case "PATTERN"
+        n = CLng(Num(a(2)))
+        For j = 0 To n - 1
+            t = (Num(a(5)) + j * 360# / n) * PI / 180#
+            q0 = AxisPt(xf, k, a0, Num(a(0)) + Num(a(3)) / 2 * Cos(t), Num(a(1)) + Num(a(3)) / 2 * Sin(t))
+            sm.CreateCircleByRadius q0(0), q0(1), 0, Num(a(4)) / 2 * MM
+        Next j
+    End Select
+    SnapOff sm, False
+    sm.InsertSketch True
+    Set sk = m.FeatureByPositionReverse(0)
+    sk.Name = nm & "_Sketch"
+
+    dirSign = IIf(a1 > a0, 1, -1)
+    For attempt = 0 To 1
+        rev = (attempt = 1)
+        m.ClearSelection2 True
+        sk.Select2 False, 0
+        Set f = Nothing
+        On Error Resume Next
+        If p.OpKind(i) = 1 Then
+            Set f = m.FeatureManager.FeatureExtrusion2(True, False, rev, swEndCondBlind, swEndCondBlind, _
+                        Abs(a1 - a0) * MM, 0, False, False, False, False, 0, 0, _
+                        False, False, False, False, True, True, True, 0, 0, False)
+        Else
+            Set f = CutExtrude(m, True, rev, swEndCondBlind, Abs(a1 - a0) * MM)
+        End If
+        On Error GoTo 0
+        If Not f Is Nothing Then
+            If SideK(f, k, a0, dirSign) Then Exit For
+            DeleteFeature m, f                        ' went to the wrong side of the sketch plane
+            Set f = Nothing
+        End If
+    Next attempt
+    If f Is Nothing Then
+        gLog = gLog & p.Name & ": " & nm & " (" & p.OpShape(i) & " " & Mid("XYZ", k + 1, 1) & " " & a0 & ".." & a1 & _
+               ") failed" & IIf(p.OpKind(i) = 2, " - nothing to cut?", "") & vbCrLf
+        Exit Function
+    End If
+    f.Name = nm
+    Set AddPrismOp = f
+End Function
+
+' True if the faces of a feature reach beyond the sketch level on the side dirSign along axis k
+Private Function SideK(ByVal feat As Object, ByVal k As Integer, ByVal lev As Double, ByVal dirSign As Integer) As Boolean
+    Dim faces As Variant, fc As Variant, bx As Variant, lo As Double, hi As Double
+    lo = 1E+30: hi = -1E+30
+    faces = feat.GetFaces
+    If IsEmpty(faces) Then SideK = True: Exit Function
+    For Each fc In faces
+        bx = fc.GetBox
+        If bx(k) < lo Then lo = bx(k)
+        If bx(k + 3) > hi Then hi = bx(k + 3)
+    Next fc
+    If dirSign > 0 Then
+        SideK = (hi > lev * MM + 0.00001)
+    Else
+        SideK = (lo < lev * MM - 0.00001)
+    End If
+End Function
+
+' Plane normal to axis k at the level (mm); reused by name "Plane_<axis><level>"
+Private Function GetPlaneK(ByVal m As SldWorks.ModelDoc2, ByVal base As SldWorks.Feature, _
+                           ByVal k As Integer, ByVal lev As Double) As SldWorks.Feature
+    If Abs(lev) < 0.000001 Then
+        Set GetPlaneK = base
+        Exit Function
+    End If
+    Dim nm As String, pd As SldWorks.PartDoc, f As SldWorks.Feature
+    nm = "Plane_" & Mid("XYZ", k + 1, 1) & Replace(CStr(lev), ",", ".")
+    Set pd = m
+    Set f = pd.FeatureByName(nm)
+    If Not f Is Nothing Then
+        Set GetPlaneK = f
+        Exit Function
+    End If
+    Set f = NewPlaneK(m, base, k, lev)
+    If f Is Nothing Then Exit Function
+    f.Name = nm
+    m.ClearSelection2 True
+    f.Select2 False, 0
+    m.BlankRefGeom
+    m.ClearSelection2 True
+    Set GetPlaneK = f
+End Function
+
+' New plane parallel to the base plane of axis k at the level (coincident when 0); side checked
+Private Function NewPlaneK(ByVal m As SldWorks.ModelDoc2, ByVal base As SldWorks.Feature, _
+                           ByVal k As Integer, ByVal lev As Double) As SldWorks.Feature
+    Dim f As SldWorks.Feature, rp As SldWorks.RefPlane
+    m.ClearSelection2 True
+    base.Select2 False, 0
+    If Abs(lev) < 0.000001 Then
+        Set rp = m.FeatureManager.InsertRefPlane(swRefPlaneReferenceConstraint_Coincident, 0, 0, 0, 0, 0)
+        If rp Is Nothing Then Exit Function
+        Set NewPlaneK = m.FeatureByPositionReverse(0)
+        m.ClearSelection2 True
+        Exit Function
+    End If
+    Set rp = m.FeatureManager.InsertRefPlane(swRefPlaneReferenceConstraint_Distance, Abs(lev) * MM, 0, 0, 0, 0)
+    If rp Is Nothing Then Exit Function
+    Set f = m.FeatureByPositionReverse(0)
+    If Sgn(PlaneCoord(rp, k)) <> Sgn(lev) Then
+        m.ClearSelection2 True
+        f.Select2 False, 0
+        m.EditDelete
+        m.ClearSelection2 True
+        base.Select2 False, 0
+        Set rp = m.FeatureManager.InsertRefPlane( _
+            swRefPlaneReferenceConstraint_Distance + swRefPlaneReferenceConstraint_OptionFlip, _
+            Abs(lev) * MM, 0, 0, 0, 0)
+        If rp Is Nothing Then Exit Function
+        Set f = m.FeatureByPositionReverse(0)
+    End If
+    m.ClearSelection2 True
+    Set NewPlaneK = f
+End Function
+
+Private Function PlaneCoord(ByVal rp As SldWorks.RefPlane, ByVal k As Integer) As Double
+    Dim t As SldWorks.MathTransform, v As Variant
+    Set t = rp.Transform
+    v = t.ArrayData
+    PlaneCoord = v(9 + k)
+End Function
+
+' Interface plane of a prismatic part: PORT_<name> normal to the axis at the level + property
+Private Sub AddPortP(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.Feature, _
+                     p As PartSpec, ByVal i As Long)
+    Dim f As SldWorks.Feature, nm As String, k As Integer
+    nm = "PORT_" & p.PortName(i)
+    k = p.PortAxis(i)
+    Set f = NewPlaneK(m, BasePlane(planes, k), k, p.PortX(i))
+    If f Is Nothing Then
+        gLog = gLog & p.Name & ": interface plane " & nm & " was not created" & vbCrLf
+    Else
+        f.Name = nm
+    End If
+    SetProp m, nm, p.PortInfo(i)
+End Sub
 
 Private Function ModelToSketch(ByVal xf As SldWorks.MathTransform, ByVal x As Double, _
                                ByVal y As Double, ByVal z As Double) As Variant

@@ -17,8 +17,11 @@ or given directly with --rbXY. The cable enters a joint through its rear (motor)
 through the output end.
 
 Rules (everything not given is minimised; gap g, link plate t):
+  J1   ШМ-150 under the ОПУ; its output face on the recess floor of a drive adapter bolted under the
+       inner ring (together with link 1, by the same 12 screws).
   J2   output face on the J1 axis (x = 0) as drawn; axis height = max(J2 radius + g over the fixed
-       ОПУ outer ring, t + g + R3 so the upper arm can swing to horizontal over link 1).
+       ОПУ outer ring, t + g + R3 so the upper arm can swing to horizontal over link 1,
+       deck + J2 radius + 1: the welded link 1 has a deck under the J2 flange).
   J3   column right behind the link-2 plate: x3 = t + R3; its lowest point (rear cover with the
        sensor allowance) 200 mm above the ОПУ face - the cable loop from the base plane is formed there.
   J4   cable J3 -> J4 rear: x3 >= J4 rear end + Rb34  -> J4 output face x = x3 - Rb34 - L4.
@@ -49,6 +52,11 @@ def main():
     ap.add_argument("--l5", type=float, default=1150.0, help="J4 -> J6 along the arm, mm")
     ap.add_argument("--gap", type=float, default=10.0)
     ap.add_argument("--plate", type=float, default=10.0)
+    ap.add_argument("--deck", type=float, default=30.0,
+                    help="top of the link-1 deck under the J2 flange, above the ОПУ face (welded link 1)")
+    ap.add_argument("--j1-adapter", type=float, default=15.0,
+                    help="J1 drive adapter under the ОПУ inner ring (KB32 output -> ring), thickness")
+    ap.add_argument("--j1-recess", type=float, default=8.0, help="its recess for the KB32 output spigot")
     ap.add_argument("--k", type=float, default=2.0, help="min bend radius / cable diameter (user: 2)")
     ap.add_argument("--cable", type=float, default=20.0, help="cable bundle diameter J3->J4 (user: 20); "
                     "further on the same or thinner, limited by the bores")
@@ -69,10 +77,12 @@ def main():
         rb[s] = getattr(a, f"rb{s}") or a.k * dc[s]
 
     # ---- J1: ШМ-150 under the ОПУ; its housing top clears the inner ring (z -B..0) by g
-    z1_face = -OPU_B - g + (E1["x_out"] - max(x1 for x0, x1, r, n in E1["fixed"]))
+    # ШМ-150 output face on the recess floor of the drive adapter bolted under the inner ring
+    z1_face = -OPU_B - a.j1_adapter + a.j1_recess
     # ---- J2
     xf2 = 0.0
-    z2 = max(E2["R"] + g, t + g + E3["R"])
+    # J2 flange rests over the link-1 deck (1 mm gap); the deck keeps g over the fixed ОПУ outer ring
+    z2 = max(E2["R"] + g, t + g + E3["R"], a.deck + E2["R"] + 1)
     # ---- J3
     x3 = xf2 + t + E3["R"]
     z3_rear = a.j3_rear

@@ -27,6 +27,9 @@ robot/RTC-7-layout.txt кинематическая схема руки: оси 
 robot/RTC-7-kinematics.md, RTC-7-scheme.png   таблица осей, DH, картинка (генерируются)
 tools/joint_envelope.py габариты шарниров вдоль своей оси (из описаний редуктора, деталей, карточки двигателя)
 tools/robot_layout.py  компактная компоновка по топологии схемы и габаритам -> robot/RTC-7-layout.txt
+links/LINK-<n>/         звенья: описание (генерируется tools/link_gen.py), STEP и картинка (tools/link_build.py)
+tools/link_gen.py      описание звена по компоновке и портам шарниров (пока звено 1)
+tools/link_build.py    построение звена в OpenCascade: STEP, масса, проверка пересечений с шарнирами
 tools/robot_scheme.py  схема -> прямая кинематика, таблица DH (с самопроверкой), картинка
 tools/joint_check.py   проверка шарниров: ссылки на порты, моменты, что ещё не заполнено
 tools/spec_preview.py  проверка и картинка-разрез описания детали/сборки без SolidWorks
@@ -118,6 +121,27 @@ FLANGE 70 0 1158   0 0 1   ASSUMED
 смещений 70 мм. `python tools/robot_scheme.py robot/RTC-7-layout.txt --png robot/RTC-7-scheme.png
 --md robot/RTC-7-kinematics.md` строит прямую кинематику (произведение экспонент), выводит таблицу
 DH и проверяет её на 200 случайных позах, рисует схему.
+
+## Звенья (links/)
+
+Звено — сварная конструкция из плит и труб; описание в мировой системе координат робота в нулевом
+положении (та же, что в `robot/RTC-7-layout.txt`), поэтому все детали звеньев в сборке робота стоят
+«на месте» без сопряжений. Части звена — PART с призматическими операциями:
+
+```
+PRISM <X|Y|Z> a0 a1 <фигура>     добавить: фигура в плоскости, перпендикулярной оси, на уровне a0, вытянуть до a1
+CUT   <X|Y|Z> a0 a1 <фигура>     вырезать
+TAP   <X|Y|Z> a0 a1 uc vc n pcd M8 ang     резьбовые отверстия (сверло под резьбу, размер - в свойство THREADS)
+фигуры в координатах плоскости (u, v): X -> (y, z), Y -> (x, z), Z -> (x, y):
+  RECT u0 u1 v0 v1 | CIRC uc vc D | RING uc vc D d | POLY u1 v1 u2 v2 ... | PATTERN uc vc n pcd d ang
+DENSITY 2700                     плотность материала, кг/м3
+PORTP <имя> <X|Y|Z> уровень dir [ключ=значение]   плоскость интерфейса PORT_<имя>
+```
+
+`python tools/link_gen.py 1` — описание звена 1 по компоновке; `python tools/link_build.py
+links/LINK-1/LINK-1.txt --joints J1,J2 --step --png links/LINK-1/LINK-1.png` — STEP, масса, картинка,
+проверка пересечений с реальными профилями шарниров; в SolidWorks — BuildFromSpec на том же файле
+(дерево: плоскости Plane_X/Y/Z…, эскизы, вытягивания Prism_n / вырезы Cut_n, плоскости PORT_…).
 
 ## Макросы
 
