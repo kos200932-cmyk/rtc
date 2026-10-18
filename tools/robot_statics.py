@@ -293,7 +293,7 @@ def main():
         j = je.read_joint(os.path.join(ROOT, "joints", nm.rstrip("m"), nm.rstrip("m") + ".txt"))
         rd = card_data(os.path.join(ROOT, j["use"]["reducer"]))
         md = card_data(os.path.join(ROOT, j["use"]["motor"]))
-        rated.append(float(rd["T_rated"]))
+        rated.append(float(rd.get("T_design", rd["T_rated"])))   # T_design: working torque agreed with the maker
         ss.append(float(rd["T_startstop"]))
         motT.append(float(md["T_rated"]))      # an actuator card (AK80-9) gives it already after its own gear
         motn.append(float(md["n_rated"]))
@@ -310,7 +310,7 @@ def main():
     L += ["- links are ASSUMED (aluminium tubes and fittings, `LINKS` in the script) until they are designed", "",
           "## Worst static torques", "",
           f"| Joint | Drive | Self-weight, N·m | Per 1 kg payload, N·m/kg | With {a.payload:g} kg, N·m "
-          "| Reducer rated / start-stop, N·m | Payload at rated torque, kg | Ratio needed (motor rated) |",
+          "| Reducer rated (T_design if set) / start-stop, N·m | Payload at rated torque, kg | Ratio needed (motor rated) |",
           "|---|---|---|---|---|---|---|---|"]
     pay_lim = []
     for i in range(n):
