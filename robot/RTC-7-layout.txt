@@ -1,0 +1,24 @@
+# Kinematic layout of the arm, from the user's scheme (KOMPAS fragment, A2, 2026-10-18).
+# The scheme gives the axis directions, the joint positions and 4 dimensions: 106, 532, 460, 70.
+# The joint pictures on the scheme are not to scale - only the axes and the dimensions are used.
+ROBOT RTC-7
+UNITS mm deg
+# Zero configuration = the arm stretched as drawn (all joint angles 0).
+# World / base frame:
+#   origin = J1 axis on the mounting face of the slewing bearing (ОПУ) of ШМ-150м
+#   +Z = J1 axis, from the base toward the arm (to the left on the scheme)
+#   +X = toward the 70 mm offsets (up on the scheme); +Y = Z x X (out of the scheme toward the viewer... sign TO CONFIRM)
+# AXIS name joint      point on the axis (x y z)   direction (x y z)   motor side / output side (directions)
+AXIS  J1   SHM-150m      0  0     0                0  0  1            motor=-Z  output=+Z   # base turn, ОПУ RU178G + KB32 + RI80
+AXIS  J2   SHM-1000      0  0   106                1  0  0            motor=-X  output=+X   # shoulder; 106 from the ОПУ face
+AXIS  J3   SHM-500      70  0   106                0  0  1            motor=-Z  output=+Z   # upper-arm roll; 70 off the J1 axis
+AXIS  J4   SHM-500      70  0   638                1  0  0            motor=+X  output=-X   # elbow; 532 from J2
+AXIS  J5   SHM-150       0  0   638                0  0  1            motor=-Z  output=+Z   # forearm roll; back on the J1 line
+AXIS  J6   SHM-150       0  0  1098                1  0  0            motor=-X  output=+X   # wrist; 460 from J4
+AXIS  J7   SHM-60       70  0  1098                0  0  1            motor=-Z  output=+Z   # flange roll; on the J3 line
+# Tool flange = output face of ШМ-60 (the tool itself is not on the scheme).
+# Its distance from the J6 axis is NOT dimensioned on the scheme -> ASSUMED 60 mm, TO CONFIRM.
+FLANGE 70 0 1158   0 0 1   ASSUMED
+# Joint limits - not given yet (TO FILL): LIMIT J1 -170 170 ...
+# Positive rotation = right hand about the AXIS direction (TO CONFIRM against the drives).
+END
