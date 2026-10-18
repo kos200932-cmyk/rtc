@@ -74,8 +74,8 @@ P -38   66
 P -38   57.5     # in the housing bore D115
 P -27   57.5
 P -27   56.6     # lip on the lamination face
-P -38   56.6
-P -38   52
+P -35.5 56.6     # lip root ends before the flange line (no collinear edges at x=-38); board starts at x -35.1
+P -35.5 52
 #      x     dir  n   pcd    d    depth  angle
 HOLES  -41   1    4   127.5  4.5  3      45       # 4 x D4.5 -> 4-M4 of the housing
 PORT  housing  -38   1   role=on_housing bolts=4xM4 pcd=127.5 ang=45
