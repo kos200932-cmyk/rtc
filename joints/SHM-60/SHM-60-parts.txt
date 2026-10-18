@@ -40,30 +40,56 @@ END
 # ---- motor housing (stator holder, fixed) - centred on the reducer pilot D94h7 ----------------------
 # The reducer pilot D94h7 + its 12 through holes are the mounting of the joint to the previous link, so
 # the housing repeats that interface on its own flange: pilot D94h7 x 1.5..6.5, face at x=6.5, 12 x D4.5
-# on D102 in line with the reducer holes - the link is bolted through the housing flange and the
-# reducer ring (one bolt stack, nuts / threads on the output side of the ring at x=50.5).
-# Housing -> reducer: bore D94H7 on the reducer pilot (x 16.5..21.5), 4 x M3 into the ring (D102, 45 deg),
-# heads in counterbores below the link face. Stator seat D76 x -13..0, shoulder D74 at x=0.
+# on D102 in line with the reducer holes (one bolt stack link + housing + reducer, nuts at x=50.5).
+# Housing -> reducer: bore D94H7 only on the reducer pilot (x 14..21.5; 7.5 mm of wall to the outer
+# pilot), 4 x M3 into the ring (D102, 45 deg), heads in counterbores below the link face.
+# Stator: seat D76 (wall 3.5, outer D83), shoulder D74 at x=0; held axially from behind by the clamp ring
+# (part 04) screwed to the rear flange D92 x -22..-15 with 4 x M3 (D85).
+# NOTE: the oil plugs of the reducer (x=16.5, D73) are under the housing - remove the housing to refill.
 PART SHM-60-03_MotorHousing
 MOTION fixed
-P -22   38       # stator seat D76 (lamination x -13..0); clearance behind it for the windings
-P -22   46       # outer D92 (the link slides over it)
-P 1.5   46
+P -22   38       # stator seat D76 (lamination x -13..0)
+P -22   46       # rear flange D92 for the clamp-ring screws
+P -15   46
+P -15   41.5     # outer D83 - wall 3.5 over the stator
+P 1.5   41.5
 P 1.5   47       # pilot D94h7 for the previous link (as on the reducer)
 P 6.5   47
 P 6.5   55       # flange D110, link face at x=6.5
 P 21.5  55
-P 21.5  47       # bore D94H7 on the reducer pilot (x 16.5..21.5) and clearance over the boss D65
-P 8     47
-P 8     37       # shoulder D74 - axial stop of the stator lamination
+P 21.5  47       # bore D94H7 on the reducer pilot (x 16.5..21.5)
+P 14    47
+P 14    37       # D74 over the reducer boss D65; shoulder D74 at x=0 - stop of the lamination
 P 0     37
 P 0     38
 #      x     dir  n   pcd    d    depth  angle
 HOLES  21.5  -1   4   102    3.4  0      45       # 4 x D3.4 -> 4-M3 of the reducer ring
 HOLES  6.5   1    4   102    6.5  3.5    45       # counterbores for the M3 heads (below the link face)
 HOLES  21.5  -1   12  102    4.5  0      90       # 12 x D4.5 in line with the reducer through holes
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  -22   1    4   85     M3   6      45     7      # 4-M3 for the clamp ring
 PORT  base     6.5   -1  role=fixed fit=94h7 fit_x=1.5..6.5 holes=12xD4.5 pcd=102 ang=90 mate=prev_link   # = reducer base, moved here
 PORT  reducer  21.5  1   role=on_reducer fit=94H7 fit_x=16.5..21.5 bolts=4xM3 pcd=102 ang=45
 PORT  stator   0     -1  role=stator_seat fit=76 fit_x=-13..0 shoulder_x=0
-PORT  rear     -22   -1  role=rear_end bore=76
+PORT  rear     -22   -1  role=rear_end bore=76 bolts=4xM3 pcd=85 ang=45
+END
+
+# ---- stator clamp ring (fixed) - axial stop of the stator from behind --------------------------------
+# Lip D76 / D73.6 x -19.5..-13 presses the lamination face at x=-13 (ring r 36.8..38 - the windings are
+# D73, 0.3 mm clear), D70 behind the windings (the leads are inside D68), flange D92 x -25..-22 on the
+# rear face of the housing with 4 x M3. The lip is 1.2 mm thick - the lamination step is only 1.5 mm.
+PART SHM-60-04_StatorClamp
+MOTION fixed
+P -25   35
+P -25   46       # flange D92
+P -22   46
+P -22   38       # in the housing bore D76
+P -13   38
+P -13   36.8     # lip on the lamination face
+P -19.5 36.8
+P -19.5 35       # bore D70 for the leads
+#      x     dir  n   pcd    d    depth  angle
+HOLES  -25   1    4   85     3.4  3      45       # 4 x D3.4 -> 4-M3 of the housing
+PORT  housing  -22   1   role=on_housing bolts=4xM3 pcd=85 ang=45
+PORT  stator   -13   1   role=stator_stop
 END

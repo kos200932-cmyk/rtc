@@ -32,27 +32,52 @@ END
 # The reducer ring has 18 x D6.6 through holes (D180, from 90 deg every 20) and no threads on this face:
 #   9 of them (90, 130, ...) - M6 in the housing flange: housing -> reducer, bolts from the output side;
 #   9 of them (110, 150, ...) - D6.6 through the housing: previous link + housing + reducer, one bolt stack.
-# Stator seat D115 x -27..0, shoulder D114 at x=0 (potting D113).
+# Bore D168H7 only on the reducer pilot (x 24..40; 14 mm of wall to the outer pilot).
+# Stator: seat D115 (wall 4, outer D123), shoulder D113.5 at x=0 (potting D113); clamp ring (part 03)
+# from behind, 4 x M4 into the rear flange D132 x -38..-31 (D127.5). Oil plugs (x=27, D116) under the housing.
 PART SHM-500-02_MotorHousing
 MOTION fixed
 P -38   57.5     # stator seat D115 (lamination x -27..0)
-P -38   64.5     # outer D129 (the link slides over it)
-P -3    64.5
+P -38   66       # rear flange D132 for the clamp-ring screws
+P -31   66
+P -31   61.5     # outer D123 - wall 4 over the stator
+P -3    61.5
 P -3    84       # pilot D168h7 for the previous link (as on the reducer)
 P 10    84
 P 10    95       # flange D190, link face at x=10
 P 40    95
-P 40    84       # bore D168H7 on the reducer pilot (x 27..40) and clearance over the boss D106
-P 12    84
-P 12    57       # shoulder D114 - axial stop of the stator lamination
-P 0     57
+P 40    84       # bore D168H7 on the reducer pilot (x 27..40)
+P 24    84
+P 24    56.75    # D113.5 over the reducer boss D106; shoulder at x=0 - stop of the lamination
+P 0     56.75
 P 0     57.5
-#       x     dir  n   pcd    size depth  angle
-THREAD  40    -1   9   180    M6   12     90      # 9-M6: housing -> reducer (bolts from the output side)
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  40    -1   9   180    M6   12     90             # 9-M6: housing -> reducer (bolts from the output side)
+THREAD  -38   1    4   127.5  M4   6      45     7       # 4-M4 for the clamp ring
 #      x     dir  n   pcd    d    depth  angle
 HOLES  40    -1   9   180    6.6  0      110      # 9 x D6.6: previous link + housing + reducer
 PORT  base     10    -1  role=fixed fit=168h7 fit_x=-3..10 holes=9xD6.6 pcd=180 ang=110 mate=prev_link   # = reducer base, moved here
 PORT  reducer  40    1   role=on_reducer fit=168H7 fit_x=27..40 bolts=9xM6 pcd=180 ang=90
 PORT  stator   0     -1  role=stator_seat fit=115 fit_x=-27..0 shoulder_x=0
-PORT  rear     -38   -1  role=rear_end bore=115
+PORT  rear     -38   -1  role=rear_end bore=115 bolts=4xM4 pcd=127.5 ang=45
+END
+
+# ---- stator clamp ring (fixed) - axial stop of the stator from behind --------------------------------
+# Lip D115 / D113.2 x -31.5..-27 on the lamination face at x=-27 (potting D113 - only 1 mm of the
+# lamination is free, lip 0.9 mm: glue the stator as well), D104 behind (the board is inside D112.5 ->
+# the clamp clears it radially from x -35.1), flange D132 x -41..-38 with 4 x M4 into the housing.
+PART SHM-500-03_StatorClamp
+MOTION fixed
+P -41   52
+P -41   66       # flange D132
+P -38   66
+P -38   57.5     # in the housing bore D115
+P -27   57.5
+P -27   56.6     # lip on the lamination face
+P -38   56.6
+P -38   52
+#      x     dir  n   pcd    d    depth  angle
+HOLES  -41   1    4   127.5  4.5  3      45       # 4 x D4.5 -> 4-M4 of the housing
+PORT  housing  -38   1   role=on_housing bolts=4xM4 pcd=127.5 ang=45
+PORT  stator   -27   1   role=stator_stop
 END
