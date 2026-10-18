@@ -40,6 +40,9 @@ def read_layout(path):
                                 "motor": kv.get("motor"), "output": kv.get("output"),
                                 "at": float(kv["at"]) if "at" in kv else None,
                                 "face": np.array([float(v) for v in kv["face"].split(",")]) if "face" in kv else None})
+        elif t[0] == "CABLE":
+            lay.setdefault("cable", []).append(("arc", *map(float, t[2:7])) if t[1] == "arc"
+                                               else ("pt", float(t[2]), float(t[3])))
         elif t[0] == "FLANGE":
             lay["flange"] = {"p": np.array([float(v) for v in t[1:4]]),
                              "w": np.array([float(v) for v in t[4:7]]),
@@ -108,7 +111,7 @@ def joint_bodies(lay):
             _ENV = {}
     out = []
     for a, T in zip(lay["axes"], lay.get("_Ts", [])):
-        e = _ENV.get(a["joint"])
+        e = _ENV.get(a["joint"]) or _ENV.get(a["joint"].rstrip("m"))
         if e is None or a.get("face") is None:
             out.append(None)
             continue
@@ -125,8 +128,24 @@ def joint_bodies(lay):
         xr = e["x_rear"]
         c = a["face"] + u * (xr + e["rear_allowance"] / 2 - e["x_out"])
         segs.append(((T @ np.r_[c, 1])[:3], T[:3, :3] @ u, e["R"] * 0.7, e["rear_allowance"], "cover"))
+        if a["joint"].endswith("m"):      # ШМ-150м: + ОПУ RU178G at z -28..0 (outer ring fixed, inner turns)
+            segs.append((np.array([0, 0, -14.0]), np.array([0, 0, 1.0]), 120.0, 28.0, "fixed"))
+            segs.append((np.array([0, 0, -14.0]), np.array([0, 0, 1.0]), 88.5, 28.0, "rot"))
         out.append(segs)
     return out
+
+
+def cable_xy(lay):
+    """Cable centre line (zero pose) as a polyline in the X-Z plane."""
+    P = []
+    for item in lay.get("cable", []):
+        if item[0] == "pt":
+            P.append((item[1], item[2]))
+        else:
+            _, cx, cz, r, a0, a1 = item
+            for tt in np.linspace(math.radians(a0), math.radians(a1), 24):
+                P.append((cx + r * math.cos(tt), cz + r * math.sin(tt)))
+    return np.array(P)
 
 
 # ---------------------------------------------------------------- DH
@@ -307,6 +326,9 @@ def draw_side(ax, lay, zoom=None, title=None):
                     ha="left" if along_z else "center", va="center" if along_z else "bottom", fontsize=8, zorder=6)
         else:
             ax.text(cu, cv, f"{a['name']}\n{j}", ha="center", va="center", fontsize=8, zorder=6)
+    C = cable_xy(lay)
+    if len(C):
+        ax.plot(C[:, 0], C[:, 1], color="#c0392b", lw=1.6, zorder=7, label="cable")
     fu, fv = uv(Tf[:3, 3])
     ax.plot([fu - 50, fu + 50], [fv, fv], color="k", lw=3)
     ax.text(fu, fv + 25, "flange (estimated)" if lay["flange"]["assumed"] else "flange", ha="center", fontsize=8)
@@ -339,7 +361,7 @@ def draw_side(ax, lay, zoom=None, title=None):
     else:
         ax.set_xlim(min(xs) - 450, xr + 120), ax.set_ylim(-250, fv + 150)
         ax.axis("off")
-    ax.set_title(title or "zero pose (view along +Y): hatched = motor, grey = rotating output", fontsize=10)
+    ax.set_title(title or "zero pose (view along +Y): hatched = motor, grey = rotating, red = cable", fontsize=10)
 
 
 def draw(lay, q_test, path):
@@ -355,7 +377,10 @@ def draw(lay, q_test, path):
     for k, (za, zb, nm) in enumerate([(zz[1], zz[2], "shoulder J1-J3"), (zz[3], zz[4], "elbow J4-J5"),
                                       (zz[5], Tf0[2, 3], "wrist J6-J7, flange")]):
         lo = min(za, zb)
-        draw_side(fig.add_subplot(gs[2 - k, 1]), lay, zoom=((-320, 330), (lo - 230, lo + 330)), title=nm)
+        xa = [p[0] for p in pts0]
+        x0z, x1z = min(xa) - 180, max(xa) + 180
+        hz = (x1z - x0z) * 0.75
+        draw_side(fig.add_subplot(gs[2 - k, 1]), lay, zoom=((x0z, x1z), (lo - 0.4 * hz, lo + 0.6 * hz)), title=nm)
     fk_poe(lay, np.zeros(n))
     for k, (q, title) in enumerate([(np.zeros(len(lay["axes"])), "zero pose, 3D"),
                                     (q_test, "test pose q = " + ", ".join(f"{math.degrees(v):.0f}" for v in q_test))]):

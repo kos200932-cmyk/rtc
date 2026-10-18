@@ -6,7 +6,7 @@
 The joint frame is the reducer frame (X = axis, reducer at x > 0, motor at x < 0, output face at
 the largest x). Sources: the reducer spec (revolved profiles), the PARTS file of the joint and the
 motor card (stator envelope_od / envelope_x, or the actuator body for AK80-9), placed by PLACE.
-Returns per joint: fixed profile (x0, x1, r) segments, the rotating output shaft, the output face x,
+Returns per joint: central bore D (smallest inner diameter of all parts - the cable passage), fixed profile (x0, x1, r) segments, the rotating output shaft, the output face x,
 the base (mounting) face x, the rear end x, max radius of the fixed part and of the output flange.
 """
 import os
@@ -79,6 +79,7 @@ def envelope(joint_path, rear_allowance=10.0):
         _, pp, _ = sp.parse(os.path.join(j["dir"], j["parts"]))
         parts += pp
     fixed, rot, out_shaft = [], [], None
+    bore = min((min(y for _, y in p["pts"]) for p in parts if p["pts"]), default=0.0)
     ports = {}
     for p in parts:
         if not p["pts"]:
@@ -98,7 +99,7 @@ def envelope(joint_path, rear_allowance=10.0):
     r_fixed = max(s[2] for s in fixed)
     return {"name": j["name"], "fixed": fixed, "rot": rot, "x_out": x_out, "x_rear": x_rear,
             "x_base": ports.get(base_ref, ports.get("base")), "R": r_fixed, "R_out": out_shaft[2],
-            "L": x_out - x_rear, "rear_allowance": rear_allowance}
+            "L": x_out - x_rear, "rear_allowance": rear_allowance, "bore": 2 * bore}
 
 
 def all_joints():
@@ -115,10 +116,10 @@ def all_joints():
 def main():
     paths = sys.argv[1:]
     envs = [envelope(p) for p in paths] if paths else list(all_joints().values())
-    print("joint      rear(+allow)  base   output   length   R fixed   R output")
+    print("joint      rear(+allow)  base   output   length   R fixed   R output  bore D")
     for e in envs:
         print(f"{e['name']:<10} {e['x_rear']:>8.1f} {e['x_base']:>8.1f} {e['x_out']:>8.1f} {e['L']:>8.1f}"
-              f" {e['R']:>8.1f} {e['R_out']:>9.1f}")
+              f" {e['R']:>8.1f} {e['R_out']:>9.1f} {e['bore']:>7.1f}")
 
 
 if __name__ == "__main__":
