@@ -1,0 +1,34 @@
+﻿Запуск генерации в SolidWorks 2017 (архив rtc, ветка joints-structure, макрос BuildFromSpec v23)
+
+1. Распакуйте архив в папку без пробелов и кириллицы в пути, например C:\rtc\.
+2. SolidWorks 2017: Инструменты - Макрос - Создать... (или откройте существующий .swp),
+   в редакторе VBA: File - Import File... -> macros\BuildFromSpec.bas.
+   Нужные ссылки (Tools - References): SldWorks 2017 Type Library, SOLIDWORKS 2017 Constant type library
+   (обычно включены в новом макросе).
+3. Запуск: процедура main (F5). Макрос спросит файл описания (*.txt) и построит детали/сборку
+   рядом с ним. Перед повторным запуском закройте ранее построенные документы с теми же именами.
+4. Шаблоны: макрос берёт шаблоны детали/сборки по умолчанию (Параметры - Шаблоны по умолчанию),
+   иначе ищет в папке шаблонов SW 2017 или спросит *.prtdot / *.asmdot.
+   В шаблоне детали не должно быть назначенного материала (масса задаётся плотностью).
+
+Что запускать (каждый файл - отдельный запуск main):
+  Звенья (новое, призматические детали):
+    links\LINK-1\LINK-1.txt            звено 1: сварная деталь + переходник J1, сборка LINK-1
+                                        (детали в мировой системе робота, нулевое положение)
+  Шарниры целиком (редуктор + двигатель + детали шарнира, сборка шарнира):
+    joints\SHM-60\SHM-60.txt
+    joints\SHM-150\SHM-150.txt
+    joints\SHM-500\SHM-500.txt
+    joints\SHM-1000\SHM-1000.txt
+  Отдельные компоненты:
+    components\DMRD\KB25|KB32|KB45|80E\DMRD-*.txt      редукторы (3 детали + сборка)
+    components\ISKRA\RU178G\RU178G-UU-CC0-P5.txt      ОПУ (2 кольца + сборка)
+    Двигатели T-motor - STEP + карточки (components\T-motor\...), импортируются при сборке шарнира.
+
+Если что-то не построится - пришлите текст итогового окна макроса (Finished with warnings / Stopped)
+и, по возможности, скриншот дерева.
+
+Проверка без SolidWorks (Python 3 + pip install cadquery-ocp matplotlib numpy):
+  python tools\link_build.py links\LINK-1\LINK-1.txt --joints J1,J2 --step --png link1.png
+  python tools\spec_preview.py <описание детали>.txt --png out.png
+Компоновка, кинематика, моменты: robot\ (RTC-7-layout.txt, RTC-7-kinematics.md, RTC-7-statics.md).
