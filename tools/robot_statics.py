@@ -8,7 +8,8 @@ Mass model (zero pose, then moved with the joints):
   * joints: reducer parts (MASS from the reducer card), motor (card DATA mass), designed parts
     (volume x density: aluminium 2700, couplings / keys / clamp flanges steel 7850); housing + motor
     belong to the previous link, the output shaft to the next one; centres of mass from the profiles;
-  * links: ASSUMED aluminium tubes for the long links + end fittings (see LINKS below);
+  * links: the designed links links/LINK-n (volume x DENSITY and centre of mass of the OCC solids,
+    tools/link_build.py); --assumed-links - the early ASSUMED tubes + fittings (LINKS below);
   * payload at the flange, its centre of mass --tool mm beyond the flange along the flange axis.
 Gravity along -Z. For every joint the worst pose is searched (random poses + local refinement over
 J2..J7, all angles allowed - no joint limits yet). Torques are compared with the reducer catalog
@@ -106,7 +107,28 @@ def joint_masses(name):
     return mf, mfx / mf, mo, mox / mo if mo else 0.0, notes
 
 
+LANG = {"ru": False}
 IFACE = {"mass": 4.0, "com": 30.0}     # tool-change interface on J7 (user: 4 kg); COM ASSUMED 30 mm beyond the flange
+
+
+REAL_LINKS = {"on": True, "cache": None}
+
+
+def real_link_bodies():
+    """(mass, centre of mass at the zero pose, link index, name) of every part of links/LINK-n."""
+    if REAL_LINKS["cache"] is None:
+        import link_build as lb
+        out = []
+        for k in range(1, 10):
+            spec = os.path.join(ROOT, "links", f"LINK-{k}", f"LINK-{k}.txt")
+            if not os.path.isfile(spec):
+                continue
+            for p in lb.parse(spec)[0]:
+                v, cg = lb.volume(lb.build_part(p))
+                out.append((v * 1e-9 * p["density"], np.array([cg.X(), cg.Y(), cg.Z()]), k,
+                            f"link {k}: {p['name']}"))
+        REAL_LINKS["cache"] = out
+    return REAL_LINKS["cache"]
 
 
 def bodies(lay, payload, tool):
@@ -125,9 +147,14 @@ def bodies(lay, payload, tool):
         u = -md
         out.append((mf, a["face"] + u * (xf - e["x_out"]), i, f"J{i + 1} housing+motor"))
         out.append((mo, a["face"] + u * (xo - e["x_out"]), i + 1, f"J{i + 1} output shaft"))
-    # links (ASSUMED)
+    # links: designed (real) or ASSUMED
     face = {i: ax[i]["face"] for i in range(1, len(ax))}
+    real = real_link_bodies() if REAL_LINKS["on"] else []
+    out += real
+    done = {k for _, _, k, _ in real}
     for k, spec in LINKS.items():
+        if k in done:
+            continue
         # link k: from the output face of joint k (index k-1 -> J(k)) to the next joint (index k)
         a0 = face[k - 1] if k - 1 in face else ax[k - 1]["p"]
         a1 = ax[k]["face"]
@@ -217,12 +244,15 @@ def capacity_map(lay, b0, b1, rated, png, payload, step=(5, 6, 15)):
     im = ax.imshow(Gm, origin="lower", extent=(0, nr * cell, zmin, zmin + nz * cell), cmap=cmap,
                    norm=BoundaryNorm(bounds, cmap.N), aspect="equal", interpolation="nearest")
     cb = fig.colorbar(im, ax=ax, shrink=0.75, ticks=bounds)
-    cb.set_label("payload at the reducer rated torques, kg (best configuration)")
+    cb.set_label("груз при номинальных моментах редукторов, кг (лучшая конфигурация)" if LANG["ru"]
+                 else "payload at the reducer rated torques, kg (best configuration)")
     ax.axhline(0, color="#52514e", lw=0.8)
-    ax.text(10, 15, "ОПУ face", fontsize=8, color="#52514e")
-    ax.set_xlabel("flange: horizontal distance from the J1 axis, mm")
-    ax.set_ylabel("flange height above the ОПУ face, mm")
-    ax.set_title(f"RTC-7: static payload zones (tool interface {IFACE['mass']:g} kg included)\n"
+    ax.text(10, 15, "торец ОПУ" if LANG["ru"] else "ОПУ face", fontsize=8, color="#52514e")
+    ax.set_xlabel("фланец: расстояние от оси J1 по горизонтали, мм" if LANG["ru"] else "flange: horizontal distance from the J1 axis, mm")
+    ax.set_ylabel("высота фланца над торцом ОПУ, мм" if LANG["ru"] else "flange height above the ОПУ face, mm")
+    ax.set_title(f"RTC-7: зоны грузоподъёмности, статика (интерфейс {IFACE['mass']:g} кг учтён)\n"
+                 f"зелёный = {payload:g} кг и больше" if LANG["ru"] else
+                 f"RTC-7: static payload zones (tool interface {IFACE['mass']:g} kg included)\n"
                  f"green = {payload:g} kg and more", fontsize=10)
     ax.grid(color="white", lw=0.3, alpha=0.5)
     fig.tight_layout()
@@ -275,7 +305,11 @@ def main():
     ap.add_argument("--md")
     ap.add_argument("--png")
     ap.add_argument("--map", help="payload zone map PNG (static, rated torques)")
+    ap.add_argument("--lang", default="en", help="ru - Russian labels on the pictures")
+    ap.add_argument("--assumed-links", action="store_true", help="the early assumed link masses instead of LINK-n")
     a = ap.parse_args()
+    REAL_LINKS["on"] = not a.assumed_links
+    LANG["ru"] = a.lang == "ru"
     lay = rs.read_layout(a.layout)
     IFACE["mass"] = a.interface
     n = len(lay["axes"])
@@ -307,7 +341,8 @@ def main():
         L.append(f"| {nm} | {m:.2f} | link {k} |")
     L += [f"| **total moving above J2** | **{sum(m for m, p, k, _ in b0 if k >= 1):.1f}** | |", ""]
     L += [f"- {x}" for x in notes]
-    L += ["- links are ASSUMED (aluminium tubes and fittings, `LINKS` in the script) until they are designed", "",
+    L += ["- links: " + ("designed links `links/LINK-n` (OCC volume x density, real centres of mass)"
+                         if REAL_LINKS["on"] else "ASSUMED aluminium tubes and fittings (`LINKS` in the script)"), "",
           "## Worst static torques", "",
           f"| Joint | Drive | Self-weight, N·m | Per 1 kg payload, N·m/kg | With {a.payload:g} kg, N·m "
           "| Reducer rated (T_design if set) / start-stop, N·m | Payload at rated torque, kg | Ratio needed (motor rated) |",

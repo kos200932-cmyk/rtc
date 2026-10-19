@@ -1,4 +1,4 @@
-﻿Запуск генерации в SolidWorks 2017 (архив rtc, ветка joints-structure, макрос BuildFromSpec v23)
+﻿Запуск генерации в SolidWorks 2017 (архив rtc, ветка joints-structure, макрос BuildFromSpec v26)
 
 1. Распакуйте архив в папку без пробелов и кириллицы в пути, например C:\rtc\.
 2. SolidWorks 2017: Инструменты - Макрос - Создать... (или откройте существующий .swp),
@@ -12,6 +12,13 @@
    В шаблоне детали не должно быть назначенного материала (масса задаётся плотностью).
 
 Что запускать (каждый файл - отдельный запуск main):
+  Анимация руки (новое, макрос v26): robot\RTC-7-anim.txt - вставляет модели руки без сопряжений
+    и проигрывает демо-программу (596 кадров, 15 кадров/с), каждый кадр сохраняется в
+    robot\RTC-7-anim-frames\f0000.jpg ... Сначала должна быть построена рука (RTC-7-J1-J7.txt).
+    В файле: IMAGES none - только проиграть на экране; RANGE 0 100 - часть кадров; ZOOM 0.8 - масштаб.
+    Видео из кадров: ffmpeg -framerate 15 -i f%04d.jpg -pix_fmt yuv420p RTC-7-anim.mp4
+    Перед запуском разверните окно SolidWorks - картинки сохраняются в размере окна.
+  Вся рука: robot\RTC-7-J1-J7.txt (ОПУ, шарниры J1..J7, звенья 1-6, сопряжения по степеням свободы).
   Сборка руки (новое, макрос v24): robot\RTC-7-J1-J3.txt - ОПУ, шарниры J1..J3, звенья 1-2 в нулевом
     положении; недостающие модели строятся сами (REBUILD yes в файле - перестроить всё).
   Звенья (новое, призматические детали):
@@ -34,3 +41,7 @@
   python tools\link_build.py links\LINK-1\LINK-1.txt --joints J1,J2 --step --png link1.png
   python tools\spec_preview.py <описание детали>.txt --png out.png
 Компоновка, кинематика, моменты: robot\ (RTC-7-layout.txt, RTC-7-kinematics.md, RTC-7-statics.md).
+Движение: robot\RTC-7-demo.txt - программа (MOVEJ / MOVEL / WAIT / GRIP / RELEASE / LABEL);
+  python tools\robot_anim.py --check 6 --html robot\anim\RTC-7-viewer.html --sw robot\RTC-7-anim.txt
+  robot\anim\RTC-7-viewer.html - просмотрщик в браузере (ползунки осей, моменты, проигрывание),
+  robot\anim\RTC-7-demo.mp4 - видео, robot\anim\RTC-7-demo.csv - углы и TCP по кадрам.

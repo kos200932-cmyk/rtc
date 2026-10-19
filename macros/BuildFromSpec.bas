@@ -48,6 +48,11 @@ Attribute VB_Name = "BuildFromSpec"
 '                                         the joints are flexible, so the arm keeps its degrees of freedom;
 '                                         "keep" at the end - the first component stays fixed (only its
 '                                         flexible part is locked, e.g. the inner ring of the ОПУ)
+'   * a ROBOTANIM file (robot/RTC-7-anim.txt, tools/robot_anim.py) animates the arm:
+'       the COMP lines as in ROBOTASM (models built if missing), inserted without mates;
+'       FRAME <n> + P <comp> ox oy oz xx xy xz zx zy zz - frame of every component per picture;
+'       IMAGES jpg|png|bmp|none - save every frame into <name>-frames\f0000.<ext> (none: only play);
+'       VIEW <named view> (default *Isometric), RANGE <first> <last> - frames to run, ZOOM <k> (0.8)
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -57,7 +62,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v25 (2026-10-19)"
+Private Const MACRO_VERSION As String = "v26 (2026-10-19)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -142,7 +147,9 @@ Sub main()
         Exit Sub
     End If
 
-    If FileHasKeyword(specPath, "ROBOTASM") Then
+    If FileHasKeyword(specPath, "ROBOTANIM") Then
+        ok = BuildRobotAnim(specPath)
+    ElseIf FileHasKeyword(specPath, "ROBOTASM") Then
         ok = BuildRobotAsm(specPath)
     ElseIf FileHasKeyword(specPath, "JOINT") Then
         ok = BuildJoint(specPath)
@@ -2101,6 +2108,157 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     If nLk > 0 Then gSummary = "lock mates: " & nOk & " of " & nLk & vbCrLf & gSummary
     gSummary = "arm assembly " & aName & ": " & nC & " component(s)" & vbCrLf & gSummary
     BuildRobotAsm = True
+End Function
+
+' ---------------------------------------------------------------- animation of the arm (ROBOTANIM)
+' Model (.SLDASM / .SLDPRT) of a COMP file: built when missing (or REBUILD yes), "" on failure
+Private Function ModelOfComp(ByVal f As String, ByVal rebuild As Boolean, ByVal cn As String) As String
+    Dim ext As String, jn As String, m As String, asmPath As String
+    ext = UCase(Mid(f, InStrRev(f, ".") + 1))
+    If ext = "SLDASM" Or ext = "SLDPRT" Then ModelOfComp = f: Exit Function
+    If FileHasKeyword(f, "JOINT") Then
+        jn = FirstArg(f, "JOINT")
+        m = Left(f, InStrRev(f, "\")) & jn & ".SLDASM"
+        If rebuild Or Not FileExists(m) Then
+            If Not BuildJoint(f) Then Exit Function
+        End If
+    Else
+        jn = FirstArg(f, "ASSEMBLY")
+        If jn = "" Then gLog = gLog & "COMP " & cn & ": the spec has no ASSEMBLY line" & vbCrLf: Exit Function
+        m = Left(f, InStrRev(f, "\")) & jn & ".SLDASM"
+        If rebuild Or Not FileExists(m) Then
+            If Not BuildSpecFile(f, asmPath) Then Exit Function
+        End If
+    End If
+    ModelOfComp = m
+End Function
+
+Private Function BuildRobotAnim(ByVal specPath As String) As Boolean
+    Dim lines() As String, li As Long, s As String, t() As String, folder As String
+    Dim aName As String, rebuild As Boolean, k As Long, q As Long, j As Long
+    Dim cName(0 To 63) As String, cFile(0 To 63) As String, cFr(0 To 63, 0 To 8) As Double, nC As Long
+    Dim imgExt As String, viewName As String, zoomK As Double, r0 As Long, r1 As Long
+    Dim fr() As Double, nF As Long, curF As Long
+    folder = Left(specPath, InStrRev(specPath, "\"))
+    lines = ReadLines(specPath)
+    imgExt = "jpg": viewName = "*Isometric": zoomK = 0.8: r0 = 0: r1 = -1
+    ' pass 1: header, components, number of frames
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            Select Case UCase(t(0))
+            Case "ROBOTANIM": aName = t(1)
+            Case "REBUILD": rebuild = (LCase(t(1)) = "yes")
+            Case "IMAGES": imgExt = LCase(t(1))
+            Case "VIEW": viewName = t(1)
+            Case "ZOOM": zoomK = Num(t(1))
+            Case "RANGE": r0 = CLng(t(1)): r1 = CLng(t(2))
+            Case "COMP"
+                If UBound(t) < 11 Or nC > 63 Then gLog = gLog & "bad COMP line: " & s & vbCrLf: Exit Function
+                cName(nC) = t(1)
+                cFile(nC) = ResolvePath(folder, t(2))
+                If cFile(nC) = "" Then gLog = gLog & "COMP " & t(1) & ": file not found: " & t(2) & vbCrLf: Exit Function
+                For q = 0 To 8: cFr(nC, q) = Num(t(3 + q)): Next q
+                nC = nC + 1
+            Case "FRAME": nF = nF + 1
+            End Select
+        End If
+    Next li
+    If aName = "" Or nC = 0 Or nF = 0 Then gLog = gLog & "ROBOTANIM file needs ROBOTANIM <name>, COMP and FRAME lines" & vbCrLf: Exit Function
+    ReDim fr(0 To nF * nC - 1, 0 To 8)
+    For k = 0 To nF - 1          ' a component without a P line in a frame stays at its COMP frame
+        For j = 0 To nC - 1
+            For q = 0 To 8: fr(k * nC + j, q) = cFr(j, q): Next q
+        Next j
+    Next k
+    ' pass 2: P lines
+    curF = -1
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            If UCase(t(0)) = "FRAME" Then
+                curF = curF + 1
+            ElseIf UCase(t(0)) = "P" And curF >= 0 And UBound(t) >= 10 Then
+                For j = 0 To nC - 1
+                    If StrComp(cName(j), t(1), vbTextCompare) = 0 Then
+                        For q = 0 To 8: fr(curF * nC + j, q) = Num(t(2 + q)): Next q
+                    End If
+                Next j
+            End If
+        End If
+    Next li
+    If r1 < 0 Or r1 > nF - 1 Then r1 = nF - 1
+    If r0 < 0 Then r0 = 0
+
+    ' models + assembly without mates (components floating, sub-assemblies rigid)
+    Dim cModel(0 To 63) As String
+    For k = 0 To nC - 1
+        For j = 0 To k - 1
+            If StrComp(cFile(j), cFile(k), vbTextCompare) = 0 Then cModel(k) = cModel(j)
+        Next j
+        If cModel(k) = "" Then cModel(k) = ModelOfComp(cFile(k), rebuild, cName(k))
+        If cModel(k) = "" Then Exit Function
+    Next k
+    Dim am As SldWorks.ModelDoc2, asm As SldWorks.AssemblyDoc, c As SldWorks.Component2
+    Dim errs As Long, warns As Long, d As Object, comps(0 To 63) As SldWorks.Component2
+    If gTplAsm = "" Then gTplAsm = FindTemplate("asmdot", swDefaultTemplateAssembly, "assem")
+    If gTplAsm <> "" Then Set am = swApp.NewDocument(gTplAsm, 0, 0, 0)
+    If am Is Nothing Then gLog = gLog & "Cannot create the assembly from '" & gTplAsm & "'" & vbCrLf: Exit Function
+    Set asm = am
+    For k = 0 To nC - 1
+        Set d = swApp.OpenDoc6(cModel(k), IIf(UCase(Right(cModel(k), 6)) = "SLDASM", swDocASSEMBLY, swDocPART), _
+                               swOpenDocOptions_Silent, "", errs, warns)
+        swApp.ActivateDoc3 am.GetTitle, False, swDontRebuildActiveDoc, errs
+        Set c = InsertFloating(am, asm, cModel(k))
+        If c Is Nothing Then Exit Function
+        Set comps(k) = c
+    Next k
+    Dim one(0 To 0, 0 To 8) As Double
+    For k = 0 To nC - 1
+        For q = 0 To 8: one(0, q) = fr(r0 * nC + k, q): Next q
+        PlaceFrame comps(k), one, 0
+    Next k
+    am.ClearSelection2 True
+    am.EditRebuild3
+    am.ShowNamedView2 viewName, -1
+    am.ViewZoomtofit2
+    On Error Resume Next
+    Dim mv As Object
+    Set mv = am.ActiveView
+    mv.Scale2 = mv.Scale2 * zoomK          ' room for the stretched poses
+    On Error GoTo 0
+    If Not SaveDoc(am, folder & aName & ".SLDASM") Then Exit Function
+
+    ' frames
+    Dim outDir As String, nImg As Long, fpath As String, t0 As Double
+    If imgExt <> "none" Then
+        outDir = folder & aName & "-frames\"
+        If Dir(outDir, vbDirectory) = "" Then MkDir outDir
+    End If
+    t0 = Timer
+    For k = r0 To r1
+        For j = 0 To nC - 1
+            For q = 0 To 8: one(0, q) = fr(k * nC + j, q): Next q
+            PlaceFrame comps(j), one, 0
+        Next j
+        am.GraphicsRedraw2
+        DoEvents
+        If imgExt <> "none" Then
+            fpath = outDir & "f" & Format(k - r0, "0000") & "." & imgExt
+            If am.Extension.SaveAs(fpath, swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, errs, warns) Then
+                nImg = nImg + 1
+            ElseIf nImg = 0 And k = r0 Then
+                gLog = gLog & "cannot save the picture " & fpath & " (errors=" & errs & ") - only playing" & vbCrLf
+                imgExt = "none"
+            End If
+        End If
+    Next k
+    gSummary = "animation " & aName & ": " & nC & " component(s), frames " & r0 & ".." & r1 & " of " & nF & _
+               " (" & Format(Timer - t0, "0") & " s)" & vbCrLf & _
+               IIf(nImg > 0, "pictures: " & nImg & " in " & outDir, "pictures: not saved") & vbCrLf & gSummary
+    BuildRobotAnim = True
 End Function
 
 ' Component placed by a frame: origin (fr 0..2, mm), local X along fr 3..5, local Z along fr 6..8

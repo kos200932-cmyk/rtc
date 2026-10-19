@@ -1,0 +1,424 @@
+<meta charset="utf-8">
+<title>RTC-7 Motion Viewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen instrument. 3D stage fills the window, a control column on the right
+   (bottom sheet on phones), the program timeline runs along the bottom of the stage. */
+:root {
+  --bg: #e6e9ec;         /* stage ground, cool steel-tinted grey */
+  --panel: #f8f9fa;
+  --line: #d3d8de;
+  --fg: #1b1f24;
+  --muted: #5d6670;
+  --accent: #d9631f;     /* tool / TCP orange, the colour of the gripper */
+  --ok: #2f8a5b; --warn: #c58a0b; --bad: #c2352b;
+  --track: #dfe3e8;
+  --floor: #c9cfd5; --grid: #aab2bb;
+  --f-ui: "Fira Sans Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181c; --panel: #1c2026; --line: #2d333b; --fg: #e6e9ed; --muted: #97a0aa;
+  --accent: #ee7a35; --ok: #4fb383; --warn: #e0a83a; --bad: #e5584c; --track: #2a3038;
+  --floor: #1d2127; --grid: #2f363f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15181c; --panel: #1c2026; --line: #2d333b; --fg: #e6e9ed; --muted: #97a0aa;
+  --accent: #ee7a35; --ok: #4fb383; --warn: #e0a83a; --bad: #e5584c; --track: #2a3038;
+  --floor: #1d2127; --grid: #2f363f; color-scheme: dark }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--f-ui); overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: 1fr 340px; }
+.stage { position: relative; min-width: 0; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+.side { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto;
+  padding-block: 16px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 18px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 8px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, select { font: 500 13px var(--f-ui); color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.joint { display: grid; grid-template-columns: 28px 1fr 62px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.joint b { font-weight: 600; }
+.joint output { font: 13px var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.tq { display: grid; grid-template-columns: 28px 1fr 92px; gap: 8px; align-items: center; margin-bottom: 7px; font-size: 13px; }
+.bar { position: relative; height: 10px; background: var(--track); border-radius: 2px; overflow: hidden; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); }
+.bar s { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--fg); left: 66.67%; }
+.tq output { font: 12px var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 12px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 13px; }
+.kv span:nth-child(odd) { color: var(--muted); }
+.kv span:nth-child(even) { font: 13px var(--f-num); font-variant-numeric: tabular-nums; }
+.hud { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: 14px; pointer-events: none; }
+.cap { font-size: 22px; font-weight: 600; text-wrap: balance; max-width: 30ch; }
+.cap small { display: block; font: 12px var(--f-num); color: var(--muted); font-weight: 400; margin-top: 2px; }
+.timeline { position: absolute; left: 16px; right: 16px; bottom: 14px; display: flex; gap: 10px; align-items: center; }
+.timeline input { flex: 1; }
+.timeline output { font: 12px var(--f-num); color: var(--muted); min-width: 92px; text-align: right; }
+#play { min-width: 44px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); border: 1px solid var(--line); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
+/* record mode (#record): clean frame for video, no controls */
+.rec .side, .rec .timeline { display: none; }
+.rec .app { grid-template-columns: 1fr; }
+.rec .hud { left: 40px; top: 32px; }
+.rec .cap { font-size: 34px; }
+.rec .cap small { font-size: 16px; }
+.brand { display: none; position: absolute; right: 40px; bottom: 30px; text-align: right; color: var(--muted); font-size: 15px; }
+.brand b { display: block; color: var(--fg); font-size: 22px; font-weight: 600; }
+.rec .brand { display: block; }
+.clean .hud, .clean .brand { display: none !important; }
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; }
+  .stage { height: 62vh; }
+  .side { border-left: 0; border-top: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .cap { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="gl" tabindex="0" aria-label="3D model of the RTC-7 arm"></canvas>
+    <div class="loading" id="loading">Загрузка модели…</div>
+    <div class="hud"><div class="cap" id="cap">RTC-7<small id="capt">t = 0.0 с</small></div></div>
+    <div class="brand"><b>RTC-7</b>7-осевой манипулятор · шарниры DMRD + T-motor</div>
+    <div class="timeline">
+      <button id="play" aria-pressed="false" title="Пуск / пауза">▶</button>
+      <input id="time" type="range" min="0" max="1" step="1" value="0" aria-label="Время программы">
+      <output id="tout">0.0 / 0.0 с</output>
+    </div>
+  </div>
+  <aside class="side">
+    <div>
+      <h1>RTC-7</h1>
+      <div class="sub">Демонстрационная программа движения. Звенья, шарниры и ОПУ построены по тем же описаниям, что и модель в SolidWorks.</div>
+    </div>
+    <section>
+      <h2>Вид</h2>
+      <div class="row">
+        <button data-view="iso">Изометрия</button><button data-view="front">Спереди</button>
+        <button data-view="side">Сбоку</button><button data-view="top">Сверху</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="trail" aria-pressed="true">След TCP</button>
+        <button id="axes" aria-pressed="false">Оси шарниров</button>
+        <select id="speed" aria-label="Скорость воспроизведения">
+          <option value="0.5">×0.5</option><option value="1" selected>×1</option><option value="2">×2</option>
+        </select>
+      </div>
+    </section>
+    <section>
+      <h2>Углы шарниров, °</h2>
+      <div id="joints"></div>
+      <div class="row" style="margin-top:4px"><button id="zero">Нулевая поза</button><button id="prog" aria-pressed="true">Программа</button></div>
+    </section>
+    <section>
+      <h2>Статический момент от веса</h2>
+      <div class="row" style="margin-bottom:8px">
+        <label for="pay" class="note">Груз на фланце</label>
+        <input id="pay" type="range" min="0" max="12" step="0.5" value="8" style="flex:1">
+        <output id="payo" class="note" style="font-family:var(--f-num)">8 кг</output>
+      </div>
+      <div id="torques"></div>
+      <div class="note">Полоса = доля от T<sub>design</sub> редуктора (черта на 2/3 шкалы = 100 %). Только гравитация, без ускорений; интерфейс смены инструмента 4 кг учтён всегда.</div>
+    </section>
+    <section>
+      <h2>TCP (200 мм от фланца)</h2>
+      <div class="kv"><span>X</span><span id="tx">–</span><span>Y</span><span id="ty">–</span><span>Z</span><span id="tz">–</span><span>Вылет от оси J1</span><span id="tr">–</span></div>
+    </section>
+    <section>
+      <h2>Цвета</h2>
+      <div class="legend">
+        <span style="--c:#e7e3da">звенья</span><span style="--c:#3d434b">корпус редуктора</span>
+        <span style="--c:#a9b1ba">выходной вал</span><span style="--c:#c9cfd6">корпус двигателя</span>
+        <span style="--c:#2f3338">резерв под датчики</span><span style="--c:#e8742f">инструмент (условно)</span><span style="--c:#3f7fb5">деталь</span>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const SCENE = /*SCENE_JSON*/null;
+(function () {
+  const rec = location.hash === "#record";
+  if (rec) document.documentElement.classList.add("rec");
+  const $ = (id) => document.getElementById(id);
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const canvas = $("gl");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: rec });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 1, 10, 40000);
+  camera.up.set(0, 0, 1);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  const target = new THREE.Vector3(0, 0, 1150);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f96, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(2600, -3200, 5200);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -3200, right: 3200, top: 3200, bottom: -3200, near: 100, far: 14000 });
+  sun.shadow.bias = -0.0006;
+  sun.shadow.normalBias = 6;      // mm: no self-shadow stripes on flat faces (3 mm per shadow texel)
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+  fill.position.set(-3000, 2500, 1500);
+  scene.add(fill);
+
+  // floor + pedestal (the ОПУ outer ring sits on its top face, z = -28)
+  const FZ = -450;
+  const floorMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(3600, 96), floorMat);
+  floor.position.z = FZ; floor.receiveShadow = true; scene.add(floor);
+  const grid = new THREE.PolarGridHelper(3500, 12, 7, 96);
+  grid.rotation.x = Math.PI / 2; grid.position.z = FZ + 1; scene.add(grid);
+  const ped = new THREE.Mesh(new THREE.BoxGeometry(330, 330, -28 - FZ),
+    new THREE.MeshStandardMaterial({ color: 0x9aa2ab, roughness: 0.8, transparent: true, opacity: 0.32, depthWrite: false }));
+  ped.position.z = (FZ - 28) / 2; scene.add(ped);
+  const pedTop = new THREE.Mesh(new THREE.BoxGeometry(330, 330, 6), new THREE.MeshStandardMaterial({ color: 0x8b939c, roughness: 0.7 }));
+  pedTop.position.z = -31; pedTop.receiveShadow = true; scene.add(pedTop);
+  function themeColors() {
+    floorMat.color.set(css("--floor"));
+    grid.material.color = new THREE.Color(css("--grid")); grid.material.transparent = true; grid.material.opacity = 0.55;
+    scene.background = new THREE.Color(css("--bg"));
+  }
+
+  // kinematic tree: pivot k (joint k) is a child of pivot k-1; container k holds the zero-pose meshes
+  const A = SCENE.axes, n = A.length;
+  const pivots = [], conts = [];
+  const root = new THREE.Group(); scene.add(root);
+  const c0 = new THREE.Group(); root.add(c0); conts.push(c0);
+  let parent = root, prevP = [0, 0, 0];
+  for (let k = 0; k < n; k++) {
+    const p = A[k].p, piv = new THREE.Group();
+    piv.position.set(p[0] - prevP[0], p[1] - prevP[1], p[2] - prevP[2]);
+    parent.add(piv); pivots.push(piv);
+    const c = new THREE.Group(); c.position.set(-p[0], -p[1], -p[2]); piv.add(c); conts.push(c);
+    parent = piv; prevP = p;
+  }
+  function dec(b64, T) {
+    const s = atob(b64), u = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return new T(u.buffer);
+  }
+  const mats = {};
+  for (const m of SCENE.meshes) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(dec(m.pos, Float32Array), 3));
+    g.setIndex(new THREE.BufferAttribute(dec(m.idx, Uint32Array), 1));
+    g.computeVertexNormals();
+    const key = m.color;
+    if (!mats[key]) {
+      const dark = parseInt(key.slice(1, 3), 16) < 80;
+      mats[key] = new THREE.MeshStandardMaterial({ color: key, roughness: dark ? 0.55 : 0.45, metalness: dark ? 0.15 : 0.25, side: THREE.DoubleSide });
+    }
+    const mesh = new THREE.Mesh(g, mats[key]);
+    mesh.castShadow = true; mesh.receiveShadow = true; mesh.name = m.name;
+    conts[m.group].add(mesh);
+  }
+  $("loading").hidden = true;
+
+  // joint axes (thin lines), TCP marker and trail
+  const axesGrp = [];
+  for (let k = 0; k < n; k++) {
+    const p = new THREE.Vector3(...A[k].p), w = new THREE.Vector3(...A[k].w);
+    const g = new THREE.BufferGeometry().setFromPoints([p.clone().addScaledVector(w, -420), p.clone().addScaledVector(w, 420)]);
+    const l = new THREE.Line(g, new THREE.LineDashedMaterial({ color: 0xd9631f, dashSize: 30, gapSize: 18 }));
+    l.computeLineDistances(); l.visible = false; conts[k].add(l); axesGrp.push(l);
+  }
+  const F = SCENE.flange, TOOL = SCENE.tool;
+  const tcp0 = new THREE.Vector3(F.p[0] + F.w[0] * TOOL, F.p[1] + F.w[1] * TOOL, F.p[2] + F.w[2] * TOOL);
+  const tcpDot = new THREE.Mesh(new THREE.SphereGeometry(14, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd9631f }));
+  tcpDot.position.copy(tcp0); conts[n].add(tcpDot);
+  const TR = 1600, trailPos = new Float32Array(TR * 3);
+  const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xd9631f, transparent: true, opacity: 0.85 }));
+  trail.frustumCulled = false; scene.add(trail);
+  let trailN = 0;
+  function pushTrail(v) {
+    if (trailN === TR) { trailPos.copyWithin(0, 3); trailN--; }
+    trailPos.set([v.x, v.y, v.z], trailN * 3); trailN++;
+    trailGeo.setDrawRange(0, trailN); trailGeo.attributes.position.needsUpdate = true;
+  }
+
+  // workpiece (GRIP / RELEASE events) and two stands under the pick / place points
+  const EV = SCENE.events || [];
+  const m4 = (a) => new THREE.Matrix4().set(...a[0], ...a[1], ...a[2], ...a[3]);
+  const WP = { x: 76, y: 120, z: 110, off: -15 };
+  const offM = new THREE.Matrix4().makeTranslation(0, 0, WP.off);
+  const wpMat = new THREE.MeshStandardMaterial({ color: 0x3f7fb5, roughness: 0.5, metalness: 0.2 });
+  const wp = new THREE.Mesh(new THREE.BoxGeometry(WP.x, WP.y, WP.z), wpMat);
+  wp.castShadow = true; wp.matrixAutoUpdate = false; wp.visible = false;
+  const wpHeld = wp.clone(); wpHeld.matrixAutoUpdate = false;
+  wpHeld.matrix.copy(m4(SCENE.tcp0).multiply(offM)); conts[n].add(wpHeld); wpHeld.visible = false;
+  scene.add(wp);
+  const grip = EV.find(e => e.kind === "GRIP"), rel = EV.find(e => e.kind === "RELEASE");
+  const standMat = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.85 });
+  for (const e of [grip, rel]) {
+    if (!e) continue;
+    const T = m4(e.T), p = new THREE.Vector3().setFromMatrixPosition(T);
+    const top = p.z + WP.z / 2 + WP.off;      // bottom face of the workpiece
+    const h = top - FZ, st = new THREE.Mesh(new THREE.BoxGeometry(380, 320, h), standMat);
+    st.position.set(p.x, p.y, FZ + h / 2); st.rotation.z = Math.atan2(p.y, p.x);
+    st.castShadow = true; st.receiveShadow = true; scene.add(st);
+  }
+  function workpiece(i) {
+    if (!grip) return;
+    const held = i >= grip.frame && (!rel || i < rel.frame);
+    wpHeld.visible = held; wp.visible = !held;
+    if (!held) { wp.matrix.copy(m4((rel && i >= rel.frame ? rel : grip).T).multiply(offM)); wp.matrixWorldNeedsUpdate = true; }
+  }
+
+  // joint sliders
+  const q = new Array(n).fill(0), outs = [], sliders = [];
+  for (let k = 0; k < n; k++) {
+    const d = document.createElement("div"); d.className = "joint";
+    const [lo, hi] = SCENE.limits[k];
+    d.innerHTML = `<b>${A[k].name}</b><input id="q${k}" type="range" min="${lo}" max="${hi}" step="0.5" value="0" aria-label="${A[k].name}, ${A[k].joint}"><output>0.0</output>`;
+    $("joints").appendChild(d);
+    const s = d.querySelector("input"), o = d.querySelector("output");
+    sliders.push(s); outs.push(o);
+    s.addEventListener("input", () => { setProgram(false); q[k] = +s.value; apply(); });
+  }
+  // torque bars
+  const ST = SCENE.statics, tqRows = [];
+  for (let k = 1; k < n; k++) {
+    const d = document.createElement("div"); d.className = "tq";
+    d.innerHTML = `<b>${A[k].name}</b><div class="bar"><i></i><s></s></div><output></output>`;
+    $("torques").appendChild(d); tqRows.push(d);
+  }
+  const G = 9.81;
+  const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), qt = new THREE.Quaternion();
+  function torques() {
+    const pay = +$("pay").value;
+    const bodies = ST.bodies.concat(pay > 0 ? [[pay, [tcp0.x - F.w[0] * (TOOL - ST.payload_com), tcp0.y - F.w[1] * (TOOL - ST.payload_com), tcp0.z - F.w[2] * (TOOL - ST.payload_com)], n]] : []);
+    const pos = bodies.map(b => conts[b[2]].localToWorld(new THREE.Vector3(...b[1])));
+    for (let i = 1; i < n; i++) {
+      const p = conts[i].localToWorld(new THREE.Vector3(...A[i].p));
+      conts[i].getWorldQuaternion(qt);
+      const w = new THREE.Vector3(...A[i].w).applyQuaternion(qt);
+      const m = new THREE.Vector3();
+      bodies.forEach((b, j) => {
+        if (b[2] < i + 1) return;
+        v1.copy(pos[j]).sub(p).multiplyScalar(1e-3);
+        v2.set(0, 0, -b[0] * G);
+        m.add(new THREE.Vector3().crossVectors(v1, v2));
+      });
+      const t = Math.abs(m.dot(w)), r = ST.rated[i], f = t / r;
+      const row = tqRows[i - 1], bar = row.querySelector("i");
+      bar.style.width = Math.min(100, f * 66.67) + "%";
+      bar.style.background = f > 1 ? css("--bad") : f > 0.85 ? css("--warn") : css("--ok");
+      row.querySelector("output").textContent = `${t.toFixed(0)} / ${r.toFixed(0)}`;
+    }
+  }
+  $("pay").addEventListener("input", () => { $("payo").textContent = $("pay").value + " кг"; torques(); });
+
+  const tcpW = new THREE.Vector3();
+  function apply(fromProgram) {
+    for (let k = 0; k < n; k++) {
+      pivots[k].quaternion.setFromAxisAngle(new THREE.Vector3(...A[k].w), q[k] * Math.PI / 180);
+      outs[k].textContent = q[k].toFixed(1);
+      if (fromProgram) sliders[k].value = q[k];
+    }
+    root.updateMatrixWorld(true);
+    tcpDot.getWorldPosition(tcpW);
+    $("tx").textContent = tcpW.x.toFixed(0) + " мм"; $("ty").textContent = tcpW.y.toFixed(0) + " мм";
+    $("tz").textContent = tcpW.z.toFixed(0) + " мм"; $("tr").textContent = Math.hypot(tcpW.x, tcpW.y).toFixed(0) + " мм";
+    torques();
+  }
+
+  // program playback
+  const FR = SCENE.frames, fps = SCENE.fps, LB = SCENE.labels;
+  const tl = $("time"); tl.max = FR.length - 1;
+  let fi = 0, playing = !rec, prog = true, acc = 0;
+  function labelAt(i) { let s = ""; for (const [f, t] of LB) if (f <= i) s = t; return s; }
+  function setFrame(i, quiet) {
+    fi = Math.max(0, Math.min(FR.length - 1, i | 0));
+    for (let k = 0; k < n; k++) q[k] = FR[fi][k];
+    apply(true);
+    tl.value = fi;
+    const t = fi / fps;
+    $("tout").textContent = `${t.toFixed(1)} / ${((FR.length - 1) / fps).toFixed(1)} с`;
+    workpiece(fi);
+    $("cap").firstChild.nodeValue = labelAt(fi) || "RTC-7";
+    $("capt").textContent = `t = ${t.toFixed(1)} с · ` + q.map((v, k) => `J${k + 1} ${v.toFixed(0)}°`).join("  ");
+    if (!quiet && $("trail").getAttribute("aria-pressed") === "true") pushTrail(tcpW);
+  }
+  function setProgram(on) {
+    prog = on; $("prog").setAttribute("aria-pressed", on ? "true" : "false");
+    if (!on) setPlay(false);
+  }
+  function setPlay(on) { playing = on; $("play").textContent = on ? "❚❚" : "▶"; $("play").setAttribute("aria-pressed", on ? "true" : "false"); }
+  $("play").addEventListener("click", () => { if (!prog) setProgram(true); if (fi >= FR.length - 1) { fi = 0; trailN = 0; } setPlay(!playing); });
+  tl.addEventListener("input", () => { setProgram(true); setPlay(false); trailN = 0; setFrame(+tl.value, true); });
+  $("prog").addEventListener("click", () => { setProgram(true); setFrame(fi); setPlay(true); });
+  $("zero").addEventListener("click", () => { setProgram(false); q.fill(0); sliders.forEach(s => s.value = 0); apply(); });
+  $("trail").addEventListener("click", (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", on); trail.visible = on; trailN = 0; });
+  $("axes").addEventListener("click", (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", on); axesGrp.forEach(l => l.visible = on); });
+
+  // views
+  const VIEWS = { iso: [5600, -6000, 3200], front: [0, -8800, 1300], side: [8800, 0, 1300], top: [1, -1, 10500] };
+  function view(nm) { const v = VIEWS[nm], k = camera.aspect < 1 ? 1.25 / Math.max(0.5, camera.aspect) : 1;
+    camera.position.set(target.x + (v[0] - target.x) * k, target.y + (v[1] - target.y) * k, target.z + (v[2] - target.z) * k); controls.target.copy(target); controls.update(); }
+  document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => view(b.dataset.view)));
+
+  function resize() {
+    const r = canvas.parentElement.getBoundingClientRect();
+    renderer.setSize(r.width, r.height, false);
+    camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize); resize(); view("iso");
+  themeColors();
+  if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeColors);
+  new MutationObserver(themeColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  setFrame(0);
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (playing && prog) {
+      acc += dt * fps * +$("speed").value;
+      const steps = Math.floor(acc); acc -= steps;
+      for (let s = 0; s < steps; s++) {
+        if (fi >= FR.length - 1) { setPlay(false); break; }
+        setFrame(fi + 1);
+      }
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    if (!rec) requestAnimationFrame(loop);
+  }
+  if (!rec) requestAnimationFrame(loop);
+  // hooks for frame-by-frame recording (tools/anim_record.mjs)
+  window.__rtc = {
+    frames: FR.length, fps,
+    frame(i, cam) { if (cam) { camera.position.set(...cam.pos); controls.target.set(...cam.target); controls.update(); }
+      setFrame(i); renderer.render(scene, camera); },
+    still(qs, cam) { setProgram(false); workpiece(cam.wpFrame ?? 0); document.documentElement.classList.toggle("clean", !!cam.clean);
+      axesGrp.forEach(l => l.visible = !!cam.axes); qs.forEach((v, k) => q[k] = v); apply(true); trailN = 0;
+      $("cap").firstChild.nodeValue = cam.caption || ""; $("capt").textContent = cam.sub || "";
+      camera.position.set(...cam.pos); controls.target.set(...cam.target); controls.update(); renderer.render(scene, camera); },
+    clearTrail() { trailN = 0; }
+  };
+  window.__ready = true;
+})();
+</script>
