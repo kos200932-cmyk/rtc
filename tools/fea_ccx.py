@@ -25,6 +25,23 @@ MAX_NODES = 110000
 
 
 def mesh(step, h):
+    """tet10 mesh; on a gmsh failure: the HXT algorithm, then slightly different sizes"""
+    last = None
+    for algo, hh in ((1, h), (10, h), (1, h * 0.9), (10, h * 0.9), (1, h * 1.1)):
+        try:
+            return _mesh(step, hh, algo)
+        except Exception as e:      # noqa: BLE001
+            last = e
+            print(f"  gmsh: algorithm {algo}, h {hh:.2f} failed: {e}")
+            try:
+                import gmsh
+                gmsh.finalize()
+            except Exception:       # noqa: BLE001
+                pass
+    raise last
+
+
+def _mesh(step, h, algo):
     import gmsh
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 0)
@@ -33,6 +50,7 @@ def mesh(step, h):
     gmsh.model.occ.synchronize()
     gmsh.option.setNumber("Mesh.MeshSizeMax", h)
     gmsh.option.setNumber("Mesh.MeshSizeMin", h * 0.3)
+    gmsh.option.setNumber("Mesh.Algorithm3D", algo)
     gmsh.option.setNumber("Mesh.ElementOrder", 2)
     gmsh.option.setNumber("Mesh.HighOrderOptimize", 0)
     gmsh.option.setNumber("Mesh.SecondOrderLinear", 1)      # straight-edged tet10: no invalid curved elements
