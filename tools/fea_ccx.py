@@ -34,7 +34,8 @@ def mesh(step, h):
     gmsh.option.setNumber("Mesh.MeshSizeMax", h)
     gmsh.option.setNumber("Mesh.MeshSizeMin", h * 0.3)
     gmsh.option.setNumber("Mesh.ElementOrder", 2)
-    gmsh.option.setNumber("Mesh.HighOrderOptimize", 1)
+    gmsh.option.setNumber("Mesh.HighOrderOptimize", 0)
+    gmsh.option.setNumber("Mesh.SecondOrderLinear", 1)      # straight-edged tet10: no invalid curved elements
     gmsh.model.mesh.generate(3)
     tags, xyz, _ = gmsh.model.mesh.getNodes()
     X = xyz.reshape(-1, 3)
