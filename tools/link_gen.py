@@ -312,7 +312,8 @@ def link3(lay):
         f"# upper-arm tube D{f(t['tube_D'])} x {f(t['tube_t'])} on the J3 axis, from the flange into the head box",
         f"PRISM Z {f(zf1)} {f(zb0 + bt)} RING {f(x3)} 0 {f(t['tube_D'])} {f(t['tube_D'] - 2 * t['tube_t'])}",
         f"# J4 mounting plate (YZ) on the motor side of the J4 flange: bore {f(J3_BASE['pilot'])}H7, 9 x M6 on D{f(J3_BASE['pcd'])}",
-        f"PRISM X {f(xp0)} {f(xp1)} RPOLY {f(-ph)} {f(zb0)} 0 {f(ph)} {f(zb0)} 0 {f(ph)} {f(z4 + ph)} {f(R)} {f(-ph)} {f(z4 + ph)} {f(R)}",
+        f"PRISM X {f(xp0)} {f(xp1)} RPOLY {f(-ph)} {f(z4 - ph)} {f(R)} {f(ph)} {f(z4 - ph)} {f(R)} {f(ph)} {f(z4 + ph)} {f(R)} {f(-ph)} {f(z4 + ph)} {f(R)}"
+        "   # square round the J4 axis, wider than the J4 flange D190",
         f"CUT X {f(xp0 - 1)} {f(xp1 + 1)} CIRC 0 {f(z4)} {f(J3_BASE['pilot'])}",
         f"TAP X {f(xp0)} {f(xp1)} 0 {f(z4)} {J3_BASE['n']} {f(J3_BASE['pcd'])} {J3_BASE['size']} {f(a4)}   # J4: screws from the output side",
         f"# head box x {f(xp1)}..{f(xb1)}, y +-{f(hb)}, z {f(zb0)}..{f(zb1)}: walls {f(bt)}, end wall removable (access to the J4 sensors)",

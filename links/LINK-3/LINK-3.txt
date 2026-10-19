@@ -18,7 +18,7 @@ CUT Z 364 386 PATTERN 105 0 16 140 9 258.75   # 16 x M8 into the J3 output, head
 # upper-arm tube D120 x 5 on the J3 axis, from the flange into the head box
 PRISM Z 385 1387 RING 105 0 120 110
 # J4 mounting plate (YZ) on the motor side of the J4 flange: bore 168H7, 9 x M6 on D180
-PRISM X -11 9 RPOLY -105 1377 0 105 1377 0 105 1572 40 -105 1572 40
+PRISM X -11 9 RPOLY -105 1362 40 105 1362 40 105 1572 40 -105 1572 40   # square round the J4 axis, wider than the J4 flange D190
 CUT X -12 10 CIRC 0 1467 168
 TAP X -11 9 0 1467 9 180 M6 200   # J4: screws from the output side
 # head box x 9..175, y +-90, z 1377..1557: walls 10, end wall removable (access to the J4 sensors)
