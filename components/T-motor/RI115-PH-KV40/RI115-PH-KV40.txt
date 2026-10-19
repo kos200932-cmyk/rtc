@@ -10,6 +10,9 @@ FRAME axis=+Z origin=0,0,-13.5   # STEP coordinates: motor axis -> X of this car
 # Rotor and stator split by tools/step_split.py, already in the card frame (axis X, origin 0):
 BODY  rotor   RI115-PH-rotor.step
 BODY  stator  RI115-PH-stator.step
+# RI115-PH-stator.step is a SIMPLIFIED revolved envelope (lamination D115 x 0..27, potting D113/D85.2
+# x -4..31.5, board D112.5 x 31.5..33.1, parts to x 35.1): the full STEP split from the maker's model
+# (RI115-PH-stator-full.step, 869 faces) imports into SolidWorks 2017 with faulty faces.
 # Card frame: X - motor axis, x=0 - the face where rotor and stator lamination are flush,
 # +X - the side where the rotor sticks out (leads / sensor board side). Measured from the STEP
 # with tools/step_inspect.py (STEP: stator (potted, with the sensor board) and rotor as separate solids):
