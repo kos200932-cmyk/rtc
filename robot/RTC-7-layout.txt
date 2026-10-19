@@ -13,24 +13,24 @@ AXIS  J1  SHM-150m  0 0 0              0 0 1   motor=-Z output=+Z face=0.0,0.0,-
 AXIS  J2  SHM-1000  0 0 137            1 0 0   motor=-X output=+X face=0.0,0.0,137.0           # shoulder; output face on the J1 axis
 AXIS  J3  SHM-500   105 0 137          0 0 1   motor=-Z output=+Z face=105.0,0.0,365.0         # upper-arm roll; cables enter here from the loop below (bottom 200 above the ОПУ)
 AXIS  J4  SHM-500   105 0 1467         1 0 0   motor=+X output=-X face=-100.0,0.0,1467.0       # elbow; 1330 above J2; rear end Rb34 from the J3 axis
-AXIS  J5  SHM-150   -168 0 1467        0 0 1   motor=-Z output=+Z face=-168.0,0.0,1626.5       # forearm roll; rear end Rb45 above J4
-AXIS  J6  SHM-150   -168 0 2617        1 0 0   motor=-X output=+X face=-8.5,0.0,2617.0         # wrist; 1150 above J4; rear end Rb56 from the J5 axis
-AXIS  J7  SHM-60    47.5 0 2617        0 0 1   motor=-Z output=+Z face=47.5,0.0,2778.0         # flange roll; rear end Rb67 above J6
+AXIS  J5  SHM-150   -174 0 1467        0 0 1   motor=-Z output=+Z face=-174.0,0.0,1626.5       # forearm roll; rear end Rb45 above J4
+AXIS  J6  SHM-150   -174 0 2617        1 0 0   motor=-X output=+X face=-14.5,0.0,2617.0        # wrist; 1150 above J4; rear end Rb56 from the J5 axis
+AXIS  J7  SHM-60    45.5 0 2617        0 0 1   motor=-Z output=+Z face=45.5,0.0,2778.0         # flange roll; rear end Rb67 above J6
 # Cable path (centre line through the bores, zero pose) for drawing and checks:
 CABLE pt  105.0 170.0
 CABLE pt  105.0 1427.0
 CABLE arc 65.0 1427.0 40.0 0 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
 CABLE pt  65.0 1467.0
-CABLE pt  -128.0 1467.0
-CABLE arc -128.0 1507.0 40.0 270 180   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  -168.0 1507.0
-CABLE pt  -168.0 2577.0
-CABLE arc -128.0 2577.0 40.0 180 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  -128.0 2617.0
-CABLE pt  15.5 2617.0
-CABLE arc 15.5 2649.0 32.0 270 360   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  47.5 2649.0
-CABLE pt  47.5 2798.0
+CABLE pt  -134.0 1467.0
+CABLE arc -134.0 1507.0 40.0 270 180   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt  -174.0 1507.0
+CABLE pt  -174.0 2577.0
+CABLE arc -134.0 2577.0 40.0 180 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt  -134.0 2617.0
+CABLE pt  13.5 2617.0
+CABLE arc 13.5 2649.0 32.0 270 360   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt  45.5 2649.0
+CABLE pt  45.5 2798.0
 # Tool flange = output face of ШМ-60 (the tool is not on the scheme).
-FLANGE 47.5 0 2778   0 0 1
+FLANGE 45.5 0 2778   0 0 1
 END

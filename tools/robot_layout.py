@@ -93,14 +93,19 @@ def main():
     # ---- J5
     front = lambda e: e["x_out"] - max(x1 for x0, x1, r, n in e["fixed"])   # output face -> fixed housing
     # cable bend, and the J5 body (low, beside J4) must clear the fixed J4 housing behind the output flange
-    x5 = min(xf4 - t - rb["45"], xf4 + front(E4) - g - E5["R"])
+    def motor_r(e):            # radius of the joint below its mounting face (motor housing, clamp, motor, cover)
+        rr = [r for nm, kind, pts in e["profiles"] if kind != "rot" for x, r in pts if x < e["x_base"] - 0.01]
+        return max(rr) if rr else e["R"]
+    x5 = min(xf4 - t - rb["45"], xf4 + front(E4) - g - E5["R"],
+             xf4 - t - motor_r(E5) - 3)        # the J5 motor (below the link-4 shelf) clears the link-4 plate
     z5_rear = z4 + rb["45"]
     z5_face = z5_rear + E5["L"]
     z6 = z4 + a.l5
     # ---- J6 (output +X): rear end at x5 + Rb56
     xf6 = x5 + rb["56"] + E6["L"]
     # ---- J7
-    x7 = max(xf6 + t + rb["67"], xf6 - front(E6) + g + E7["R"])
+    x7 = max(xf6 + t + rb["67"], xf6 - front(E6) + g + E7["R"],
+             xf6 + t + motor_r(E7) + 3)        # the J7 motor clears the link-6 plate
     z7_rear = z6 + rb["67"]
     z7_face = z7_rear + E7["L"]
 
