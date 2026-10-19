@@ -40,7 +40,7 @@ COLOR 120 130 150
 PRISM Z -43 -28 CIRC 0 0 155
 CUT Z -44 -35 CIRC 0 0 112   # recess 112H7 x 8
 CUT Z -36 -27 CIRC 0 0 50   # clears the clamp flange of the J1 input shaft
-CUT Z -36 -27 PATTERN 0 0 16 100 5.5 101.2   # 16 x M5 into the KB32 output, heads on top (reached through the plate bore)
+CUT Z -36 -27 PATTERN 0 0 16 100 5.5 258.75   # 16 x M5 into the KB32 output, heads on top (reached through the plate bore)
 TAP Z -43 -28 0 0 12 139 M8 0   # the 12 ring screws
 PORTP j1_output Z -35 -1 role=on_kb32_output fit=112H7 bolts=16xM5_D100
 PORTP ring Z -28 1 role=under_opu_inner_ring
