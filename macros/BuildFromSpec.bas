@@ -62,7 +62,13 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v26 (2026-10-19)"
+Private Const MACRO_VERSION As String = "v27 (2026-10-19)"
+' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
+' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
+Private Const CLOSE_DOCS As Boolean = True
+' True: SolidWorks does not refresh the screen between API calls (faster); set False if a build misbehaves.
+' Not used for ROBOTANIM (the view must be redrawn for every saved picture).
+Private Const FAST_MODE As Boolean = True
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -134,10 +140,13 @@ Private gData As String
 Private gPartPaths() As String  ' parts built by the last BuildSpecFile
 Private gSummary As String          ' "key=value key=value ..." from DATA lines
 Private gLog As String
+Private gTopSpec As String          ' spec file picked by the user - its result stays open
+Private gHidden As Collection       ' models loaded without a window for AddComponent5
 
 Sub main()
     Set swApp = Application.SldWorks
     gLog = "": gSummary = "": gTplPart = "": gTplAsm = ""
+    Set gHidden = New Collection
 
     Dim specPath As String, asmPath As String, ok As Boolean
     specPath = PickSpecFile()
@@ -147,6 +156,9 @@ Sub main()
         Exit Sub
     End If
 
+    gTopSpec = specPath
+    On Error GoTo Crash
+    If FAST_MODE And Not FileHasKeyword(specPath, "ROBOTANIM") Then swApp.CommandInProgress = True
     If FileHasKeyword(specPath, "ROBOTANIM") Then
         ok = BuildRobotAnim(specPath)
     ElseIf FileHasKeyword(specPath, "ROBOTASM") Then
@@ -156,6 +168,8 @@ Sub main()
     Else
         ok = BuildSpecFile(specPath, asmPath)
     End If
+    swApp.CommandInProgress = False
+    On Error GoTo 0
 
     If Not ok Then
         MsgBox "Stopped (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gLog, vbExclamation
@@ -166,6 +180,49 @@ Sub main()
         MsgBox "Done (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gSummary & vbCrLf & _
                "Part template: " & gTplPart & vbCrLf & "Assembly template: " & gTplAsm, vbInformation
     End If
+    Exit Sub
+Crash:
+    swApp.CommandInProgress = False
+    MsgBox "Runtime error " & Err.Number & ": " & Err.Description & " (" & MACRO_VERSION & ")" & vbCrLf & gLog, _
+           vbCritical
+End Sub
+
+' ---------------------------------------------------------------- open / close of documents (CLOSE_DOCS)
+Private Function IsTopSpec(ByVal specPath As String) As Boolean
+    IsTopSpec = (StrComp(specPath, gTopSpec, vbTextCompare) = 0)
+End Function
+
+' Close a saved document (keep = True: it is the result of the run and stays open).
+Private Sub CloseSaved(ByVal m As SldWorks.ModelDoc2, ByVal keep As Boolean)
+    If Not CLOSE_DOCS Or keep Or m Is Nothing Then Exit Sub
+    On Error Resume Next
+    swApp.CloseDoc m.GetTitle
+    On Error GoTo 0
+End Sub
+
+' The model must be loaded for AddComponent5: open it without a window (if it is not open yet)
+Private Sub LoadHidden(ByVal path As String)
+    Dim d As Object, t As Long, errs As Long, warns As Long
+    Set d = swApp.GetOpenDocumentByName(path)
+    If Not d Is Nothing Then Exit Sub
+    t = IIf(UCase(Right(path, 6)) = "SLDASM", swDocASSEMBLY, swDocPART)
+    If CLOSE_DOCS Then swApp.DocumentVisible False, t
+    Set d = swApp.OpenDoc6(path, t, swOpenDocOptions_Silent, "", errs, warns)
+    If CLOSE_DOCS Then swApp.DocumentVisible True, t
+    If Not d Is Nothing And CLOSE_DOCS Then gHidden.Add path
+End Sub
+
+' Unload the models loaded by LoadHidden (after the assembly that used them is saved and closed)
+Private Sub CloseHidden()
+    Dim d As Object
+    If Not CLOSE_DOCS Then Exit Sub
+    On Error Resume Next
+    Do While gHidden.Count > 0
+        Set d = swApp.GetOpenDocumentByName(gHidden(1))
+        If Not d Is Nothing Then swApp.CloseDoc d.GetTitle
+        gHidden.Remove 1
+    Loop
+    On Error GoTo 0
 End Sub
 
 ' Parts (and the assembly, if ASSEMBLY is given) of one spec file, saved next to it.
@@ -188,7 +245,10 @@ Private Function BuildSpecFile(ByVal specPath As String, asmPath As String) As B
     Next i
     If gAsmName <> "" Then
         asmPath = folder & gAsmName & ".SLDASM"
-        BuildAssembly asmPath, gPartPaths
+        BuildAssembly asmPath, gPartPaths, IsTopSpec(specPath)
+    ElseIf IsTopSpec(specPath) And CLOSE_DOCS Then       ' parts only: show the last one
+        Dim errs As Long, warns As Long
+        swApp.OpenDoc6 gPartPaths(gNParts - 1), swDocPART, swOpenDocOptions_Silent, "", errs, warns
     End If
     gSummary = gSummary & Mid(specPath, InStrRev(specPath, "\") + 1) & ": " & gNParts & " part(s)" & _
                IIf(gAsmName <> "", " + assembly " & gAsmName, "") & vbCrLf
@@ -730,6 +790,7 @@ Finish:
 
     ApplyColor m, p.Name, p.Color
     If Not SaveDoc(m, outPath) Then Exit Function
+    CloseSaved m, False
     BuildPart = True
 End Function
 
@@ -1671,7 +1732,7 @@ End Function
 ' ---------------------------------------------------------------------------
 ' Assembly
 ' ---------------------------------------------------------------------------
-Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
+Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String, ByVal keepOpen As Boolean)
     Dim am As SldWorks.ModelDoc2, asm As SldWorks.AssemblyDoc
     If gTplAsm = "" Then gTplAsm = FindTemplate("asmdot", swDefaultTemplateAssembly, "assem")
     If gTplAsm <> "" Then Set am = swApp.NewDocument(gTplAsm, 0, 0, 0)
@@ -1693,6 +1754,7 @@ Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
     Dim comps() As SldWorks.Component2
     ReDim comps(LBound(partPaths) To UBound(partPaths))
     For i = LBound(partPaths) To UBound(partPaths)
+        LoadHidden partPaths(i)
         Set comps(i) = asm.AddComponent5(partPaths(i), swAddComponentConfigOptions_CurrentSelectedConfig, _
                                          "", False, "", 0, 0, 0)
         If comps(i) Is Nothing Then
@@ -1753,7 +1815,10 @@ Private Sub BuildAssembly(ByVal asmPath As String, partPaths() As String)
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
 
-    SaveDoc am, asmPath
+    If SaveDoc(am, asmPath) And Not keepOpen Then
+        CloseSaved am, False
+        CloseHidden
+    End If
 End Sub
 
 Private Sub NameMate(ByVal mate As Object, ByVal nm As String)
@@ -1967,6 +2032,10 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
     If Not SaveDoc(am, folder & jName & ".SLDASM") Then Exit Function
+    If Not IsTopSpec(jointPath) Then
+        CloseSaved am, False
+        CloseHidden
+    End If
     gSummary = gSummary & "joint " & jName & ": " & nE & " component(s) + " & nD & " designed part(s)" & vbCrLf
     BuildJoint = True
 End Function
@@ -2051,8 +2120,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     Dim errs As Long, warns As Long, d As Object, comps(0 To 63) As SldWorks.Component2
     For k = 0 To nC - 1
         ' the model must be open for AddComponent5
-        Set d = swApp.OpenDoc6(cModel(k), IIf(UCase(Right(cModel(k), 6)) = "SLDASM", swDocASSEMBLY, swDocPART), _
-                               swOpenDocOptions_Silent, "", errs, warns)
+        LoadHidden cModel(k)                    ' no window (CLOSE_DOCS), active document stays the assembly
         swApp.ActivateDoc3 am.GetTitle, False, swDontRebuildActiveDoc, errs
         Set c = InsertFloating(am, asm, cModel(k))
         If c Is Nothing Then Exit Function
@@ -2208,8 +2276,7 @@ Private Function BuildRobotAnim(ByVal specPath As String) As Boolean
     If am Is Nothing Then gLog = gLog & "Cannot create the assembly from '" & gTplAsm & "'" & vbCrLf: Exit Function
     Set asm = am
     For k = 0 To nC - 1
-        Set d = swApp.OpenDoc6(cModel(k), IIf(UCase(Right(cModel(k), 6)) = "SLDASM", swDocASSEMBLY, swDocPART), _
-                               swOpenDocOptions_Silent, "", errs, warns)
+        LoadHidden cModel(k)                    ' no window (CLOSE_DOCS), active document stays the assembly
         swApp.ActivateDoc3 am.GetTitle, False, swDontRebuildActiveDoc, errs
         Set c = InsertFloating(am, asm, cModel(k))
         If c Is Nothing Then Exit Function
@@ -2320,6 +2387,7 @@ End Function
 Private Function InsertFloating(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
                                 ByVal path As String) As SldWorks.Component2
     Dim c As SldWorks.Component2
+    LoadHidden path
     Set c = asm.AddComponent5(path, swAddComponentConfigOptions_CurrentSelectedConfig, "", False, "", 0, 0, 0)
     If c Is Nothing Then
         gLog = gLog & "Cannot insert " & path & vbCrLf
@@ -2515,6 +2583,7 @@ Private Function ImportStepPart(ByVal stepPath As String, ByVal axis As String, 
     m.ViewZoomtofit2
     ApplyColor m, pname, ""
     If SaveDoc(m, outPath) Then ImportStepPart = outPath
+    CloseSaved m, False
 End Function
 
 ' Move the bodies so that the card origin is at 0 and the card axis is +X. The axial span is
