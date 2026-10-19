@@ -301,9 +301,18 @@ def statics_data(lay, tool):
             "rated": rated, "payload_com": 100.0}
 
 
-def write_html(path, scene):
+def write_html(path, scene, three_dir=None):
+    """three_dir: folder of the npm package three@0.147.0 -> the scripts are put into the page
+    (one self-contained file that opens offline); otherwise they load from the CDN."""
     tpl = open(os.path.join(ROOT, "tools", "anim_viewer.html"), encoding="utf-8").read()
     html = tpl.replace("/*SCENE_JSON*/null", json.dumps(scene, ensure_ascii=False, separators=(",", ":")))
+    if three_dir:
+        for rel in ("build/three.min.js", "examples/js/controls/OrbitControls.js"):
+            tag = f'<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/{rel}"></script>'
+            code = open(os.path.join(three_dir, rel), encoding="utf-8").read().replace("</script", "<\\/script")
+            if tag not in html:
+                raise SystemExit(f"viewer template: no {tag}")
+            html = html.replace(tag, "<script>\n" + code + "\n</script>")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     open(path, "w", encoding="utf-8").write(html)
     print(f"viewer -> {path} ({os.path.getsize(path) / 1e6:.1f} MB)")
@@ -358,6 +367,8 @@ def main():
     ap.add_argument("--asm", default=os.path.join(ROOT, "robot", "RTC-7-J1-J7.txt"))
     ap.add_argument("--check", type=int, default=0, help="check every n-th frame for contacts")
     ap.add_argument("--csv")
+    ap.add_argument("--offline", metavar="THREE_DIR",
+                    help="node_modules/three (0.147.0): put three.js into the viewer -> works without internet")
     a = ap.parse_args()
     lay = rs.read_layout(a.layout)
     prg = read_program(a.program)
@@ -403,7 +414,7 @@ def main():
                  "limits": LIMITS, "events": prg["events"],
                  "tcp0": np.round(tcp_T(lay, np.zeros(len(lay["axes"])), prg["tool"]), 4).tolist(), "frames": np.round(deg, 3).tolist(), "labels": labels,
                  "meshes": meshes, "statics": statics_data(lay, prg["tool"])}
-        write_html(a.html, scene)
+        write_html(a.html, scene, a.offline)
 
 
 if __name__ == "__main__":

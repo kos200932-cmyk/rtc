@@ -43,5 +43,6 @@
 Компоновка, кинематика, моменты: robot\ (RTC-7-layout.txt, RTC-7-kinematics.md, RTC-7-statics.md).
 Движение: robot\RTC-7-demo.txt - программа (MOVEJ / MOVEL / WAIT / GRIP / RELEASE / LABEL);
   python tools\robot_anim.py --check 6 --html robot\anim\RTC-7-viewer.html --sw robot\RTC-7-anim.txt
+  robot\anim\RTC-7-viewer-offline.html - то же без интернета (двойной щелчок, Chrome / Edge / Firefox),
   robot\anim\RTC-7-viewer.html - просмотрщик в браузере (ползунки осей, моменты, проигрывание),
   robot\anim\RTC-7-demo.mp4 - видео, robot\anim\RTC-7-demo.csv - углы и TCP по кадрам.
