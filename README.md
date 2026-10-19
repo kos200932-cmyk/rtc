@@ -178,6 +178,8 @@ links/LINK-1/LINK-1.txt --joints J1,J2 --step --png links/LINK-1/LINK-1.png` —
 ОПУ, инструмент) сетками STL, массы, центры масс и тензоры инерции, оси J1..J7, кадр TCP; плюс демо-траектория.
 В MATLAB R2024a: `rtc7_build` в папке `sim/RTC-7` — импорт (smimport), шарниры движутся по программе,
 моменты на выходе редукторов в рабочую область и на графики (инструкция `sim/RTC-7/README_SIMULINK.txt`).
+`rtc7_plots` — по каждому шарниру графики заданных угла, скорости, ускорения и возникающего момента
+(с номинальным и пусковым моментами редуктора), сводные графики и таблица пиков / RMS.
 `python tools/robot_dynamics.py [--speed 2]` — те же моменты с ускорениями в Python (Pinocchio):
 `robot/RTC-7-dynamics.md`, `robot/RTC-7-dynamics.png`, эталон `sim/RTC-7/RTC-7-demo-torques-ref.csv`.
 

@@ -229,7 +229,7 @@ def main():
         j = je.read_joint(os.path.join(ROOT, "joints", jn, jn + ".txt"))
         rd = st.card_data(os.path.join(ROOT, j["use"]["reducer"]))
         T = float(rd.get("T_design", rd["T_rated"]))
-        rated.append(T)
+        rated.append((T, float(rd["T_startstop"]), rd.get("ratios", "?")))
         lo, hi = ra.LIMITS[i]
         p = origin_of(lay, i + 1) - origin_of(lay, i)
         w = np.array(ax["w"], float)
@@ -276,9 +276,9 @@ def main():
             w.writerow([f"{k / prg['fps']:.5f}"] + [f"{v:.6f}" for v in q])
     with open(os.path.join(a.out, "RTC-7-rated.csv"), "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["joint", "drive", "T_rated_Nm"])
-        for ax, T in zip(lay["axes"], rated):
-            w.writerow([ax["name"], ax["joint"], f"{T:.0f}"])
+        w.writerow(["joint", "drive", "T_rated_Nm", "T_startstop_Nm"])
+        for ax, (T, Tss, _) in zip(lay["axes"], rated):
+            w.writerow([ax["name"], ax["joint"], f"{T:.0f}", f"{Tss:.0f}"])
     for s in notes:
         print("note:", s)
     print(f"URDF -> {upath}; trajectory {len(frames)} frames at {prg['fps']} fps")

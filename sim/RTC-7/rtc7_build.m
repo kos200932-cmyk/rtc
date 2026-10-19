@@ -130,7 +130,7 @@ for k = 1:7
     ts_k = so.get(['tau_' nm]);
     tau(:, k) = interp1(ts_k.Time, squeeze(ts_k.Data), ts, 'linear', 'extrap');
 end
-out = struct('t', ts, 'q', Qs, 'tau', tau, 'sim', so);
+out = struct('t', ts, 'q', Qs, 'tau', tau, 'speed', o.speed, 'sim', so);
 assignin('base', 'rtc7', out);
 plot_torques(here, ts, tau, o.speed);
 end
