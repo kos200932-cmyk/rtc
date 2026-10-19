@@ -84,7 +84,7 @@ def run(model, cfg, outdir, hfac):
           "*BOUNDARY", "NFIXED,1,3,0.0"]
     for cs in model["cases"]:
         F, M, A = cs["F_N"], cs["M_Nmm"], np.array(cs["acc_mm_s2"])
-        L += ["*STEP", "*STATIC", "*CLOAD,OP=NEW"]
+        L += ["*STEP", "*STATIC" + (",SOLVER=ITERATIVE CHOLESKY" if len(tags) > 160000 else ""), "*CLOAD,OP=NEW"]
         for k in range(3):
             L += [f"{rp},{k + 1},{F[k]}", f"{rot},{k + 1},{M[k]}"]
         a = np.linalg.norm(A)
@@ -97,8 +97,8 @@ def run(model, cfg, outdir, hfac):
     open(job + ".inp", "w").write("\n".join(L) + "\n")
     r = subprocess.run(["ccx", "-i", job], cwd=outdir, capture_output=True, text=True,
                        env=dict(os.environ, OMP_NUM_THREADS="4"))
-    if not os.path.isfile(job + ".frd"):
-        raise SystemExit(r.stdout[-2000:] + r.stderr[-2000:])
+    if not os.path.isfile(job + ".frd") or os.path.getsize(job + ".frd") < 1000:
+        raise SystemExit(f"{model['id']}: CalculiX failed\n" + r.stdout[-2000:] + r.stderr[-2000:])
     steps = read_frd(job + ".frd")
     rf = read_rf(job + ".dat")
     # nodes away from the support / load faces (the rigid fixing gives edge peaks there)
@@ -174,10 +174,15 @@ def main():
     outdir = os.path.join(a.fea, "ccx")
     os.makedirs(outdir, exist_ok=True)
     rows = []
+    prev = os.path.join(outdir, "summary.json")
+    old = json.load(open(prev)) if os.path.isfile(prev) else []
     for m in cfg["models"]:
         if a.only and m["id"] not in a.only.split(","):
+            rows += [r for r in old if r["model"] == m["id"]]
             continue
         res = run(m, cfg, outdir, a.h_factor)
+        old = [r for r in old if r["model"] != m["id"]] + [dict(r, rf=list(map(float, r["rf"]))) for r in res]
+        json.dump(old, open(prev, "w"), indent=1)
         for r in res:
             print(f"{r['model']:8s} {r['case']}: nodes {r['nodes']}, Mises max {r['mises_max']:6.1f} / away from "
                   f"supports {r['mises_far']:6.1f} MPa (allow {r['allow']:.0f}), u {r['u_max']:.3f} mm, "

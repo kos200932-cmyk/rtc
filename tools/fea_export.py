@@ -480,7 +480,7 @@ def write_cards(outdir, out, axes):
             extra = f"; сила на инструменте {fmt3(c['F_tcp_N'])} Н" if c.get("F_tcp_N") else ""
             L.append(f"- **{c['name']}**: q = {', '.join(f'{v:g}' for v in c['q_deg'])}° — {c['note']}{extra}")
         # reducer output bearing (the fixed interface is a joint output)
-        if fx["name"].endswith("_out") or fx["name"] == "j1_output":
+        if fx["name"].endswith("_out"):            # (J1: the ОПУ takes the tilt, the adapter only the torque)
             ax = axes[k - 1]
             rd, rn = reducer_card(ax["joint"])
             i = "XYZ".index(fx["selectors"][0]["axis"])
