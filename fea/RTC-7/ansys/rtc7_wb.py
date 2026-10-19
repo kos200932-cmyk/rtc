@@ -27,6 +27,21 @@ cfg = json.load(open(CONFIG))
 mat = cfg["material"]
 
 
+def refresh(system, names=("Engineering Data", "Geometry")):
+    """bring the upstream cells up to date - otherwise Workbench stops with
+    'The following components need attention before proceeding: Engineering Data'"""
+    for n in names:
+        try:
+            c = system.GetComponent(Name=n)
+            try:
+                c.Refresh()
+            except Exception:
+                pass
+            c.Update(AllDependencies=True)
+        except Exception as e:
+            print("%s: %s update: %s" % (system.DisplayText, n, e))
+
+
 def add_material(system):
     """AMg6 in the Engineering Data of the system (if the calls differ in the installed version, add it by hand:
     Density, Isotropic Elasticity, Tensile Yield / Ultimate Strength - values in rtc7_fea.json)."""
@@ -36,8 +51,8 @@ def add_material(system):
         p = m.CreateProperty(Name="Density", Qualifiers={"Definition": "", "Behavior": ""})
         p.SetData(Index=-1, Variables=["Density"], Values=[["%g [kg m^-3]" % mat["rho"]]])
         p = m.CreateProperty(Name="Elasticity", Behavior="Isotropic", Qualifiers={"Definition": "", "Behavior": "Isotropic"})
-        p.SetData(Index=-1, Variables=["Young's Modulus"], Values=[["%g [MPa]" % mat["E_MPa"]]])
-        p.SetData(Index=-1, Variables=["Poisson's Ratio"], Values=[["%g" % mat["nu"]]])
+        p.SetData(Index=-1, Variables=["Young's Modulus", "Poisson's Ratio"],
+                  Values=[["%g [MPa]" % mat["E_MPa"], "%g" % mat["nu"]]])
         p = m.CreateProperty(Name="Tensile Yield Strength", Qualifiers={"Definition": "", "Behavior": ""})
         p.SetData(Index=-1, Variables=["Tensile Yield Strength"], Values=[["%g [MPa]" % mat["Sy_MPa"]]])
         p = m.CreateProperty(Name="Tensile Ultimate Strength", Qualifiers={"Definition": "", "Behavior": ""})
@@ -62,6 +77,11 @@ for m in cfg["models"]:
     add_material(system)
     geom = system.GetContainer(ComponentName="Geometry")
     geom.SetFile(FilePath=os.path.join(FEA_DIR, m["step"].replace("/", os.sep)))
+    refresh(system)
+    try:
+        system.GetComponent(Name="Model").Refresh()
+    except Exception:
+        pass
     model = system.GetContainer(ComponentName="Model")
     model.Edit()
     cmd = ("CONFIG = r'%s'\nMODEL_ID = '%s'\nSOLVE = %s\nexec(open(r'%s').read())\n"
