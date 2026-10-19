@@ -35,6 +35,13 @@ Attribute VB_Name = "BuildFromSpec"
 '     A card with BODY <name> <step> lines gives one part per body (<COMPONENT>-<name>), e.g.
 '     rotor and stator of a frameless motor; those STEP files are already in the card frame.
 '     The joint frame is the frame of the first USE (the reducer).
+'   * a ROBOTASM file (robot/*.txt) builds an assembly of the arm from built models:
+'       ROBOTASM <name>                 - assembly name (saved next to the file)
+'       REBUILD yes|no                  - rebuild models that already exist (default: no)
+'       COMP <name> <file> ox oy oz  xx xy xz  zx zy zz
+'                                       - a joint / link / component spec (built if needed, or a
+'                                         .SLDASM / .SLDPRT) placed with its origin at (ox,oy,oz)
+'                                         and its X / Z axes along the given directions, fixed
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -44,7 +51,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v23 (2026-10-18)"
+Private Const MACRO_VERSION As String = "v24 (2026-10-19)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -129,7 +136,9 @@ Sub main()
         Exit Sub
     End If
 
-    If FileHasKeyword(specPath, "JOINT") Then
+    If FileHasKeyword(specPath, "ROBOTASM") Then
+        ok = BuildRobotAsm(specPath)
+    ElseIf FileHasKeyword(specPath, "JOINT") Then
         ok = BuildJoint(specPath)
     Else
         ok = BuildSpecFile(specPath, asmPath)
@@ -1894,6 +1903,139 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
     If Not SaveDoc(am, folder & jName & ".SLDASM") Then Exit Function
     gSummary = gSummary & "joint " & jName & ": " & nE & " component(s) + " & nD & " designed part(s)" & vbCrLf
     BuildJoint = True
+End Function
+
+' ---------------------------------------------------------------------------
+' Arm assembly: built models placed by a frame (origin + X and Z directions), fixed
+' ---------------------------------------------------------------------------
+Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
+    Dim lines() As String, li As Long, s As String, t() As String, folder As String
+    Dim aName As String, rebuild As Boolean, k As Long, q As Long
+    Dim cName(0 To 63) As String, cFile(0 To 63) As String, cFr(0 To 63, 0 To 8) As Double, nC As Long
+    folder = Left(specPath, InStrRev(specPath, "\"))
+    lines = ReadLines(specPath)
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            Select Case UCase(t(0))
+            Case "ROBOTASM"
+                aName = t(1)
+            Case "REBUILD"
+                rebuild = (LCase(t(1)) = "yes")
+            Case "COMP"
+                If UBound(t) < 11 Then gLog = gLog & "COMP needs: name file ox oy oz xx xy xz zx zy zz" & vbCrLf: Exit Function
+                If nC > 63 Then gLog = gLog & "too many COMP lines" & vbCrLf: Exit Function
+                cName(nC) = t(1)
+                cFile(nC) = ResolvePath(folder, t(2))
+                If cFile(nC) = "" Then gLog = gLog & "COMP " & t(1) & ": file not found: " & t(2) & vbCrLf: Exit Function
+                For q = 0 To 8
+                    cFr(nC, q) = Num(t(3 + q))
+                Next q
+                nC = nC + 1
+            End Select
+        End If
+    Next li
+    If aName = "" Or nC = 0 Then gLog = gLog & "ROBOTASM file needs ROBOTASM <name> and COMP lines" & vbCrLf: Exit Function
+
+    ' 1. models (each spec file built once)
+    Dim cModel(0 To 63) As String, ext As String, jn As String, asmPath As String, j As Long
+    For k = 0 To nC - 1
+        For j = 0 To k - 1
+            If StrComp(cFile(j), cFile(k), vbTextCompare) = 0 Then cModel(k) = cModel(j)
+        Next j
+        If cModel(k) = "" Then
+            ext = UCase(Mid(cFile(k), InStrRev(cFile(k), ".") + 1))
+            If ext = "SLDASM" Or ext = "SLDPRT" Then
+                cModel(k) = cFile(k)
+            ElseIf FileHasKeyword(cFile(k), "JOINT") Then
+                jn = FirstArg(cFile(k), "JOINT")
+                cModel(k) = Left(cFile(k), InStrRev(cFile(k), "\")) & jn & ".SLDASM"
+                If rebuild Or Not FileExists(cModel(k)) Then
+                    If Not BuildJoint(cFile(k)) Then Exit Function
+                End If
+            Else
+                jn = FirstArg(cFile(k), "ASSEMBLY")
+                If jn = "" Then gLog = gLog & "COMP " & cName(k) & ": the spec has no ASSEMBLY line" & vbCrLf: Exit Function
+                cModel(k) = Left(cFile(k), InStrRev(cFile(k), "\")) & jn & ".SLDASM"
+                If rebuild Or Not FileExists(cModel(k)) Then
+                    If Not BuildSpecFile(cFile(k), asmPath) Then Exit Function
+                End If
+            End If
+        End If
+    Next k
+
+    ' 2. the arm assembly
+    Dim am As SldWorks.ModelDoc2, asm As SldWorks.AssemblyDoc, c As SldWorks.Component2
+    If gTplAsm = "" Then gTplAsm = FindTemplate("asmdot", swDefaultTemplateAssembly, "assem")
+    If gTplAsm <> "" Then Set am = swApp.NewDocument(gTplAsm, 0, 0, 0)
+    If am Is Nothing Then gLog = gLog & "Cannot create the assembly from '" & gTplAsm & "'" & vbCrLf: Exit Function
+    Set asm = am
+    Dim errs As Long, warns As Long, d As Object
+    For k = 0 To nC - 1
+        ' the model must be open for AddComponent5
+        Set d = swApp.OpenDoc6(cModel(k), IIf(UCase(Right(cModel(k), 6)) = "SLDASM", swDocASSEMBLY, swDocPART), _
+                               swOpenDocOptions_Silent, "", errs, warns)
+        swApp.ActivateDoc3 am.GetTitle, False, swDontRebuildActiveDoc, errs
+        Set c = InsertFloating(am, asm, cModel(k))
+        If c Is Nothing Then Exit Function
+        If UCase(Right(cModel(k), 6)) = "SLDASM" Then
+            On Error Resume Next
+            Dim co As Object
+            Set co = c
+            co.Solving = 1                          ' flexible: the shafts inside can turn
+            On Error GoTo 0
+        End If
+        PlaceFrame c, cFr, k
+        FixComp am, asm, c
+        gSummary = gSummary & "  " & cName(k) & ": " & Mid(cModel(k), InStrRev(cModel(k), "\") + 1) & vbCrLf
+    Next k
+    am.ClearSelection2 True
+    am.EditRebuild3
+    am.ShowNamedView2 "*Isometric", swIsometricView
+    am.ViewZoomtofit2
+    If Not SaveDoc(am, folder & aName & ".SLDASM") Then Exit Function
+    gSummary = "arm assembly " & aName & ": " & nC & " component(s)" & vbCrLf & gSummary
+    BuildRobotAsm = True
+End Function
+
+' Component placed by a frame: origin (fr 0..2, mm), local X along fr 3..5, local Z along fr 6..8
+Private Sub PlaceFrame(ByVal c As SldWorks.Component2, fr() As Double, ByVal k As Long)
+    Dim ex(0 To 2) As Double, ez(0 To 2) As Double, ey(0 To 2) As Double, n As Double, i As Long
+    Dim dd(0 To 15) As Double, mu As SldWorks.MathUtility, xf As Object, co As Object
+    For i = 0 To 2
+        ex(i) = fr(k, 3 + i): ez(i) = fr(k, 6 + i)
+    Next i
+    n = Sqr(ex(0) ^ 2 + ex(1) ^ 2 + ex(2) ^ 2): For i = 0 To 2: ex(i) = ex(i) / n: Next i
+    n = Sqr(ez(0) ^ 2 + ez(1) ^ 2 + ez(2) ^ 2): For i = 0 To 2: ez(i) = ez(i) / n: Next i
+    ey(0) = ez(1) * ex(2) - ez(2) * ex(1)            ' Y = Z x X
+    ey(1) = ez(2) * ex(0) - ez(0) * ex(2)
+    ey(2) = ez(0) * ex(1) - ez(1) * ex(0)
+    For i = 0 To 2
+        dd(i) = ex(i): dd(3 + i) = ey(i): dd(6 + i) = ez(i)
+        dd(9 + i) = fr(k, i) * MM
+    Next i
+    dd(12) = 1
+    Set mu = swApp.GetMathUtility
+    Set xf = mu.CreateTransform(dd)
+    Set co = c
+    On Error Resume Next
+    If Not co.SetTransformAndSolve2(xf) Then gLog = gLog & c.Name2 & ": cannot place the component" & vbCrLf
+    If Err.Number <> 0 Then gLog = gLog & c.Name2 & ": cannot place the component (" & Err.Description & ")" & vbCrLf
+    On Error GoTo 0
+End Sub
+
+' First argument of the first line starting with a keyword ("" if none)
+Private Function FirstArg(ByVal path As String, ByVal kw As String) As String
+    Dim lines() As String, li As Long, s As String, t() As String
+    lines = ReadLines(path)
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            If UCase(t(0)) = kw And UBound(t) >= 1 Then FirstArg = t(1): Exit Function
+        End If
+    Next li
 End Function
 
 Private Function InsertFloating(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
