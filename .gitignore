@@ -21,3 +21,8 @@ fea/RTC-7/results_*.csv
 fea/RTC-7/log_*.txt
 fea/RTC-7/ccx/summary.json
 fea/RTC-7/ccx/vtu/
+report/*.pdf
+report/pg-*.jpg
+report/sheet*.jpg
+report/zz*.jpg
+report/one-*.jpg
