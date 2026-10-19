@@ -412,7 +412,7 @@ def link5(lay):
     zf1 = z_f5 + t["flange_t"]
     hb, bt = t["box_half"], t["box_t"]
     xp0, xp1 = x_base6 - t["plate_t"], x_base6        # plate on the motor (-X) side of the J6 flange
-    xb0 = x5 - t["tube_D"] / 2 - bt                     # box end wall outside the tube
+    xb0 = x5 - t["tube_D"] / 2 - bt - 3.0               # box end wall outside the tube, 3 mm clear (no tangent contact)
     zb0, zb1 = z6 - hb, z6 + hb
     ph, R, Rb = t["plate_half"], t["plate_R"], t["box_R"]
     head_r = KB32_OUT2["pcd"] / 2 - 2.75 - 4.25         # inner edge of the M5 heads

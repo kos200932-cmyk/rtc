@@ -29,7 +29,7 @@
     <visual><origin xyz="0 0 0" rpy="0 0 0"/><geometry><mesh filename="meshes/link_4.stl" scale="1 1 1"/></geometry><material name="link"/></visual>
   </link>
   <link name="link_5">
-    <inertial><origin xyz="0.046085 0.000000 0.865262" rpy="0 0 0"/><mass value="10.7250"/><inertia ixx="1.784952e+00" ixy="1.443931e-16" ixz="-1.407368e-01" iyy="1.805868e+00" iyz="-4.665092e-16" izz="5.189324e-02"/></inertial>
+    <inertial><origin xyz="0.045689 0.000000 0.866167" rpy="0 0 0"/><mass value="10.7593"/><inertia ixx="1.787917e+00" ixy="1.305176e-16" ixz="-1.395267e-01" iyy="1.809226e+00" iyz="-3.718897e-16" izz="5.248579e-02"/></inertial>
     <visual><origin xyz="0 0 0" rpy="0 0 0"/><geometry><mesh filename="meshes/link_5.stl" scale="1 1 1"/></geometry><material name="link"/></visual>
   </link>
   <link name="link_6">
