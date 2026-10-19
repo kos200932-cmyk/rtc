@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fea_export as fe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MAX_NODES = 110000
 
 
 def mesh(step, h):
@@ -55,6 +56,9 @@ def run(model, cfg, outdir, hfac):
     step = os.path.join(os.path.dirname(outdir), model["step"])
     h = model["mesh_mm"] * hfac
     tags, X, E, surf, nid = mesh(step, h)
+    while len(tags) > MAX_NODES:              # the direct solver must fit in memory / time: coarser mesh for the check
+        h *= 1.25
+        tags, X, E, surf, nid = mesh(step, h)
     sets = {}
     for role in ("fixed", "load"):
         s = set()
@@ -84,7 +88,7 @@ def run(model, cfg, outdir, hfac):
           "*BOUNDARY", "NFIXED,1,3,0.0"]
     for cs in model["cases"]:
         F, M, A = cs["F_N"], cs["M_Nmm"], np.array(cs["acc_mm_s2"])
-        L += ["*STEP", "*STATIC" + (",SOLVER=ITERATIVE CHOLESKY" if len(tags) > 160000 else ""), "*CLOAD,OP=NEW"]
+        L += ["*STEP", "*STATIC", "*CLOAD,OP=NEW"]
         for k in range(3):
             L += [f"{rp},{k + 1},{F[k]}", f"{rot},{k + 1},{M[k]}"]
         a = np.linalg.norm(A)
@@ -194,12 +198,12 @@ def main():
          "нагрузка через жёсткое тело в удалённой точке, поле ускорений детали. АМг6, σ0,2 = %.0f МПа." % Sy, "",
          "«Вдали от опор» — максимум по узлам дальше двух размеров элемента от граней закрепления и нагрузки "
          "(у кромок жёсткой заделки — концентрация, которой в болтовом стыке нет). Запас = σ0,2 / σэкв.", "",
-         "| Звено | Случай | Узлов | σэкв max, МПа | σэкв вдали от опор, МПа | Запас (вдали) | Требуется | Перемещение max, мм | Реакция F, Н (расчёт / ожидаемая) |",
+         "| Звено | Случай | Узлов (элемент, мм) | σэкв max, МПа | σэкв вдали от опор, МПа | Запас (вдали) | Требуется | Перемещение max, мм | Реакция F, Н (расчёт / ожидаемая) |",
          "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         sf = Sy / r["mises_far"]
         flag = "" if sf >= r["sf_req"] else " **— мало**"
-        L.append(f"| {r['model']} | {r['case']} | {r['nodes']} | {r['mises_max']:.0f} | {r['mises_far']:.0f} | {sf:.2f}{flag} | "
+        L.append(f"| {r['model']} | {r['case']} | {r['nodes']} ({r['h_mm']:.1f}) | {r['mises_max']:.0f} | {r['mises_far']:.0f} | {sf:.2f}{flag} | "
                  f"{r['sf_req']:g} | {r['u_max']:.2f} | {fe.fmt3(r['rf'])} / {fe.fmt3(r['rf_exp'])} |")
     open(os.path.join(outdir, "summary.md"), "w", encoding="utf-8").write("\n".join(L) + "\n")
     with open(os.path.join(outdir, "summary.csv"), "w", encoding="utf-8") as f:
