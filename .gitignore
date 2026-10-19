@@ -7,3 +7,15 @@
 *.slddrw
 ~$*
 __pycache__/
+
+# CalculiX working files (tools/fea_ccx.py) - only the summary is kept
+fea/RTC-7/ccx/*.inp
+fea/RTC-7/ccx/*.frd
+fea/RTC-7/ccx/*.dat
+fea/RTC-7/ccx/*.sta
+fea/RTC-7/ccx/*.cvg
+fea/RTC-7/ccx/*.12d
+fea/RTC-7/ccx/spooles.out
+# Ansys results written next to rtc7_fea.json
+fea/RTC-7/results_*.csv
+fea/RTC-7/log_*.txt
