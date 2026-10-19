@@ -22,6 +22,7 @@ import fea_export as fe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAX_NODES = 110000
+MAX_NODES_SET = [MAX_NODES]
 
 
 def mesh(step, h):
@@ -79,8 +80,8 @@ def run(model, cfg, outdir, hfac):
     step = os.path.join(os.path.dirname(outdir), model["step"])
     h = model["mesh_mm"] * hfac
     tags, X, E, surf, nid = mesh(step, h)
-    while len(tags) > MAX_NODES:              # the direct solver must fit in memory / time: coarser mesh for the check
-        h *= 1.25
+    while len(tags) > MAX_NODES_SET[0]:              # the direct solver must fit in memory / time: coarser mesh for the check
+        h *= 1.12
         tags, X, E, surf, nid = mesh(step, h)
     sets = {}
     for role in ("fixed", "load"):
@@ -196,7 +197,9 @@ def main():
     ap.add_argument("--fea", default=os.path.join(ROOT, "fea", "RTC-7"))
     ap.add_argument("--only")
     ap.add_argument("--h-factor", type=float, default=1.0)
+    ap.add_argument("--max-nodes", type=int, default=MAX_NODES, help="coarser mesh above this (direct solver memory)")
     a = ap.parse_args()
+    MAX_NODES_SET[0] = a.max_nodes
     cfg = json.load(open(os.path.join(a.fea, "rtc7_fea.json"), encoding="utf-8"))
     outdir = os.path.join(a.fea, "ccx")
     os.makedirs(outdir, exist_ok=True)
