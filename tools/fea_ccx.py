@@ -27,12 +27,12 @@ MAX_NODES = 110000
 def mesh(step, h):
     """tet10 mesh; on a gmsh failure: the HXT algorithm, then slightly different sizes"""
     last = None
-    for algo, hh in ((1, h), (10, h), (1, h * 0.9), (10, h * 0.9), (1, h * 1.1)):
+    for algo, hh, a2 in ((1, h, 6), (1, h, 1), (1, h, 5), (10, h, 1), (1, h * 0.9, 1), (1, h * 1.1, 1)):
         try:
-            return _mesh(step, hh, algo)
+            return _mesh(step, hh, algo, a2)
         except Exception as e:      # noqa: BLE001
             last = e
-            print(f"  gmsh: algorithm {algo}, h {hh:.2f} failed: {e}")
+            print(f"  gmsh: 3D {algo} / 2D {a2}, h {hh:.2f} failed: {e}")
             try:
                 import gmsh
                 gmsh.finalize()
@@ -41,10 +41,14 @@ def mesh(step, h):
     raise last
 
 
-def _mesh(step, h, algo):
+def _mesh(step, h, algo, algo2=6):
     import gmsh
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 0)
+    gmsh.option.setNumber("Mesh.Algorithm", algo2)            # 2D: 6 Frontal-Delaunay, 1 MeshAdapt, 5 Delaunay
+    if algo2 != 6:                                            # the fallbacks also heal the imported geometry
+        for o in ("Geometry.OCCFixDegenerated", "Geometry.OCCFixSmallEdges", "Geometry.OCCFixSmallFaces"):
+            gmsh.option.setNumber(o, 1)
     gmsh.model.add("m")
     gmsh.model.occ.importShapes(step)
     gmsh.model.occ.synchronize()
