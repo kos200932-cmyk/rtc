@@ -21,8 +21,8 @@ CUT Z 255 277 CIRC 105 0 168
 TAP Z 256 276 105 0 9 180 M6 250   # J3: screws from the top through the reducer and the motor housing
 # side walls from the plate (not below the J2 axis - they turn over link 1) to the end of the shelf;
 # outside the J3 motor, open below for the cable
-PRISM Y 90 100 RPOLY 20 137 10 20 256 0 165 256 10
-PRISM Y -100 -90 RPOLY 20 137 10 20 256 0 165 256 10
+PRISM Y 90 100 RPOLY 20 137 0 20 256 0 165 256 0
+PRISM Y -100 -90 RPOLY 20 137 0 20 256 0 165 256 0
 # J2 output screws (heads on the +X side) and access to the 3 Rc1/8 plugs
 CUT X -14 21 PATTERN 0 137 3 142 9 21   # M8 at 69 deg (joint)
 CUT X -14 21 PATTERN 0 137 3 142 9 9   # M8 at 81 deg (joint)

@@ -20,8 +20,8 @@ CUT Z -1 26 CIRC 0 0 112   # access to the J1 adapter screws
 # J2 mounting plate (YZ plane) on the -X side of the J2 base face
 PRISM X -115 -95 RPOLY -125 25 0 125 25 0 125 262 50 -125 262 50
 # ribs outside the J2 flange (D 222), over the whole plate length
-PRISM Y 113 125 RPOLY -115 25 0 -115 207 0 -100 207 8 -10 85 15 -10 25 0
-PRISM Y -125 -113 RPOLY -115 25 0 -115 207 0 -100 207 8 -10 85 15 -10 25 0
+PRISM Y 113 125 RPOLY -115 25 0 -115 207 0 -10 85 0 -10 25 0
+PRISM Y -125 -113 RPOLY -115 25 0 -115 207 0 -10 85 0 -10 25 0
 # J2 bore: pilot 190H7 (the motor and the adapter plate of J2 pass through)
 CUT X -116 -94 CIRC 0 137 190
 TAP X -115 -95 0 137 16 206 M8 0   # J2 flange screws from the output side
