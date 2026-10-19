@@ -16,6 +16,7 @@ Prismatic part lines (inside PART ... END), coordinates = robot world frame at t
   TAP   <X|Y|Z> <a0> <a1> <uc> <vc> <n> <pcd> <M..> <ang>   tapped holes (tap drill cut, thread noted)
   shapes, in the plane coordinates (u, v): X -> (y, z), Y -> (x, z), Z -> (x, y):
     RECT u0 u1 v0 v1  |  CIRC uc vc D  |  RING uc vc D d  |  POLY u1 v1 u2 v2 ...
+    RPOLY u1 v1 r1 u2 v2 r2 ...       (polygon with rounded corners: r = corner radius, 0 = sharp)
     PATTERN uc vc n pcd d ang          (n circles D=d on the pitch circle, first at ang deg from +u to +v)
   DENSITY <kg/m3>                     material density (mass = volume x density)
   PORTP <name> <X|Y|Z> <level> <dir> [key=value ...]   interface plane PORT_<name>
@@ -112,11 +113,59 @@ def poly_wire(axis, level, uv):
     return mp.Wire()
 
 
+def rpoly_geom(tri):
+    """Polygon with rounded corners: tri = u1 v1 r1 u2 v2 r2 ... ; returns a list of segments
+    ('L', p, q) / ('A', T1, M, T2, C) in plane coordinates."""
+    P = [np.array(tri[i:i + 2], float) for i in range(0, len(tri), 3)]
+    R = [tri[i + 2] for i in range(0, len(tri), 3)]
+    n = len(P)
+    corners = []
+    for i in range(n):
+        A, Pi, B = P[i - 1], P[i], P[(i + 1) % n]
+        r = R[i]
+        if r <= 0:
+            corners.append((Pi, None, Pi, None))
+            continue
+        u1 = (A - Pi) / np.linalg.norm(A - Pi)
+        u2 = (B - Pi) / np.linalg.norm(B - Pi)
+        th = math.acos(max(-1.0, min(1.0, float(u1 @ u2))))
+        t = r / math.tan(th / 2)
+        bis = (u1 + u2) / np.linalg.norm(u1 + u2)
+        C = Pi + bis * r / math.sin(th / 2)
+        T1, T2 = Pi + u1 * t, Pi + u2 * t
+        M = C + (Pi - C) / np.linalg.norm(Pi - C) * r
+        corners.append((T1, M, T2, C))
+    seg = []
+    for i in range(n):
+        T1, M, T2, C = corners[i]
+        if M is not None:
+            seg.append(("A", T1, M, T2, C))
+        nxt = corners[(i + 1) % n][0]
+        if np.linalg.norm(nxt - T2) > 1e-6:
+            seg.append(("L", T2, nxt))
+    return seg
+
+
+def rpoly_wire(axis, level, tri):
+    from OCP.GC import GC_MakeArcOfCircle
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeWire as MW
+    w = MW()
+    for sg in rpoly_geom(tri):
+        if sg[0] == "L":
+            w.Add(BRepBuilderAPI_MakeEdge(pnt(axis, level, *sg[1]), pnt(axis, level, *sg[2])).Edge())
+        else:
+            arc = GC_MakeArcOfCircle(pnt(axis, level, *sg[1]), pnt(axis, level, *sg[2]), pnt(axis, level, *sg[3])).Value()
+            w.Add(BRepBuilderAPI_MakeEdge(arc).Edge())
+    return w.Wire()
+
+
 def faces(axis, level, shape, a):
     """List of planar faces for a shape."""
     if shape == "RECT":
         u0, u1, v0, v1 = a
         return [BRepBuilderAPI_MakeFace(poly_wire(axis, level, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)])).Face()]
+    if shape == "RPOLY":
+        return [BRepBuilderAPI_MakeFace(rpoly_wire(axis, level, a)).Face()]
     if shape == "POLY":
         uv = list(zip(a[0::2], a[1::2]))
         return [BRepBuilderAPI_MakeFace(poly_wire(axis, level, uv)).Face()]

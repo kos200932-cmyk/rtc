@@ -27,6 +27,15 @@ def fmt(v):
     return " ".join(f"{x + 0.0:g}" for x in np.round(v, 3))
 
 
+def reducer_of(joint):
+    import re as _re
+    for raw in open(os.path.join(ROOT, "joints", joint, joint + ".txt"), encoding="utf-8"):
+        t = _re.split(r"#", raw, maxsplit=1)[0].split()
+        if len(t) >= 3 and t[0] == "USE" and t[1] == "reducer":
+            return t[2]
+    raise ValueError(joint)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--layout", default=os.path.join(ROOT, "robot", "RTC-7-layout.txt"))
@@ -42,6 +51,8 @@ def main():
          f"ROBOTASM {name}", "REBUILD no", "",
          "#    name   file                                              origin (x y z)       X axis    Z axis",
          "COMP OPU    components/ISKRA/RU178G/RU178G-UU-CC0-P5.txt       0 0 -28   0 0 1   1 0 0"]
+    locks = []
+    prev_link = None
     for i, ax in enumerate(lay["axes"][:a.upto]):
         jn = ax["joint"].rstrip("m")
         e = env[jn]
@@ -51,13 +62,25 @@ def main():
         org = ax["face"] - u * e["x_out"]
         z = np.array([1.0, 0, 0]) if abs(u[2]) > 0.5 else np.array([0, 0, 1.0])
         L.append(f"COMP {ax['name']:<6} joints/{jn}/{jn}.txt{'':<{28 - 2 * len(jn)}} {fmt(org):<20} {fmt(u):<9} {fmt(z)}")
+        red = reducer_of(jn)
+        if i > 0 and prev_link:
+            locks.append(f"LOCK {ax['name']:<4} {red}-01_Housing          {prev_link:<4} LINK-{i}-01_Weldment")
+        prev_link = None
         if i + 1 < a.upto:
             n = i + 1
             p = os.path.join(ROOT, "links", f"LINK-{n}", f"LINK-{n}.txt")
             if os.path.isfile(p):
-                L.append(f"COMP L{n:<5} links/LINK-{n}/LINK-{n}.txt                       0 0 0     1 0 0   0 0 1")
+                L.append(f"COMP L{n:<5} links/LINK-{n}/LINK-{n}.txt                       0 0 0     1 0 0   0 0 1   rigid")
+                locks.append(f"LOCK L{n:<3} LINK-{n}-01_Weldment         {ax['name']:<4} {red}-03_OutputShaft")
+                prev_link = f"L{n}"
+                if n == 1:
+                    locks.append("LOCK OPU  RU178G-02_InnerRing          L1   LINK-1-01_Weldment   keep")
             else:
                 L.append(f"# link {n} not designed yet")
+    L += ["", "# Degrees of freedom: OPU (outer ring) and J1 (housing) fixed; every link is locked to the output",
+          "# shaft of the joint before it, the next joint housing to the link. The joints are flexible",
+          "# sub-assemblies: their output shafts turn about the joint axes -> J1, J2, J3 can be turned by",
+          "# dragging (the input shafts / rotors turn independently - there is no gear mate)."] + locks
     out = a.out or os.path.join(ROOT, "robot", name + ".txt")
     open(out, "w", encoding="utf-8").write("\n".join(L) + "\n")
     print("\n".join(L))

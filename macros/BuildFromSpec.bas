@@ -17,7 +17,7 @@ Attribute VB_Name = "BuildFromSpec"
 '     FLATS  -> "FlatsN" (milled flats, e.g. a square flange cut from a turned disc),
 '     KEYWAY -> "KeywayN" (radial slot, e.g. a key slot in a bore or on a shaft),
 '     BOX    -> a prismatic part instead of a revolved one (e.g. a key),
-'     PRISM / CUT <X|Y|Z> a0 a1 <RECT|CIRC|RING|POLY|PATTERN ...> -> prismatic part (links, world
+'     PRISM / CUT <X|Y|Z> a0 a1 <RECT|CIRC|RING|POLY|RPOLY|PATTERN ...> -> prismatic part (links, world
 '                            frame): sketch on a plane normal to the axis at a0, extruded / cut to a1;
 '     TAP <X|Y|Z> a0 a1 uc vc n pcd M.. ang -> tap-drill holes (thread size in property THREADS),
 '     DENSITY kg/m3, PORTP name <X|Y|Z> level dir [key=value] -> interface plane of a prismatic part,
@@ -41,7 +41,13 @@ Attribute VB_Name = "BuildFromSpec"
 '       COMP <name> <file> ox oy oz  xx xy xz  zx zy zz
 '                                       - a joint / link / component spec (built if needed, or a
 '                                         .SLDASM / .SLDPRT) placed with its origin at (ox,oy,oz)
-'                                         and its X / Z axes along the given directions, fixed
+'                                         and its X / Z axes along the given directions, fixed;
+'                                         optional last word: rigid (a link) / flex (default for .SLDASM)
+'       LOCK <comp> <part|-> <comp> <part|->  - instead of fixing: the first component is locked to a part
+'                                         of the second (e.g. a link to the output shaft of a joint);
+'                                         the joints are flexible, so the arm keeps its degrees of freedom;
+'                                         "keep" at the end - the first component stays fixed (only its
+'                                         flexible part is locked, e.g. the inner ring of the ОПУ)
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -51,7 +57,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v24 (2026-10-19)"
+Private Const MACRO_VERSION As String = "v25 (2026-10-19)"
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -504,6 +510,7 @@ Private Function ReadSpec(ByVal path As String) As Boolean
                     Case "RING": If UBound(t) < 8 Then errMsg = "RING uc vc D d": GoTo Bad
                     Case "PATTERN": If UBound(t) < 10 Then errMsg = "PATTERN uc vc n pcd d ang": GoTo Bad
                     Case "POLY": If UBound(t) < 10 Or ((UBound(t) - 4) Mod 2) <> 0 Then errMsg = "POLY u1 v1 u2 v2 u3 v3 ...": GoTo Bad
+                    Case "RPOLY": If UBound(t) < 13 Or ((UBound(t) - 4) Mod 3) <> 0 Then errMsg = "RPOLY u1 v1 r1 u2 v2 r2 u3 v3 r3 ...": GoTo Bad
                     Case Else: errMsg = "unknown shape '" & t(4) & "'": GoTo Bad
                 End Select
             End If
@@ -1404,6 +1411,8 @@ Private Function AddPrismOp(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.
             q1 = AxisPt(xf, k, a0, Num(a(2 * ((j + 1) Mod n))), Num(a(2 * ((j + 1) Mod n) + 1)))
             sm.CreateLine q0(0), q0(1), 0, q1(0), q1(1), 0
         Next j
+    Case "RPOLY"
+        SketchRPoly sm, xf, k, a0, a
     Case "CIRC", "RING"
         q0 = AxisPt(xf, k, a0, Num(a(0)), Num(a(1)))
         sm.CreateCircleByRadius q0(0), q0(1), 0, Num(a(2)) / 2 * MM
@@ -1450,6 +1459,56 @@ Private Function AddPrismOp(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.
     f.Name = nm
     Set AddPrismOp = f
 End Function
+
+' Polygon with rounded corners: a = u1 v1 r1 u2 v2 r2 ... (r = 0 - sharp corner). Tangent points and
+' centres are computed here; arcs are drawn as the minor arc between the tangent points.
+Private Sub SketchRPoly(ByVal sm As SldWorks.SketchManager, ByVal xf As SldWorks.MathTransform, _
+                        ByVal k As Integer, ByVal lev As Double, a() As String)
+    Dim n As Long, i As Long, ia As Long, ib As Long
+    Dim pu() As Double, pv() As Double, pr() As Double
+    Dim t1u() As Double, t1v() As Double, t2u() As Double, t2v() As Double, cu() As Double, cv() As Double
+    Dim u1u As Double, u1v As Double, u2u As Double, u2v As Double, l As Double, th As Double, tt As Double
+    Dim bu As Double, bv As Double, q0 As Variant, q1 As Variant, qc As Variant, cr As Double
+    n = (UBound(a) + 1) \ 3
+    ReDim pu(0 To n - 1): ReDim pv(0 To n - 1): ReDim pr(0 To n - 1)
+    ReDim t1u(0 To n - 1): ReDim t1v(0 To n - 1): ReDim t2u(0 To n - 1): ReDim t2v(0 To n - 1)
+    ReDim cu(0 To n - 1): ReDim cv(0 To n - 1)
+    For i = 0 To n - 1
+        pu(i) = Num(a(3 * i)): pv(i) = Num(a(3 * i + 1)): pr(i) = Num(a(3 * i + 2))
+    Next i
+    For i = 0 To n - 1
+        ia = (i + n - 1) Mod n: ib = (i + 1) Mod n
+        t1u(i) = pu(i): t1v(i) = pv(i): t2u(i) = pu(i): t2v(i) = pv(i)
+        If pr(i) > 0 Then
+            u1u = pu(ia) - pu(i): u1v = pv(ia) - pv(i): l = Sqr(u1u ^ 2 + u1v ^ 2): u1u = u1u / l: u1v = u1v / l
+            u2u = pu(ib) - pu(i): u2v = pv(ib) - pv(i): l = Sqr(u2u ^ 2 + u2v ^ 2): u2u = u2u / l: u2v = u2v / l
+            th = u1u * u2u + u1v * u2v
+            If th > 1 Then th = 1
+            If th < -1 Then th = -1
+            th = Atn(-th / Sqr(-th * th + 1 + 1E-15)) + 2 * Atn(1)      ' arccos
+            tt = pr(i) / Tan(th / 2)
+            t1u(i) = pu(i) + u1u * tt: t1v(i) = pv(i) + u1v * tt
+            t2u(i) = pu(i) + u2u * tt: t2v(i) = pv(i) + u2v * tt
+            bu = u1u + u2u: bv = u1v + u2v: l = Sqr(bu ^ 2 + bv ^ 2): bu = bu / l: bv = bv / l
+            cu(i) = pu(i) + bu * pr(i) / Sin(th / 2): cv(i) = pv(i) + bv * pr(i) / Sin(th / 2)
+        End If
+    Next i
+    For i = 0 To n - 1
+        If pr(i) > 0 Then
+            qc = AxisPt(xf, k, lev, cu(i), cv(i))
+            q0 = AxisPt(xf, k, lev, t1u(i), t1v(i))
+            q1 = AxisPt(xf, k, lev, t2u(i), t2v(i))
+            cr = (q0(0) - qc(0)) * (q1(1) - qc(1)) - (q0(1) - qc(1)) * (q1(0) - qc(0))
+            sm.CreateArc qc(0), qc(1), 0, q0(0), q0(1), 0, q1(0), q1(1), 0, IIf(cr > 0, 1, -1)
+        End If
+        ib = (i + 1) Mod n
+        If Abs(t1u(ib) - t2u(i)) + Abs(t1v(ib) - t2v(i)) > 0.000001 Then
+            q0 = AxisPt(xf, k, lev, t2u(i), t2v(i))
+            q1 = AxisPt(xf, k, lev, t1u(ib), t1v(ib))
+            sm.CreateLine q0(0), q0(1), 0, q1(0), q1(1), 0
+        End If
+    Next i
+End Sub
 
 ' True if the faces of a feature reach beyond the sketch level on the side dirSign along axis k
 Private Function SideK(ByVal feat As Object, ByVal k As Integer, ByVal lev As Double, ByVal dirSign As Integer) As Boolean
@@ -1912,6 +1971,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     Dim lines() As String, li As Long, s As String, t() As String, folder As String
     Dim aName As String, rebuild As Boolean, k As Long, q As Long
     Dim cName(0 To 63) As String, cFile(0 To 63) As String, cFr(0 To 63, 0 To 8) As Double, nC As Long
+    Dim cRigid(0 To 63) As Boolean, lk(0 To 63, 0 To 3) As String, nLk As Long, lkKeep(0 To 63) As Boolean
     folder = Left(specPath, InStrRev(specPath, "\"))
     lines = ReadLines(specPath)
     For li = LBound(lines) To UBound(lines)
@@ -1932,7 +1992,17 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
                 For q = 0 To 8
                     cFr(nC, q) = Num(t(3 + q))
                 Next q
+                If UBound(t) >= 12 Then cRigid(nC) = (LCase(t(12)) = "rigid")
                 nC = nC + 1
+            Case "LOCK"
+                If UBound(t) < 4 Then gLog = gLog & "LOCK needs: comp part comp part" & vbCrLf: Exit Function
+                If nLk <= 63 Then
+                    For q = 0 To 3
+                        lk(nLk, q) = t(1 + q)
+                    Next q
+                    If UBound(t) >= 5 Then lkKeep(nLk) = (LCase(t(5)) = "keep")
+                    nLk = nLk + 1
+                End If
             End Select
         End If
     Next li
@@ -1971,7 +2041,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     If gTplAsm <> "" Then Set am = swApp.NewDocument(gTplAsm, 0, 0, 0)
     If am Is Nothing Then gLog = gLog & "Cannot create the assembly from '" & gTplAsm & "'" & vbCrLf: Exit Function
     Set asm = am
-    Dim errs As Long, warns As Long, d As Object
+    Dim errs As Long, warns As Long, d As Object, comps(0 To 63) As SldWorks.Component2
     For k = 0 To nC - 1
         ' the model must be open for AddComponent5
         Set d = swApp.OpenDoc6(cModel(k), IIf(UCase(Right(cModel(k), 6)) = "SLDASM", swDocASSEMBLY, swDocPART), _
@@ -1979,7 +2049,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
         swApp.ActivateDoc3 am.GetTitle, False, swDontRebuildActiveDoc, errs
         Set c = InsertFloating(am, asm, cModel(k))
         If c Is Nothing Then Exit Function
-        If UCase(Right(cModel(k), 6)) = "SLDASM" Then
+        If UCase(Right(cModel(k), 6)) = "SLDASM" And Not cRigid(k) Then
             On Error Resume Next
             Dim co As Object
             Set co = c
@@ -1988,13 +2058,47 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
         End If
         PlaceFrame c, cFr, k
         FixComp am, asm, c
+        Set comps(k) = c
         gSummary = gSummary & "  " & cName(k) & ": " & Mid(cModel(k), InStrRev(cModel(k), "\") + 1) & vbCrLf
     Next k
+    ' 3. degrees of freedom: LOCK lines replace the fixing of the first component
+    Dim ia As Long, ib As Long, pa As SldWorks.Component2, pb As SldWorks.Component2, nOk As Long
+    For q = 0 To nLk - 1
+        ia = -1: ib = -1
+        For k = 0 To nC - 1
+            If StrComp(cName(k), lk(q, 0), vbTextCompare) = 0 Then ia = k
+            If StrComp(cName(k), lk(q, 2), vbTextCompare) = 0 Then ib = k
+        Next k
+        If ia < 0 Or ib < 0 Then
+            gLog = gLog & "LOCK " & lk(q, 0) & " -> " & lk(q, 2) & ": component not found" & vbCrLf
+        Else
+            If lk(q, 1) = "-" Then Set pa = comps(ia) Else Set pa = FindDeep(comps(ia), lk(q, 1))
+            If lk(q, 3) = "-" Then Set pb = comps(ib) Else Set pb = FindDeep(comps(ib), lk(q, 3))
+            If pa Is Nothing Or pb Is Nothing Then
+                gLog = gLog & "LOCK " & lk(q, 0) & ": part " & IIf(pa Is Nothing, lk(q, 1), lk(q, 3)) & " not found - stays fixed" & vbCrLf
+            Else
+                If Not lkKeep(q) Then
+                    am.ClearSelection2 True
+                    comps(ia).Select4 False, Nothing, False
+                    asm.UnfixComponent
+                    am.ClearSelection2 True
+                End If
+                If MateLock(am, asm, pa, pb) Is Nothing Then
+                    gLog = gLog & "LOCK " & lk(q, 0) & " -> " & lk(q, 2) & ": lock mate failed - fixed again" & vbCrLf
+                    FixComp am, asm, comps(ia)
+                Else
+                    nOk = nOk + 1
+                End If
+            End If
+        End If
+    Next q
+
     am.ClearSelection2 True
     am.EditRebuild3
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
     If Not SaveDoc(am, folder & aName & ".SLDASM") Then Exit Function
+    If nLk > 0 Then gSummary = "lock mates: " & nOk & " of " & nLk & vbCrLf & gSummary
     gSummary = "arm assembly " & aName & ": " & nC & " component(s)" & vbCrLf & gSummary
     BuildRobotAsm = True
 End Function
@@ -2024,6 +2128,23 @@ Private Sub PlaceFrame(ByVal c As SldWorks.Component2, fr() As Double, ByVal k A
     If Err.Number <> 0 Then gLog = gLog & c.Name2 & ": cannot place the component (" & Err.Description & ")" & vbCrLf
     On Error GoTo 0
 End Sub
+
+' Component of a part anywhere below a component (name contains partName)
+Private Function FindDeep(ByVal parent As SldWorks.Component2, ByVal partName As String) As SldWorks.Component2
+    Dim ch As Variant, c As Variant, r As SldWorks.Component2
+    ch = parent.GetChildren
+    If IsEmpty(ch) Then Exit Function
+    For Each c In ch
+        If InStr(1, c.Name2, partName, vbTextCompare) > 0 Then
+            Set FindDeep = c
+            Exit Function
+        End If
+    Next c
+    For Each c In ch
+        Set r = FindDeep(c, partName)
+        If Not r Is Nothing Then Set FindDeep = r: Exit Function
+    Next c
+End Function
 
 ' First argument of the first line starting with a keyword ("" if none)
 Private Function FirstArg(ByVal path As String, ByVal kw As String) As String
