@@ -1,0 +1,76 @@
+# DMRD-KB50 - reducer model from the catalog drawing (DMRD-KB50.jpg, 2026)
+# Three parts: housing (fixed), input shaft and output shaft (both rotate about X).
+# X - along the axis from the left (input) end of the input shaft, mm; Y - radius, mm.
+# The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
+# section B-B shows the RIGHT (output) end (x = 118) and vice versa - same layout as DMRD-KB45.
+# Axial stack: 15 (shaft end) + 34 (D125 20 + D185h7 14) + 50 (D214h7) + 19 (D172h7 output) = 118
+# Output shaft D172h7: 19 outside the housing + 15 inside (pocket D172 x 15 in the housing, ASSUMED like KB45).
+# Inside depth from section A-A: the blind holes of the output face must fit -
+# smooth D9 x 17 + thread M8 x 12 + drill tail 2.5 + drill point ~2 = 33.5 -> output shaft 34 long (x 84..118).
+# Bores of the input shaft: D55H7 x 33 at the right end, 20 deep at the left end (diameter ASSUMED = D55),
+# middle - ASSUMED D56 (not dimensioned).
+# PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
+
+COMPONENT DMRD-KB50
+TYPE reducer
+# Catalog (drawing table 2026): rpm, N*m (rated / start-stop / momentary max), N, N*m, arcmin, kg (KB table of the user).
+DATA n_in_rated=2000 T_rated=415 T_startstop=747 T_peak=1245 F_axial=11200 M_tilt=1032 lost_motion_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=15.1
+
+ASSEMBLY DMRD-KB50
+
+# ---- 01: housing (simplified, one solid; fixed) ------------------------------
+PART DMRD-KB50-01_Housing
+MOTION fixed
+MASS 9.06   # kg: 60% of 15.1 kg (split as for KB45)
+P 15    37.5
+P 15    62.5     # D125, 20 long
+P 35    62.5
+P 35    92.5     # D185h7 pilot, 14 long
+P 49    92.5
+P 49    107      # D214h7 (outer), 50 long
+P 99    107
+P 99    86       # pocket D172 x 15 deep for the output shaft
+P 84    86
+P 84    37.5
+#      x     dir  n   pcd    d    depth  angle
+HOLES  49    1    12  200    9    0      90       # 12-D9 through the D214 flange, every 30 deg from the vertical
+THREAD 49    1    6   200    M5   10     105      # 6-M5 on the same circle, 15 deg off the D9 holes (depth ASSUMED 10)
+HOLES  35    1    2   140    6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D185 step face), PCD 140
+PORT  base  49    -1   role=fixed fit=185h7 fit_x=35..49 holes=12xD9 pcd=200 ang=90 mate=link   # housing -> link: pilot D185h7 + holes on D200
+END
+
+# ---- 02: input shaft D75h7 (rotates) -----------------------------------------
+PART DMRD-KB50-02_InputShaft
+MOTION rotate
+MASS 1.51   # kg: 10% of 15.1 kg
+P 0     27.5     # bore D55 at the left end, 20 deep (diameter ASSUMED)
+P 0     37.5     # outer D75h7
+P 118   37.5
+P 118   27.5     # bore D55H7 at the right end, 33 deep
+P 85    27.5
+P 85    28       # middle bore - ASSUMED D56 (not dimensioned)
+P 20    28
+P 20    27.5
+#       x     dir  n   pcd    size depth  angle
+THREAD  0     1    6   65     M5   12     90     # 6-M5 depth 12, left end (D65 "both ends")
+THREAD  118   -1   6   65     M5   12     90     # 6-M5 depth 12, right end
+PORT  input 0     -1   role=input fit=75h7 fit_x=0..15 bolts=6xM5 pcd=65 ang=90 mate=rotor_cup   # motor rotor via an adapter cup
+END
+
+# ---- 03: output shaft D172h7 (rotates; 19 outside + 15 inside the housing) ----
+PART DMRD-KB50-03_OutputShaft
+MOTION rotate
+MASS 4.53   # kg: 30% of 15.1 kg
+P 84    37.5
+P 84    86
+P 118   86
+P 118   37.5
+# Blind holes on the output face (section A-A): smooth D9 x 17 at the face, then M8 thread 12.
+#      x     dir  n   pcd    d    depth  angle
+HOLES  118   -1   16  154    9    17     90             # 16-D9 x 17 at the face, every 22.5 deg from the vertical
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  101   -1   16  154    M8   12     90     14.5   # 16-M8 thread 12 below the smooth part, drill 14.5
+THREAD  118   -1   8   154    M6   10     101.25        # 8-M6 on the same circle, 11.25 deg off (depth ASSUMED 10)
+PORT  output 118  1    role=output fit=172h7 fit_x=99..118 bolts=16xM8 pcd=154 ang=90 mate=next_link
+END

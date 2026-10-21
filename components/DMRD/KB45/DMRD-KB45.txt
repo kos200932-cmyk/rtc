@@ -1,4 +1,4 @@
-# DMRD-KB45 - reducer model from the catalog drawing (DMRD-KB45.jpg)
+# DMRD-KB45 - reducer model from the catalog drawing (DMRD-KB45.jpg, table updated 2026-10-21)
 # Three parts: housing (fixed), input shaft and output shaft (both rotate about X).
 # X - along the axis from the left (input) end of the input shaft, mm; Y - radius, mm.
 # The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
@@ -13,7 +13,7 @@
 COMPONENT DMRD-KB45
 TYPE reducer
 # Catalog: rpm, N*m (rated / start-stop / momentary max), N, N*m, arcmin, kg (manufacturer).
-DATA n_in_rated=2000 T_rated=375 T_startstop=675 T_peak=1350 F_axial=13000 M_tilt=740 lost_motion_arcmin=1.5
+DATA n_in_rated=2000 T_rated=375 T_startstop=675 T_peak=1125 F_axial=10200 M_tilt=740 lost_motion_arcmin=1.5   # drawing table 2026 (was T_peak 1350, F_axial 13000)
 DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=10.4
 
 ASSEMBLY DMRD-KB45

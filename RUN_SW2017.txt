@@ -36,7 +36,7 @@
     joints\SHM-500\SHM-500.txt
     joints\SHM-1000\SHM-1000.txt
   Отдельные компоненты:
-    components\DMRD\KB25|KB32|KB45|80E\DMRD-*.txt      редукторы (3 детали + сборка)
+    components\DMRD\KB25|KB32|KB45|KB50|80E\DMRD-*.txt редукторы (3 детали + сборка); KB50 - новый (J3 новой компоновки)
     components\ISKRA\RU178G\RU178G-UU-CC0-P5.txt      ОПУ (2 кольца + сборка)
     Двигатели T-motor - STEP + карточки (components\T-motor\...), импортируются при сборке шарнира.
 
