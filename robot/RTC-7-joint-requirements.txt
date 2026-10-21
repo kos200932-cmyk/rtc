@@ -1,0 +1,12 @@
+# RTC-7: requirements to the joints (customer table 2 "Требования к шарнирам и деление шарниров на типоразмеры")
+#   M_nom   rated torque, N·m          n0     rated output speed, deg/s     P_nom   rated power, W (= M_nom * n0)
+#   M_tilt  tilting moment, N·m        Fr     radial force, N               Fa      axial force, N
+# Used by tools/program_retime.py (n0 -> retimed demo program) and tools/joint_compare.py (comparison).
+#     joint  M_nom  n0   P_nom  size      M_tilt  Fr    Fa
+JOINT J1     150    20   50     ШМ-150м   1520    40    1135
+JOINT J2     1000   15   260    ШМ-1000   590     890   33
+JOINT J3     500    15   130    ШМ-500    1300    740   730
+JOINT J4     500    15   130    ШМ-500    550     525   520
+JOINT J5     150    15   40     ШМ-150    480     390   390
+JOINT J6     150    15   40     ШМ-150    170     270   270
+JOINT J7     60     30   30     ШМ-60     60      190   190

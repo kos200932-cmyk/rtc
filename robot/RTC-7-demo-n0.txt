@@ -1,0 +1,53 @@
+# Demo motion program of RTC-7 for the animation (tools/robot_anim.py -> viewer HTML, video, SolidWorks)
+# Angles in degrees, J1..J7; zero pose = the arm stretched up as on the scheme.
+#   MOVEJ <s> q1 .. q7      joint move from the previous point (smooth, zero speed at both ends)
+#   MOVEL <s> dx dy dz      straight line of the TCP in the world frame, mm (orientation kept, IK)
+#   WAIT  <s>               stand still
+#   LABEL <text>            caption shown from this point on
+#   GRIP / RELEASE          the gripper takes / leaves the workpiece at the current TCP (viewer)
+# Joint ranges used (free of self-contact by tools/sweep_check.py): J2 -94..94, J4 -171..171,
+# J1 J3 J5 J6 J7 - 360 (cables: J1 / J3 / J5 / J7 kept within +-180 here).
+# RETIMED by tools/program_retime.py to the rated speeds n0 of robot/RTC-7-joint-requirements.txt: J1 20, J2 15, J3 15, J4 15, J5 15, J6 15, J7 30 deg/s
+PROGRAM RTC-7-demo-n0
+FPS     30
+TOOL    200
+START   0 0 0 0 0 0 0
+
+LABEL   Исходное положение
+WAIT    1     
+LABEL   Выход в рабочую позу
+MOVEJ   12.5  0 20 0 100 0 60 0
+WAIT    0.5   
+LABEL   Подход к точке взятия
+MOVEJ   4.7   -50 25 0 95 0 60 0
+LABEL   Опускание по прямой (IK)
+MOVEL   1.7   0 0 -300
+WAIT    0.3   
+GRIP
+WAIT    0.3   
+LABEL   Подъём по прямой
+MOVEL   1.7   0 0 300
+LABEL   Перенос с поворотом инструмента
+MOVEJ   10.4  60 25 0 95 0 60 90
+LABEL   Опускание по прямой (IK)
+MOVEL   1.7   0 0 -300
+WAIT    0.3   
+RELEASE
+WAIT    0.3   
+LABEL   Отход вверх
+MOVEL   1.7   0 0 300
+LABEL   Кистевые оси J5 / J6 / J7
+MOVEJ   7.5   60 25 0 95 60 80 90
+MOVEJ   15    60 25 0 95 -60 30 -90
+MOVEJ   7.5   60 25 0 95 0 60 0
+LABEL   Поворот плеча J3: смена плоскости руки
+MOVEJ   11.3  0 30 90 100 0 40 0
+MOVEJ   22.5  0 30 -90 100 0 40 0
+MOVEJ   11.3  0 30 0 100 0 40 0
+LABEL   Максимальный вылет
+MOVEJ   12.5  0 85 0 0 0 0 0
+WAIT    1     
+LABEL   Возврат в исходное положение
+MOVEJ   10.7  0 0 0 0 0 0 0
+WAIT    1     
+END

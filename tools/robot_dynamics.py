@@ -82,7 +82,7 @@ def main():
     L = [f"# RTC-7: joint torques along the demo program, with accelerations (`python tools/robot_dynamics.py --speed {a.speed:g}`)",
          "",
          f"Inverse dynamics (Pinocchio RNEA) on `sim/RTC-7/RTC-7.urdf` (payload as exported, interface 4 kg), "
-         f"program `robot/RTC-7-demo.txt` at speed x{a.speed:g} ({t[-1]:.1f} s). Gravity + inertia + Coriolis of the links; "
+         f"trajectory `{os.path.relpath(a.traj, ROOT)}` at speed x{a.speed:g} ({t[-1]:.1f} s). Gravity + inertia + Coriolis of the links; "
          "NOT included: rotor inertia of the motors through the reducers, friction, cables.", "",
          "| Joint | Drive | Max gravity only, N·m | Max with dynamics, N·m | at t, s | Max speed, °/s | Max accel., °/s² | Rated (T_design) / start-stop, N·m | Peak, % of start-stop |",
          "|---|---|---|---|---|---|---|---|---|"]

@@ -21,6 +21,7 @@ RTC-7 в MATLAB / Simulink R2024a (Simscape Multibody)
    Варианты:
      rtc7_build('run', false)    % только построить модель
      rtc7_build('speed', 2)      % та же траектория в 2 раза быстрее
+     rtc7_build('program', 'n0') % программа на номинальных скоростях шарниров n0 (RTC-7-n0-traj.csv)
      rtc7_build('drive', false)  % только импорт: шарниры без приводов (для своей схемы управления)
    Просто посмотреть модель: smimport('RTC-7.urdf')
    С Robotics System Toolbox: robot = importrobot('RTC-7.urdf'); show(robot)
@@ -37,6 +38,7 @@ RTC-7 в MATLAB / Simulink R2024a (Simscape Multibody)
    (J1_motion_torque.png ... J7, all_joints_torque.png, peaks.png, rtc7_peaks.csv).
    Варианты:
      rtc7_plots('speed', 2)          % программа вдвое быстрее (моделирование заново)
+     rtc7_plots('program', 'n0')     % программа на скоростях n0, графики в plots_n0\
      rtc7_plots('rerun', true)       % перезапустить моделирование
      rtc7_plots('joints', [1 2])     % окна только для J1, J2
      rtc7_plots('source', 'python')  % те же графики по расчёту Python - без Simscape
@@ -62,4 +64,7 @@ RTC-7 в MATLAB / Simulink R2024a (Simscape Multibody)
 
 Пересоздать файлы из описаний проекта (Python, папка rtc):
   python tools/urdf_export.py --payload 8       -> sim/RTC-7/ (URDF, STL, траектория)
+  python tools/program_retime.py               -> robot/RTC-7-demo-n0.txt, RTC-7-n0-traj.csv (скорости n0 из
+                                                  robot/RTC-7-joint-requirements.txt)
+  python tools/joint_compare.py                -> robot/RTC-7-joint-compare.md (нагрузки шарниров против требований)
   python tools/robot_dynamics.py [--speed 2]    -> robot/RTC-7-dynamics.md / .png, эталон моментов

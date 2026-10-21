@@ -6,6 +6,7 @@ function R = rtc7_plots(varargin)
 %   rtc7_plots('rerun', true)       % заново запустить моделирование Simscape
 %   rtc7_plots('speed', 2)          % программа в 2 раза быстрее (моделирование запускается заново)
 %   rtc7_plots('source', 'python')  % моменты из RTC-7-demo-torques-ref.csv - без Simscape (для сравнения)
+%   rtc7_plots('program', 'n0')    % программа на номинальных скоростях n0 (RTC-7-n0-traj.csv)
 %   rtc7_plots('joints', [2 3 4])   % окна только для этих шарниров (сводные графики - для всех)
 %   rtc7_plots('save', false)       % не сохранять PNG и таблицу
 %   R = rtc7_plots(...)             % таблица пиковых значений
@@ -23,6 +24,7 @@ p = inputParser;
 p.addParameter('source', 'simscape');
 p.addParameter('rerun', false);
 p.addParameter('speed', 1.0);
+p.addParameter('program', 'demo');    % 'demo' | 'n0'
 p.addParameter('joints', 1:7);
 p.addParameter('save', true);
 p.parse(varargin{:});
@@ -31,23 +33,23 @@ here = fileparts(mfilename('fullpath'));
 src = lower(o.source);
 
 % ---- заданное движение: тот же сплайн, что в rtc7_build (interp1 'spline' = spline, not-a-knot)
-D = readmatrix(fullfile(here, 'RTC-7-demo-traj.csv'));
+D = readmatrix(fullfile(here, ['RTC-7-' o.program '-traj.csv']));
 t = D(:, 1) / o.speed;
 pp = spline(t.', D(:, 2:8).');
 dpp = pp_diff(pp);
 ddpp = pp_diff(dpp);
 
 % ---- моменты
-ref = readmatrix(fullfile(here, 'RTC-7-demo-torques-ref.csv'));     % t, tau J1..J7, tau_grav J1..J7 (x1)
+ref = readmatrix(fullfile(here, ['RTC-7-' o.program '-torques-ref.csv']));     % t, tau J1..J7, tau_grav J1..J7 (x1)
 switch src
     case 'simscape'
         out = [];
         if ~o.rerun && evalin('base', 'exist(''rtc7'', ''var'')')
             out = evalin('base', 'rtc7');
-            if ~isfield(out, 'speed') || abs(out.speed - o.speed) > 1e-9, out = []; end
+            if ~isfield(out, 'speed') || abs(out.speed - o.speed) > 1e-9 || ~isfield(out, 'program') || ~strcmp(out.program, o.program), out = []; end
         end
         if isempty(out)
-            out = rtc7_build('speed', o.speed);
+            out = rtc7_build('speed', o.speed, 'program', o.program);
             if isempty(out)
                 error('rtc7_plots:sim', ['Моделирование не выполнено (см. сообщения rtc7_build). ' ...
                       'Графики по расчёту Python: rtc7_plots(''source'', ''python'')']);
@@ -85,6 +87,7 @@ cMain = [0.165 0.365 0.624];  cRef = [0.55 0.58 0.62];  cGrav = [0.66 0.69 0.73]
 cRated = [0.36 0.40 0.44];   cSS = [0.76 0.34 0.10];
 
 outDir = fullfile(here, 'plots');
+if ~strcmp(o.program, 'demo'), outDir = fullfile(here, ['plots_' o.program]); end
 if o.save && ~exist(outDir, 'dir'), mkdir(outDir); end
 
 % ---- окно на каждый шарнир: угол, скорость, ускорение, момент
