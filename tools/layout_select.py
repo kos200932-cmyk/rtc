@@ -56,7 +56,7 @@ def motor(name):
 
 
 class Arm:
-    def __init__(self, lay, red, share, payload, iface, tool=100.0, current=False):
+    def __init__(self, lay, red, share, payload, iface, tool=100.0, current=False, jmass=None):
         import pinocchio as pin
         self.pin, self.lay = pin, lay
         ax = lay["axes"]
@@ -66,7 +66,7 @@ class Arm:
         self.jmass = []
         for i, a in enumerate(ax):
             mf, xf, mo, xo, _ = st.joint_masses(a["joint"].rstrip("m"))
-            M = (mf + mo) if current else red[i]["mass"] / share
+            M = (mf + mo) if current else (jmass or {}).get(i, red[i]["mass"] / share)
             self.jmass.append(M)
             if i == 0:
                 continue                       # J1 under the ОПУ: housing on the base
@@ -197,6 +197,8 @@ def main():
     ap.add_argument("--eta", type=float, default=0.8)
     ap.add_argument("--use", type=float, default=0.9, help="max share of the catalog rating used (margin)")
     ap.add_argument("--fix", nargs="*", default=["J2=80E"])
+    ap.add_argument("--jmass", nargs="*", default=["J2=25.08"],
+                    help="known joint masses, kg (J2: 80E 23 + AK80-9 0.48 + shafts / plates 1.6, user 2026-10-21)")
     ap.add_argument("--poses", type=int, default=6000)
     ap.add_argument("--reach", type=float, default=0.0)
     ap.add_argument("--current", action="store_true")
@@ -205,10 +207,11 @@ def main():
     lay = rs.read_layout(a.layout)
     cat = read_catalog(a.catalog)
     fixed = {int(s.split("=")[0][1:]) - 1: s.split("=")[1] for s in a.fix}
+    jmass = {int(s.split("=")[0][1:]) - 1: float(s.split("=")[1]) for s in a.jmass}
     n = len(lay["axes"])
     sel = [cat[CUR[x["joint"]]] for x in lay["axes"]]
     for it in range(6):
-        arm = Arm(lay, sel, a.share, a.payload, a.interface, current=a.current)
+        arm = Arm(lay, sel, a.share, a.payload, a.interface, current=a.current, jmass=jmass)
         W, pose = worst(arm, a.speed, a.accel, a.poses, a.reach)
         if a.current:
             break
@@ -225,7 +228,7 @@ def main():
     tot = sum(m for m, c, kk in arm.B) - a.payload
     L = []
     hdr = ("current joints, own masses" if a.current else
-           f"reducer = {a.share * 100:.0f} % of the joint mass")
+           f"reducer = {a.share * 100:.0f} % of the joint mass; known: {', '.join(a.jmass) or '-'} kg")
     L += [f"# RTC-7: joint line-up with the axes kept ({hdr}) - `python tools/layout_select.py"
           + (" --current" if a.current else "") + (f" --reach {a.reach:g}" if a.reach else "") + "`", "",
           f"Payload {a.payload:g} kg (100 mm beyond the flange) + interface {a.interface:g} kg; all joints at "
