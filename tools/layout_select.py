@@ -197,8 +197,9 @@ def main():
     ap.add_argument("--eta", type=float, default=0.8)
     ap.add_argument("--use", type=float, default=0.9, help="max share of the catalog rating used (margin)")
     ap.add_argument("--fix", nargs="*", default=["J2=80E"])
-    ap.add_argument("--jmass", nargs="*", default=["J2=25.08"],
-                    help="known joint masses, kg (J2: 80E 23 + AK80-9 0.48 + shafts / plates 1.6, user 2026-10-21)")
+    ap.add_argument("--jmass", nargs="*",
+                    default=["J1=4", "J2=25.1", "J3=20", "J4=15", "J5=6", "J6=3.5", "J7=1.3"],
+                    help="joint masses, kg (approximate, user 2026-10-21); [] = reducer mass / --share")
     ap.add_argument("--poses", type=int, default=6000)
     ap.add_argument("--reach", type=float, default=0.0)
     ap.add_argument("--current", action="store_true")
