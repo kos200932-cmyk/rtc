@@ -12,6 +12,7 @@ equivalent load P0 = Fr + 2 M / Dp + 0.44 Fa against C0 (crossed rollers).
 """
 import argparse
 import json
+import re
 import os
 import sys
 
@@ -82,14 +83,26 @@ def main():
     ap.add_argument("--loads", default=os.path.join(ROOT, "robot", "RTC-7-joint-compare.json"))
     ap.add_argument("--cases", nargs="+", default=["S", "P", "A 0.5"])
     ap.add_argument("--png", default=os.path.join(ROOT, "robot", "RTC-7-load-scheme.png"))
+    ap.add_argument("--select", help="robot/RTC-7-layout-v2.json (tools/layout_select.py): new joint line-up instead")
+    ap.add_argument("--title")
     a = ap.parse_args()
     lay = rs.read_layout(a.layout)
-    J = json.load(open(a.loads, encoding="utf-8"))
-    L = np.max([np.array(J["loads"][c]) for c in a.cases], axis=0)       # 7 x (Fa, Fr, Mtilt, T)
-    which = np.argmax([np.array(J["loads"][c]) for c in a.cases], axis=0)
-    R = rated(lay)
     C0, Dp = opu()
-    req = J["req"]
+    sel = None
+    if a.select:
+        sel = json.load(open(a.select, encoding="utf-8"))
+        L = np.array([[j["Fa"], j["Fr"], j["tilt"], j["torque"]] for j in sel["joints"]])
+        which = np.zeros((7, 4), int)
+        a.cases = ["V"]
+        R = [{"reducer": "DMRD-" + j["reducer"]["name"], "T": j["reducer"]["T"], "T_cat": None, "T_design": None,
+              "Tss": j["reducer"]["Tss"], "Mt": j["reducer"]["Mt"], "Fa": j["reducer"]["Fa"] or None} for j in sel["joints"]]
+        req = None
+    else:
+        J = json.load(open(a.loads, encoding="utf-8"))
+        L = np.max([np.array(J["loads"][c]) for c in a.cases], axis=0)       # 7 x (Fa, Fr, Mtilt, T)
+        which = np.argmax([np.array(J["loads"][c]) for c in a.cases], axis=0)
+        R = rated(lay)
+        req = J["req"]
 
     fig = plt.figure(figsize=(16.5, 13.5))
     ax = fig.add_axes([0.355, 0.03, 0.29, 0.86])
@@ -100,6 +113,11 @@ def main():
             s = s.replace(" " + k, " " + v) if s.endswith(k) else s
         t.set_text(s.replace("flange (estimated)", "фланец").replace("flange", "фланец"))
     ax.set_title("")
+    if sel:                                                      # new reducers on the drawing labels
+        for t in ax.texts:
+            m = re.match(r"(J\d) ", t.get_text())
+            if m and "ШМ" in t.get_text():
+                t.set_text(f"{m.group(1)} {sel['joints'][int(m.group(1)[1]) - 1]['reducer']['name']}")
     # joint centres (as draw_side places them)
     n = len(lay["axes"])
     pts, dirs, Tf = rs.fk_poe(lay, np.zeros(n))
@@ -119,9 +137,13 @@ def main():
         b.set_xlim(0, 1), b.set_ylim(0, 1), b.axis("off")
         r = R[i]
         worst = max(L[i, 3] / r["T"], L[i, 2] / r["Mt"] if (r["Mt"] and i) else 0)
+        if sel:
+            jj = sel["joints"][i]
+            worst = max(worst, jj["Tm"] / jj["motor_T"])
         b.add_patch(FancyBboxPatch((0.005, 0.01), 0.99, 0.98, boxstyle="round,pad=0,rounding_size=0.03",
                                    fc="white", ec=colour(100 * worst), lw=2.2))
-        b.text(0.03, 0.9, f"{lay['axes'][i]['name']}  {SIZE_RU[lay['axes'][i]['joint']]}", fontsize=12.5,
+        jlab = f"{sel['joints'][i]['mass']:.1f} кг" if sel else SIZE_RU[lay['axes'][i]['joint']]
+        b.text(0.03, 0.9, f"{lay['axes'][i]['name']}  {jlab}", fontsize=12.5,
                fontweight="bold", color=INK, va="center")
         b.text(0.97, 0.9, f"редуктор {r['reducer']}", fontsize=9.5, color=MUTE, va="center", ha="right")
         b.text(0.03, 0.775, "нагрузка (расчёт, max)  /  редуктор (номинал по каталогу)", fontsize=8, color=MUTE,
@@ -129,7 +151,7 @@ def main():
         rows = 0.64
         dy = 0.135 if i else 0.112
         tnote = "" if r["T_design"] is None else f"  (кат. {r['T_cat']:.0f})"
-        tag = lambda col: {"S": "S", "P": "P"}.get(a.cases[which[i, col]], "A")
+        tag = (lambda col: None) if sel else (lambda col: {"S": "S", "P": "P"}.get(a.cases[which[i, col]], "A"))
         bar_row(b, rows, "Момент, Н·м", L[i, 3], r["T"], "", case=tag(3))
         if tnote:
             b.text(0.445, rows - 0.065, f" рабочий, предв.{tnote}", fontsize=7.2, color=MUTE, va="center")
@@ -137,15 +159,31 @@ def main():
             P0 = L[0, 1] + 2 * L[0, 2] / Dp + 0.44 * L[0, 0]
             bar_row(b, rows - dy, "Опрок. момент, Н·м", L[0, 2], None, "", "воспринимает ОПУ RU178G", tag(2))
             bar_row(b, rows - 2 * dy, "Осевая Fa, Н", L[0, 0], None, "", "воспринимает ОПУ RU178G", tag(0))
-            bar_row(b, rows - 3 * dy, "Радиальная Fr, Н", L[0, 1], None, "", "воспринимает ОПУ RU178G", tag(1))
-            bar_row(b, rows - 4 * dy, "ОПУ: P0 экв., Н", P0, C0, "")
-            b.text(0.03, rows - 4 * dy - 0.07, f"P0 = Fr + 2M/Dp + 0,44Fa против C0; запас s0 = {C0 / P0:.1f}",
+            k3 = 3
+            if not sel:
+                bar_row(b, rows - 3 * dy, "Радиальная Fr, Н", L[0, 1], None, "", "воспринимает ОПУ RU178G", tag(1))
+                k3 = 4
+            bar_row(b, rows - k3 * dy, "ОПУ: P0 экв., Н", P0, C0, "")
+            if not sel:
+              b.text(0.03, rows - k3 * dy - 0.07, f"P0 = Fr + 2M/Dp + 0,44Fa против C0; запас s0 = {C0 / P0:.1f}",
                    fontsize=7.4, color=MUTE, va="center")
         else:
             bar_row(b, rows - dy, "Опрок. момент, Н·м", L[i, 2], r["Mt"], "", case=tag(2))
             bar_row(b, rows - 2 * dy, "Осевая Fa, Н", L[i, 0], r["Fa"], "", "в каталоге нет", tag(0))
-            bar_row(b, rows - 3 * dy, "Радиальная Fr, Н", L[i, 1], None, "", case=tag(1))
-        b.text(0.03, 0.045 if i == 0 else 0.06, f"n0 = {req[i]['n0']:.0f} °/с;  пусковой момент редуктора {r['Tss']:.0f} Н·м "
+            if not sel:
+                bar_row(b, rows - 3 * dy, "Радиальная Fr, Н", L[i, 1], None, "", case=tag(1))
+        if sel:
+            jj = sel["joints"][i]
+            yk = rows - 4 * dy if i == 0 else rows - 3 * dy
+            bar_row(b, yk, "Двигатель, Н·м", jj["Tm"], jj["motor_T"], "")
+            b.texts[-3].set_text(f"{jj['Tm']:.2f}")
+            b.texts[-2].set_text(f" / {jj['motor_T']:g}")
+            mname = jj["motor"] + (" (9:1)" if jj["pre"] > 1 else "")
+            b.text(0.03, 0.045 if i == 0 else 0.06, f"{mname}, i = {jj['ratio']};  Fr = {L[i, 1]:.0f} Н; " + (f"ОПУ s0 = {C0 / (L[0, 1] + 2 * L[0, 2] / Dp + 0.44 * L[0, 0]):.1f}; " if i == 0 else "") +
+                   f"пусковой момент редуктора {r['Tss']:.0f} Н·м ({100 * L[i, 3] / r['Tss']:.0f} %)",
+                   fontsize=7.6, color=MUTE, va="center")
+        else:
+          b.text(0.03, 0.045 if i == 0 else 0.06, f"n0 = {req[i]['n0']:.0f} °/с;  пусковой момент редуктора {r['Tss']:.0f} Н·м "
                            f"({100 * L[i, 3] / r['Tss']:.0f} %)", fontsize=7.6, color=MUTE, va="center")
         # leader line from the box edge to the joint
         c = cen[i]
@@ -156,23 +194,36 @@ def main():
         ax.plot(c[0], c[2], "o", ms=7, mfc="white", mec=colour(100 * worst), mew=2, zorder=30)
     cases_ru = {"S": "статика, худшая из 20 000 поз", "P": "демо-программа на номинальных скоростях n0"}
     cs = "; ".join(cases_ru.get(c, f"разгон шарнира до n0 за {c.split()[-1].replace('.', ',')} с в худшей позе") for c in a.cases)
-    fig.text(0.012, 0.975, "RTC-7: нагрузки шарниров и возможности редукторов в номинальном режиме", fontsize=17,
+    if sel:
+        cs = "V"
+    fig.text(0.012, 0.975, a.title or "RTC-7: нагрузки шарниров и возможности редукторов в номинальном режиме", fontsize=17,
              fontweight="bold", color=INK, va="top")
-    fig.text(0.012, 0.948, "Расчёт: обратная динамика, груз 8 кг + интерфейс 4 кг; силы и опрокидывающий момент — на торце "
-             "выходного вала шарнира. Максимум из случаев:", fontsize=9.5, color=MUTE, va="top")
+    if sel:
+        zone = f"груз не дальше {sel['reach']:.0f} мм от оси J1" if sel["reach"] else "вся зона (все позы в диапазонах шарниров)"
+        g = lambda v: f"{v:g}".replace(".", ",")
+        fig.text(0.012, 0.948, f"Груз {g(sel['payload'])} кг + интерфейс {g(sel['interface'])} кг; все шарниры ±{g(sel['speed'])} рад/с, "
+                 f"±{g(sel['accel'])} рад/с²; {zone}; худшая из 20 000 поз.", fontsize=9.5, color=MUTE, va="top")
+        fig.text(0.012, 0.930, f"Масса шарнира (у номера) = масса редуктора / {g(sel['share'])}. Силы и опрокидывающий момент — на торце "
+                 "выходного вала. Двигатель: требуемый момент = M / (i · 0,8) против номинального.", fontsize=9.5,
+                 color=INK, va="top")
     tags = {"S": "S", "P": "P"}
-    fig.text(0.012, 0.930, "   ".join(f"[{tags.get(c, 'A')}] {cases_ru.get(c, f'разгон шарнира до n0 за {c.split()[-1].replace(chr(46), chr(44))} с в худшей позе')}"
+    if not sel:
+      fig.text(0.012, 0.948, "Расчёт: обратная динамика, груз 8 кг + интерфейс 4 кг; силы и опрокидывающий момент — на торце "
+             "выходного вала шарнира. Максимум из случаев:", fontsize=9.5, color=MUTE, va="top")
+      fig.text(0.012, 0.930, "   ".join(f"[{tags.get(c, 'A')}] {cases_ru.get(c, f'разгон шарнира до n0 за {c.split()[-1].replace(chr(46), chr(44))} с в худшей позе')}"
              for c in a.cases), fontsize=9.5, color=INK, va="top")
-    fig.text(0.012, 0.912, "Номинал редуктора — каталог DMRD: номинальный момент T_rated, допустимый опрокидывающий "
+    fig.text(0.012, 0.912, ("Номинал — каталог DMRD KB (80E: 1400 Н·м при ≤ 0,2 рад/с по поставщику): T_rated, M_tilt, "
+             "допустимая осевая; радиальной силы в каталоге нет. Полосы — до 150 %, черта — 100 %." if sel else
+             "Номинал редуктора — каталог DMRD: номинальный момент T_rated, допустимый опрокидывающий "
              "момент M_tilt, допустимая осевая сила; радиальной силы в каталоге нет. Шкала полос — до 150 %, "
-             "черта — 100 %.", fontsize=9.5, color=MUTE, va="top")
+             "черта — 100 %."), fontsize=9.5, color=MUTE, va="top")
     for k, (cl, tx) in enumerate(((OK, "≤ 80 % номинала"), (WARN, "80…100 %"), (BAD, "> 100 % — превышение"))):
         fig.patches.append(__import__("matplotlib").patches.Rectangle((0.012 + k * 0.105, 0.06), 0.012, 0.012,
                                                                       fc=cl, transform=fig.transFigure, figure=fig))
         fig.text(0.027 + k * 0.105, 0.066, tx, fontsize=9.5, color=INK, va="center")
-    fig.text(0.012, 0.035, "Схема — нулевая поза (вид вдоль +Y); точки — центры шарниров. Метка у значения — случай, "
-             "дающий максимум.", fontsize=8.5, color=MUTE)
-    fig.text(0.988, 0.006, "tools/joint_load_scheme.py · robot/RTC-7-joint-compare.json", fontsize=7.5, color=MUTE,
+    fig.text(0.012, 0.035, "Схема — нулевая поза (вид вдоль +Y); точки — центры шарниров." + ("" if sel else
+             " Метка у значения — случай, дающий максимум."), fontsize=8.5, color=MUTE)
+    fig.text(0.988, 0.006, "tools/joint_load_scheme.py · " + os.path.relpath(a.select or a.loads, ROOT), fontsize=7.5, color=MUTE,
              ha="right")
     fig.savefig(a.png, dpi=150, facecolor="white")
     fig.savefig(os.path.splitext(a.png)[0] + ".pdf", facecolor="white")

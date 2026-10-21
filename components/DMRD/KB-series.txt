@@ -1,0 +1,20 @@
+# DMRD KB series - catalog table (user file "...KB.xlsx", 2026-10-21) + DMRD-80E for J2.
+# Used by tools/layout_select.py (reducer choice per joint). Ratios of the KB series: 21/29/49/59/79/99/119/159.
+#   n_in  rated input speed, rpm        T_rated  rated torque, N·m          F_axial  allowable axial load, N
+#   M_tilt allowable tilting moment, N·m T_peak  momentary max torque, N·m  T_ss     start / stop torque, N·m
+#   lost  lost motion, arcmin            mass    kg
+# NOTE: F_axial / T_peak of KB25 / KB32 / KB45 here differ from the older cards components/DMRD/KB*/ (7100 / 11500 /
+# 13000 N; 186 / 310 / 1350 N·m) - this table (2026-10-21) is used for the new layout.
+#       model   n_in  T_rated  F_axial  M_tilt  T_peak  T_ss  lost  mass
+RED     KB14    2000  10       1600     20      19      14    1.5   0.8
+RED     KB17    2000  23       2600     48      42      35    1.5   1.1
+RED     KB20    2000  35       3700     120     70      53    1.5   1.6
+RED     KB25    2000  62       5300     193.5   135     93    1.5   2.3
+RED     KB32    2000  103      8800     336     240     155   1.5   4.1
+RED     KB40    2000  125      9800     455     450     225   1.5   6.8
+RED     KB45    2000  375      10200    740     1125    675   1.5   10.4
+RED     KB50    2000  415      11200    1032    1245    747   1.5   15.1
+# DMRD-80E (cycloidal-pin, J2): rated torque 1400 N·m at an output speed <= 0.2 rad/s (supplier, refined 2026-10-21;
+# catalog 784). Axial load: not given (0 = not checked). Mass: not in the DMRD data - 13.1 kg of the analogue BX80E / RV-80E
+# (ASSUMED). Ratios 81/101/121/153.
+RED     80E     -     1400     0        2156    3920    1960  1     13.1
