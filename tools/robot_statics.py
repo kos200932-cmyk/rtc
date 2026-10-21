@@ -76,10 +76,13 @@ def joint_masses(name):
     if j["parts"]:
         parts += [(p, "des") for p in sp.parse(os.path.join(j["dir"], j["parts"]))[1]]
     mf = mfx = mo = mox = 0.0
-    if rd.get("mass", "?") == "?":       # 80E: no catalog mass -> steel volume x 0.6 (internals are solid)
+    if not any(p.get("mass") for p in rparts):   # no per-part MASS: the card mass (or an estimate) split by volume
         vol = sum(sp.volume(p) for p in rparts)
-        est = vol * ST * 0.6
-        notes.append(f"{name}: reducer mass not in the catalog, ESTIMATED {est:.1f} kg (steel x 0.6)")
+        if rd.get("mass", "?") == "?":
+            est = vol * ST * 0.6
+            notes.append(f"{name}: reducer mass not in the catalog, ESTIMATED {est:.1f} kg (steel x 0.6)")
+        else:
+            est = float(rd["mass"])
         for p in rparts:
             p["mass"] = est * sp.volume(p) / vol
     for p, kind in parts:

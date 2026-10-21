@@ -21,7 +21,7 @@ TYPE reducer
 # Catalog: torques N*m (rated / start-stop / momentary max), tilting moment N*m (allowable / momentary max),
 # stiffness N*m/arcmin (tilting / torsional representative), lost motion arcmin. Mass is not on the drawing.
 DATA T_rated=784 T_startstop=1960 T_peak=3920 M_tilt=2156 M_tilt_peak=4312 K_tilt=1176 K_torsion=196 lost_motion_arcmin=1
-DATA ratios=81/101/121/153 ratio=? mass=?
+DATA ratios=81/101/121/153 ratio=? mass=23          # mass ~23 kg (user, 2026-10-21)
 # Manufacturer (2026-10-18): cycloidal-pin reducer - the allowed torque grows as the output speed goes
 # down; the 80E was chosen on that basis. Working torque for the arm design, PRELIMINARY, to be confirmed
 # by the manufacturer's torque-speed curve:
