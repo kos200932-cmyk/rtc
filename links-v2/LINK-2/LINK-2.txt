@@ -1,36 +1,38 @@
-# LINK-2 (v2, bracket): J2 (SHM-1000 output) -> J3 (SHM-KB50) - two plates at 90 deg, welded (user 2026-10-22)
+# LINK-2 (v2, bracket): J2 (SHM-1000 output) -> J3 (SHM-KB50) - angle bracket with equal shelves + 2 gussets (user 2026-10-22)
 # Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
-#   vertical plate 14 (x 0..14) on the J2 output: disc D190 + web 200 wide up to the top z=375; J2 holes as before;
-#   centring skirt on the J2 output D160h7 (recess 160H7 x 13); notch D240 (z 295..359) round the J3 reducer ring
-#   D214 and the motor housing flange D230 - the web keeps two legs |y| > 54..75;
-#   horizontal plate 16 (z 359..375) on top of the vertical one: 200 wide at the joint, round D256 round the J3 axis,
-#   edge x=-14 (it passes over the J2 housing - a body of revolution about the J2 axis).
-# J3 mounting (user 2026-10-22): the plate lies on the OUTPUT-side face of the reducer ring (z=365, r 86..107),
-#   centred on the reducer outer ring D214h7 by the counterbore D214H7 x 6 in its bottom; bore D176 round the output
-#   shaft D172 (it turns); 12 x M8 through-tapped on D200: screws M8 x 70 DIN912 from the motor side (heads in the
-#   J3 housing flange) through the reducer holes D9.
-# The J3 motor and rear cover hang below (rear z=200), open from below for the cable loop.
-# J2 axis z=137, output face x=0; J3 axis x=105, J3 reducer ring output face z=365, J3 output z=384.
+#   vertical shelf 14 (x 0..14) on the J2 output: disc D190 + web 200 wide, z 42..375 (height 333); J2 holes as before;
+#   centring skirt on the J2 output D160h7 (recess 160H7 x 13);
+#   horizontal shelf 16 (z 359..375) on top of it: 200 wide, x 0..333 (length 333 = the vertical shelf), far corners R30,
+#   + round D256 round the J3 axis (x=135) for the J3 screw circle;
+#   2 gussets 10 thick (y +-90..100, flush with the web edges), legs 65 in the inner corner.
+# J3 axis 135 from the J2 output face (J3..J7 shifted +30 in X, user 2026-10-22): the J3 ring D214 and its housing
+#   flange D230 clear the vertical shelf (x >= 20) - no notch.
+# J3 mounting: the shelf lies on the OUTPUT-side face of the J3 reducer ring (z=365), centred on its outer ring
+#   D214h7 by the counterbore D214H7 x 6; bore D176 round the output shaft D172; 12 x M8 through-tapped on D200
+#   (screws M8 x 70 DIN912 from the motor side, heads in the J3 housing flange, through the reducer holes D9).
+# J2 axis z=137, output face x=0; J3 axis x=135, J3 ring output face z=365, J3 output z=384.
 ASSEMBLY LINK-2
-DATA material=AlMg welded concept=6
+DATA material=AlMg welded concept=7
 
 PART LINK-2-01_Weldment
 MOTION fixed
 DENSITY 2700
 COLOR 175 195 170
-# ---- vertical plate on the J2 output + centring skirt
+# ---- vertical shelf on the J2 output + centring skirt
 PRISM X 0 14 CIRC 0 137 190
-PRISM X 0 14 RECT -100 100 137 375   # web up to the top of the horizontal plate
+PRISM X 0 14 RECT -100 100 137 375   # web up to the top of the horizontal shelf
 PRISM X -13 0 RING 0 137 186 160   # centring skirt, recess 160H7 x 13
-# ---- horizontal plate for J3
-PRISM Z 359 375 RECT -14 105 -100 100   # over the vertical plate to the J3 axis
-PRISM Z 359 375 CIRC 105 0 256   # round round the J3 reducer D214
-CUT Z 358 376 RECT -40 -14 -140 140   # edge x=-14
-CUT Z 295 359 CIRC 105 0 240   # notch in the web round the reducer ring D214 and the housing flange D230
-CUT Z 358 365 CIRC 105 0 214   # counterbore D214H7 x 6 on the reducer outer ring D214h7 (its face z=365 on the bottom)
-CUT Z 364 376 CIRC 105 0 176   # bore D176 round the output shaft D172
-TAP Z 365 375 105 0 12 200 M8 270   # 12-M8 through (10): screws from the motor side through the reducer holes D9
-# ---- J2 output holes in the vertical plate
+# ---- horizontal shelf for J3
+PRISM Z 359 375 RPOLY 0 -100 0 333 -100 30 333 100 30 0 100 0   # 333 x 200
+PRISM Z 359 375 CIRC 135 0 256   # round D256 round the J3 axis (screw circle D200 of the J3 ring)
+# ---- gussets in the inner corner (legs 65)
+PRISM Y 90 100 POLY 14 359 79 359 14 294
+PRISM Y -100 -90 POLY 14 359 79 359 14 294
+# ---- J3 seat
+CUT Z 358 365 CIRC 135 0 214   # counterbore D214H7 x 6 on the reducer outer ring D214h7 (its face z=365 on the bottom)
+CUT Z 364 376 CIRC 135 0 176   # bore D176 round the output shaft D172
+TAP Z 365 375 135 0 12 200 M8 270   # 12-M8 through (10): screws from the motor side through the reducer holes D9
+# ---- J2 output holes in the vertical shelf
 CUT X -14 15 CIRC 0 137 60   # centre (J2 output end plate)
 CUT X -14 15 PATTERN 0 137 3 142 9 21   # M8 at 69 deg (joint)
 CUT X -14 15 PATTERN 0 137 3 142 9 9   # M8 at 81 deg (joint)

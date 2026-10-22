@@ -7,6 +7,7 @@
 # the arm on the inner ring. Given: J2->J4 = l3, J4->J6 = l5; the rest minimised from the joint
 # envelopes and the cable path through the central bores J3..J7 (90 deg turns between joints).
 # Cable bend radii (centre line): J3->J4 40 (cable D20), J4->J5 40 (cable D20), J5->J6 40 (cable D20), J6->J7 32 (cable D16)
+# 2026-10-22: J3..J7 and the flange shifted +30 in X (J3 axis 135 from the J2 output face, user)
 ROBOT RTC-7
 UNITS mm deg
 # World frame = the X/Y frame of the scheme: origin on the J1 axis at the top face of the ОПУ,
@@ -14,26 +15,26 @@ UNITS mm deg
 # AXIS name joint  point on the axis (x y z)  direction  motor/output side  face= output face centre
 AXIS  J1  SHM-KB25m 0 0 0              0 0 1   motor=-Z output=+Z face=0.0,0.0,-35.0           # base turn: ШМ-150 under the ОПУ RU178G, output -> inner ring (link 1)
 AXIS  J2  SHM-1000  0 0 137            1 0 0   motor=-X output=+X face=0.0,0.0,137.0           # shoulder; output face on the J1 axis
-AXIS  J3  SHM-KB50  105 0 137          0 0 1   motor=-Z output=+Z face=105.0,0.0,384.0         # upper-arm roll; flange on the horizontal plate of the bracket link 2 (z=293), rear z=200
-AXIS  J4  SHM-KB45  105 0 1467         1 0 0   motor=+X output=-X face=-100.0,0.0,1467.0       # elbow; 1330 above J2; rear end Rb34 from the J3 axis
-AXIS  J5  SHM-KB32  -174 0 1467        0 0 1   motor=-Z output=+Z face=-174.0,0.0,1644.0       # forearm roll; rear end Rb45 above J4
-AXIS  J6  SHM-KB25  -174 0 2617        1 0 0   motor=-X output=+X face=-5.0,0.0,2617.0        # wrist; 1150 above J4; rear end Rb56 from the J5 axis
-AXIS  J7  SHM-60    45.5 0 2617        0 0 1   motor=-Z output=+Z face=45.5,0.0,2778.0         # flange roll; rear end Rb67 above J6
+AXIS  J3  SHM-KB50  135 0 137          0 0 1   motor=-Z output=+Z face=135.0,0.0,384.0         # upper-arm roll; flange on the horizontal plate of the bracket link 2 (z=293), rear z=200
+AXIS  J4  SHM-KB45  135 0 1467         1 0 0   motor=+X output=-X face=-70.0,0.0,1467.0       # elbow; 1330 above J2; rear end Rb34 from the J3 axis
+AXIS  J5  SHM-KB32  -144 0 1467        0 0 1   motor=-Z output=+Z face=-144.0,0.0,1644.0       # forearm roll; rear end Rb45 above J4
+AXIS  J6  SHM-KB25  -144 0 2617        1 0 0   motor=-X output=+X face=25.0,0.0,2617.0        # wrist; 1150 above J4; rear end Rb56 from the J5 axis
+AXIS  J7  SHM-60    75.5 0 2617        0 0 1   motor=-Z output=+Z face=75.5,0.0,2778.0         # flange roll; rear end Rb67 above J6
 # Cable path (centre line through the bores, zero pose) for drawing and checks:
-CABLE pt  105.0 170.0
-CABLE pt  105.0 1427.0
-CABLE arc 65.0 1427.0 40.0 0 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  65.0 1467.0
-CABLE pt  -134.0 1467.0
-CABLE arc -134.0 1507.0 40.0 270 180   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  -174.0 1507.0
-CABLE pt  -174.0 2577.0
-CABLE arc -134.0 2577.0 40.0 180 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  -134.0 2617.0
-CABLE pt  13.5 2617.0
-CABLE arc 13.5 2649.0 32.0 270 360   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
-CABLE pt  45.5 2649.0
-CABLE pt  45.5 2798.0
+CABLE pt   135.0 170.0
+CABLE pt   135.0 1427.0
+CABLE arc  95.0 1427.0 40.0 0 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt   95.0 1467.0
+CABLE pt   -104.0 1467.0
+CABLE arc  -104.0 1507.0 40.0 270 180   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt   -144.0 1507.0
+CABLE pt   -144.0 2577.0
+CABLE arc  -104.0 2577.0 40.0 180 90   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt   -104.0 2617.0
+CABLE pt   43.5 2617.0
+CABLE arc  43.5 2649.0 32.0 270 360   # centre x z, radius, from..to deg (0 = +X, 90 = +Z)
+CABLE pt   75.5 2649.0
+CABLE pt   75.5 2798.0
 # Tool flange = output face of ШМ-60 (the tool is not on the scheme).
-FLANGE 45.5 0 2778   0 0 1
+FLANGE 75.5 0 2778   0 0 1
 END

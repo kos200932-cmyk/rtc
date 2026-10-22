@@ -1,3 +1,4 @@
+# SHIFTED +30 in X with J3..J7 (2026-10-22, user: J3 axis 135 from the J2 output face) - x values in the comments below are before the shift
 # LINK-6 (v2, knee): J6 (SHM-KB25 output, toward +X) -> J7 (SHM-60, as v1) - concept 2026-10-22, robot/RTC-7-layout-v2.txt
 # Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
 #   disc on the J6 output (centring skirt on D86h7, 16 x M4 on D77, heads inside the J7 cylinder - reached through
@@ -14,15 +15,15 @@ MOTION fixed
 DENSITY 2700
 COLOR 190 175 210
 # ---- disc on the J6 output (KB25: D86h7 x 9 outside the housing, 16-M4 on D77)
-PRISM X -5 7 CIRC 0 2617 110
-PRISM X -11 -5 RING 0 2617 110 86   # centring skirt, recess 86H7 x 6 (3 mm to the reducer ring at x=-14)
+PRISM X 25 37 CIRC 0 2617 110
+PRISM X 19 25 RING 0 2617 110 86   # centring skirt, recess 86H7 x 6 (3 mm to the reducer ring at x=-14)
 # ---- J7 seat cylinder (world Z), centre x=45.5 y=0, closed below
-PRISM Z 2562 2725 RING 45.5 0 110 94
-PRISM Z 2562 2570 CIRC 45.5 0 110   # bottom plate
-TAP Z 2715 2725 45.5 0 12 102 M4 270   # 12-M4 x 8: SHM-60 housing + reducer, screws from the reducer side
-CUT X -15 -5 CIRC 0 2617 86   # the J6 output shaft D86 (x -14..-5) stays clear of the cylinder
-CUT X -15 8 CIRC 0 2617 46   # cable + the clamp flange of the J6 input shaft (D38 + M3 heads, turns with the input)
-CUT X -6 8 PATTERN 0 2617 16 77 4.5 348.75   # 16 x D4.5 -> 16-M4 of the output
-PORTP j6_out X -5 -1 role=on_j6_output fit=86H7 bolts=16xM4_D77
+PRISM Z 2562 2725 RING 75.5 0 110 94
+PRISM Z 2562 2570 CIRC 75.5 0 110   # bottom plate
+TAP Z 2715 2725 75.5 0 12 102 M4 270   # 12-M4 x 8: SHM-60 housing + reducer, screws from the reducer side
+CUT X 15 25 CIRC 0 2617 86   # the J6 output shaft D86 (x -14..-5) stays clear of the cylinder
+CUT X 15 38 CIRC 0 2617 46   # cable + the clamp flange of the J6 input shaft (D38 + M3 heads, turns with the input)
+CUT X 24 38 PATTERN 0 2617 16 77 4.5 348.75   # 16 x D4.5 -> 16-M4 of the output
+PORTP j6_out X 25 -1 role=on_j6_output fit=86H7 bolts=16xM4_D77
 PORTP j7_base Z 2725 1 role=j7_seat fit=94H7 bolts=12xM4_D102 screws_from=reducer_side
 END

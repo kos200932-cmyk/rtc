@@ -1,3 +1,4 @@
+# SHIFTED +30 in X with J3..J7 (2026-10-22, user: J3 axis 135 from the J2 output face) - x values in the comments below are before the shift
 # LINK-4 (v2, knee): J4 (SHM-KB45 output, toward -X) -> J5 (SHM-KB32 seat) - concept 2026-10-22, robot/RTC-7-layout-v2.txt
 # Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
 #   disc on the J4 output (centring skirt on D158h7, 16 x M8 on D140, heads inside the J5 cylinder - reached through
@@ -14,16 +15,16 @@ MOTION fixed
 DENSITY 2700
 COLOR 170 190 205
 # ---- disc on the J4 output (KB45: D158h7 x 13 outside the housing, 16-M8 on D140)
-PRISM X -113 -100 CIRC 0 1467 186
-PRISM X -100 -94 RING 0 1467 186 158   # centring skirt, recess 158H7 x 6 (7 mm to the reducer ring at x=-87)
+PRISM X -83 -70 CIRC 0 1467 186
+PRISM X -70 -64 RING 0 1467 186 158   # centring skirt, recess 158H7 x 6 (7 mm to the reducer ring at x=-87)
 # ---- J5 seat cylinder (world Z), centre x=-174 y=0, closed below
-PRISM Z 1374 1587.5 RING -174 0 172 122
-PRISM Z 1374 1382 CIRC -174 0 172   # bottom plate
-TAP Z 1573.5 1587.5 -174 0 12 154 M5 255   # 12-M5 x 10 (drill 12.5): J5 flange, screws from the reducer side
-CUT Z 1373 1588 RECT -91 -40 -100 100   # flat x=-91 (J4 side)
-CUT X -100 -86 CIRC 0 1467 158   # the J4 output shaft D158 (x -100..-87) stays clear of the cylinder
-CUT X -114 -93 CIRC 0 1467 60   # cable
-CUT X -114 -99 PATTERN 0 1467 16 140 9 191.25   # 16 x D9 -> 16-M8 of the output
-PORTP j4_out X -100 1 role=on_j4_output fit=158H7 bolts=16xM8_D140
+PRISM Z 1374 1587.5 RING -144 0 172 122
+PRISM Z 1374 1382 CIRC -144 0 172   # bottom plate
+TAP Z 1573.5 1587.5 -144 0 12 154 M5 255   # 12-M5 x 10 (drill 12.5): J5 flange, screws from the reducer side
+CUT Z 1373 1588 RECT -61 -10 -100 100   # flat x=-91 (J4 side)
+CUT X -70 -56 CIRC 0 1467 158   # the J4 output shaft D158 (x -100..-87) stays clear of the cylinder
+CUT X -84 -63 CIRC 0 1467 60   # cable
+CUT X -84 -69 PATTERN 0 1467 16 140 9 191.25   # 16 x D9 -> 16-M8 of the output
+PORTP j4_out X -70 1 role=on_j4_output fit=158H7 bolts=16xM8_D140
 PORTP j5_base Z 1587.5 1 role=j5_seat fit=122H7 bolts=12xM5_D154 screws_from=reducer_side
 END
