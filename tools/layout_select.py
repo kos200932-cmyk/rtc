@@ -35,7 +35,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIM = np.radians([[-180, 180], [-94, 94], [-180, 180], [-171, 171], [-180, 180], [-180, 180], [-180, 180]])
 KB_RATIOS = [21, 29, 49, 59, 79, 99, 119, 159]
 E_RATIOS = [81, 101, 121, 153]
-CUR = {"SHM-60": "KB25", "SHM-150": "KB32", "SHM-500": "KB45", "SHM-1000": "80E", "SHM-150m": "KB32"}
+CUR = {"SHM-60": "KB25", "SHM-150": "KB32", "SHM-500": "KB45", "SHM-1000": "80E", "SHM-150m": "KB32",
+       "SHM-KB25": "KB25", "SHM-KB25m": "KB25", "SHM-KB32": "KB32", "SHM-KB45": "KB45", "SHM-KB50": "KB50"}
 MOTORS = ["RI70-KV95", "RI80-V2-KV75", "RI115-PH-KV40"]
 
 

@@ -118,12 +118,13 @@ REAL_LINKS = {"on": True, "cache": None}
 
 
 def real_link_bodies():
-    """(mass, centre of mass at the zero pose, link index, name) of every part of links/LINK-n."""
+    """(mass, centre of mass at the zero pose, link index, name) of every part of links/LINK-n
+    (env RTC_LINKS=links-v2 - the links of layout v2)."""
     if REAL_LINKS["cache"] is None:
         import link_build as lb
         out = []
         for k in range(1, 10):
-            spec = os.path.join(ROOT, "links", f"LINK-{k}", f"LINK-{k}.txt")
+            spec = os.path.join(ROOT, os.environ.get("RTC_LINKS", "links"), f"LINK-{k}", f"LINK-{k}.txt")
             if not os.path.isfile(spec):
                 continue
             for p in lb.parse(spec)[0]:

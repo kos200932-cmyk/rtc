@@ -25,7 +25,8 @@ import robot_statics as st  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OK, WARN, BAD, INK, MUTE, TRACK = "#2e8b57", "#e0a100", "#c62828", "#1b2026", "#5d6670", "#e6e9ed"
-SIZE_RU = {"SHM-60": "ШМ-60", "SHM-150": "ШМ-150", "SHM-500": "ШМ-500", "SHM-1000": "ШМ-1000", "SHM-150m": "ШМ-150м"}
+SIZE_RU = {"SHM-60": "ШМ-60", "SHM-150": "ШМ-150", "SHM-500": "ШМ-500", "SHM-1000": "ШМ-1000", "SHM-150m": "ШМ-150м",
+           "SHM-KB25": "ШМ-KB25", "SHM-KB25m": "ШМ-KB25м", "SHM-KB32": "ШМ-KB32", "SHM-KB45": "ШМ-KB45", "SHM-KB50": "ШМ-KB50"}
 
 
 def rated(lay):

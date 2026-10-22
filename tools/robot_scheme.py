@@ -20,8 +20,10 @@ import sys
 
 import numpy as np
 
-R_SYMBOL = {"SHM-60": 55, "SHM-150": 71, "SHM-500": 95, "SHM-1000": 95, "SHM-150m": 120}   # ~ real envelope radius
-L_SYMBOL = {"SHM-60": 85, "SHM-150": 100, "SHM-500": 140, "SHM-1000": 190, "SHM-150m": 100}  # ~ real envelope length
+R_SYMBOL = {"SHM-60": 55, "SHM-150": 71, "SHM-500": 95, "SHM-1000": 95, "SHM-150m": 120,
+            "SHM-KB25": 68, "SHM-KB25m": 120, "SHM-KB32": 86, "SHM-KB45": 110, "SHM-KB50": 126}   # ~ real envelope radius
+L_SYMBOL = {"SHM-60": 85, "SHM-150": 100, "SHM-500": 140, "SHM-1000": 190, "SHM-150m": 100,
+            "SHM-KB25": 129, "SHM-KB25m": 100, "SHM-KB32": 137, "SHM-KB45": 165, "SHM-KB50": 184}  # ~ real envelope length
 
 
 def read_layout(path):
@@ -241,7 +243,8 @@ def cylinder(ax, c, w, r, L, color, alpha=0.55):
 
 
 COLORS = {"SHM-60": "#e6a23c", "SHM-150": "#67c23a", "SHM-500": "#409eff", "SHM-1000": "#f56c6c",
-          "SHM-150m": "#9b59b6"}
+          "SHM-150m": "#9b59b6", "SHM-KB25": "#67c23a", "SHM-KB25m": "#9b59b6", "SHM-KB32": "#2bb3a3",
+          "SHM-KB45": "#409eff", "SHM-KB50": "#3366cc"}
 
 
 def body_centres(lay, pts, dirs, flange_p):
