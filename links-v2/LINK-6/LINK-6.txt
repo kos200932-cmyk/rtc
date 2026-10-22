@@ -1,0 +1,28 @@
+# LINK-6 (v2, knee): J6 (SHM-KB25 output, toward +X) -> J7 (SHM-60, as v1) - concept 2026-10-22, robot/RTC-7-layout-v2.txt
+# Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
+#   disc on the J6 output (centring skirt on D86h7, 16 x M4 on D77, heads inside the J7 cylinder - reached through
+#   its bore before J7 is mounted), J7 seat cylinder D110 / D94H7 on the J7 axis down to the bottom plate z=2562:
+#   face z=2725 against the SHM-60 housing flange (its pilot D94h7), 12 x M4 on D102 - in line with the 12 x D4.5 of
+#   SHM-60 (housing + reducer), screws from the J7 reducer side into the link.
+#   Cable: through the disc (D46) into the cylinder, bend R32 up into the J7 rear (z=2649).
+# J6 axis z=2617, output face x=-5 (J6 housing ends at x=-14: 4.5 mm to the cylinder at x=-9.5); J7 axis x=45.5.
+ASSEMBLY LINK-6
+DATA material=AlMg welded concept=2
+
+PART LINK-6-01_Weldment
+MOTION fixed
+DENSITY 2700
+COLOR 190 175 210
+# ---- disc on the J6 output (KB25: D86h7 x 9 outside the housing, 16-M4 on D77)
+PRISM X -5 7 CIRC 0 2617 110
+PRISM X -11 -5 RING 0 2617 110 86   # centring skirt, recess 86H7 x 6 (3 mm to the reducer ring at x=-14)
+# ---- J7 seat cylinder (world Z), centre x=45.5 y=0, closed below
+PRISM Z 2562 2725 RING 45.5 0 110 94
+PRISM Z 2562 2570 CIRC 45.5 0 110   # bottom plate
+TAP Z 2715 2725 45.5 0 12 102 M4 270   # 12-M4 x 8: SHM-60 housing + reducer, screws from the reducer side
+CUT X -15 -5 CIRC 0 2617 86   # the J6 output shaft D86 (x -14..-5) stays clear of the cylinder
+CUT X -15 8 CIRC 0 2617 46   # cable + the clamp flange of the J6 input shaft (D38 + M3 heads, turns with the input)
+CUT X -6 8 PATTERN 0 2617 16 77 4.5 348.75   # 16 x D4.5 -> 16-M4 of the output
+PORTP j6_out X -5 -1 role=on_j6_output fit=86H7 bolts=16xM4_D77
+PORTP j7_base Z 2725 1 role=j7_seat fit=94H7 bolts=12xM4_D102 screws_from=reducer_side
+END

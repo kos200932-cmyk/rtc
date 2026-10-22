@@ -1,0 +1,31 @@
+# LINK-5 (forearm, v2): J5 (SHM-KB32 output) -> J6 (SHM-KB25 seat) - concept 2026-10-22, robot/RTC-7-layout-v2.txt
+# Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
+#   disc on the J5 output (centring skirt on D112h7, 16 x M5 on D100, heads on top outside the tube),
+#   tube D80 x 4 on the J5 axis (cable inside),
+#   J6 seat cylinder D136 / D94H7 on the J6 axis: face x=-56 against the J6 flange (spigot D94h7), 12 x M4 on D120
+#   (screws DIN912 from the J6 reducer side); flat 53 below the axis with the hole D80H7 for the tube (6 mm wall to the
+#   bore), undercut D124 between the M4 land and the tube zone; open end x=-222 (cover later). No ribs yet.
+# J5 output face z=1644; J6 axis z=2617, J6 flange back face x=-56, J6 rear (with the cover) x=-134; cable bend R40 ends there.
+ASSEMBLY LINK-5
+DATA material=AlMg welded concept=2
+
+PART LINK-5-01_Weldment
+MOTION fixed
+DENSITY 2700
+COLOR 205 180 170
+# ---- disc on the J5 output (KB32: D112h7 x 9 above the housing, 16-M5 on D100)
+PRISM Z 1644 1656 CIRC -174 0 140
+PRISM Z 1638 1644 RING -174 0 140 112   # centring skirt, recess 112H7 x 6 (3 mm above the reducer ring)
+CUT Z 1643 1657 CIRC -174 0 52   # cable + the clamp flange of the J5 input shaft (D45, turns with the input)
+CUT Z 1643 1657 PATTERN -174 0 16 100 5.5 258.75   # 16 x D5.5 -> 16-M5 of the output, heads on top (outside the tube)
+# ---- tube D80 x 4 on the J5 axis, into the hole of the J6 seat flat (up to the bore D94)
+PRISM Z 1656 2569 RING -174 0 80 72
+# ---- J6 seat cylinder on the J6 axis (world X), centre y=0 z=2617
+PRISM X -222 -56 RING 0 2617 136 94
+TAP X -70 -56 0 2617 12 120 M4 345   # 12-M4 x 8 (drill 10): J6 flange, screws from the reducer side
+CUT X -114 -72 RING 0 2617 138 124   # undercut D124 between the M4 land (16) and the tube zone
+CUT X -223 -114 RECT -80 80 2540 2564   # flat 53 below the J6 axis over the tube zone
+CUT Z 2558 2571 CIRC -174 0 80   # hole D80H7 in the flat for the tube (into the bore)
+PORTP j5_out Z 1644 -1 role=on_j5_output fit=112H7 bolts=16xM5_D100
+PORTP j6_base X -56 1 role=j6_seat fit=94H7 bolts=12xM4_D120 screws_from=reducer_side
+END

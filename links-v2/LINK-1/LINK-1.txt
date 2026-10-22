@@ -1,0 +1,50 @@
+# LINK-1 (v2): J1 (SHM-KB25, ОПУ inner ring) -> J2 (SHM-1000) - weldment as v1 (tools/link_gen.py 1), the J1 adapter
+# for the KB25 output (2026-10-22). J2 is unchanged.
+# Coordinates: robot world frame at the zero pose (robot/RTC-7-layout-v2.txt), mm.
+# Welded aluminium link: base plate over the whole ОПУ + J2 plate + 2 full-length ribs;
+# machining after welding: boss on the inner ring, J2 bore and its face, holes.
+# J2 axis z=137, J2 output face x=0, J2 base face (pilot 190h7) x=-95.
+# Ribs over the link-2 sweep zone (x >= -10): top z=27 - link 2 + J3 pass over them
+# with gap 10 while J2 turns +-90 deg (their lowest point there: z=37.0).
+ASSEMBLY LINK-1
+DATA material=AlMg welded concept=1
+
+PART LINK-1-01_Weldment
+MOTION fixed
+DENSITY 2700
+COLOR 170 180 195
+# base plate 250 x 250 x 20 over the whole ОПУ, 5 mm over the fixed outer ring
+# +X side cut back (v2): the J3 seat cylinder D252 of link 2 passes over it while J2 turns to +-90 deg;
+# the boss D160 still covers the inner ring, the fixed outer ring stays open there
+PRISM Z 5 25 RPOLY -125 -125 20 30 -125 20 44 -57 10 85 -34 15 85 34 15 44 57 10 30 125 20 -125 125 20
+# machined boss on the ОПУ inner ring: D160 (<= ds 161) x 5
+PRISM Z 0 5 CIRC 0 0 160
+CUT Z -1 26 CIRC 0 0 112   # access to the J1 adapter screws
+# J2 mounting plate (YZ plane) on the -X side of the J2 base face
+PRISM X -115 -95 RPOLY -125 25 0 125 25 0 125 262 50 -125 262 50
+# ribs outside the J2 flange (D 222), over the whole plate length
+PRISM Y 113 125 RPOLY -115 25 0 -115 207 0 -18 85 0 -18 25 0
+PRISM Y -125 -113 RPOLY -115 25 0 -115 207 0 -18 85 0 -18 25 0
+# J2 bore: pilot 190H7 (the motor and the adapter plate of J2 pass through)
+CUT X -116 -94 CIRC 0 137 190
+TAP X -115 -95 0 137 16 206 M8 0   # J2 flange screws from the output side
+# 12 x M8 through the plate and the inner ring into the J1 adapter: D9 + head counterbore from the top
+CUT Z -1 26 PATTERN 0 0 12 139 9 0
+CUT Z 16.4 26 PATTERN 0 0 12 139 16 0
+PORTP j1_ring Z 0 -1 role=on_opu_inner_ring screws=12xM8_D139 boss=D160
+PORTP j2_base X -95 1 role=j2_housing fit=190H7 bolts=16xM8_D206
+END
+
+PART LINK-1-02_J1Adapter
+MOTION fixed
+DENSITY 2700
+COLOR 120 130 150
+# under the ОПУ inner ring (z -43..-28), D155; recess on the KB25 output spigot D86h7 (9 above the reducer ring)
+PRISM Z -43 -28 CIRC 0 0 155
+CUT Z -44 -35 CIRC 0 0 86   # recess 86H7 x 8 (1 mm above the reducer ring at z=-44)
+CUT Z -36 -27 CIRC 0 0 46   # clears the clamp flange of the J1 input shaft (D38 + M3 heads, turns with the input)
+CUT Z -36 -27 PATTERN 0 0 16 77 4.5 258.75   # 16 x D4.5 -> 16-M4 of the KB25 output, heads on top (through the plate bore)
+TAP Z -43 -28 0 0 12 139 M8 0   # the 12 ring screws
+PORTP j1_output Z -35 -1 role=on_kb25_output fit=86H7 bolts=16xM4_D77
+PORTP ring Z -28 1 role=under_opu_inner_ring
+END
