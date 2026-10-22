@@ -15,7 +15,7 @@ DENSITY 2700
 COLOR 200 185 150
 # ---- disc on the J3 output (KB50: D172h7 x 19 above the housing, 16-M8 on D154)
 PRISM Z 384 399 CIRC 105 0 200
-PRISM Z 372 384 RING 105 0 200 172   # centring skirt, recess 172H7 x 12 (7 mm above the reducer ring)
+PRISM Z 378 384 RING 105 0 200 172   # centring skirt, recess 172H7 x 6 (3 mm above the link-2 plate z=375)
 CUT Z 383 400 CIRC 105 0 80   # cable + the clamp flange of the J3 input shaft (D75, turns with the input)
 CUT Z 383 400 PATTERN 105 0 16 154 9 270   # 16 x D9 -> 16-M8 of the output, DIN912 heads on top (r 70..84, outside the tube)
 # ---- tube D120 x 5 on the J3 axis, through the wall of the J4 seat cylinder (flush with the bore D168)

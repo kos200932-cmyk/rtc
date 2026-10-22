@@ -1,14 +1,18 @@
 # LINK-2 (v2, bracket): J2 (SHM-1000 output) -> J3 (SHM-KB50) - two plates at 90 deg, welded (user 2026-10-22)
 # Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
-#   vertical plate 14 (x 0..14) on the J2 output: disc D190 + web 200 wide up to the top z=293; J2 holes as before;
-#   centring skirt on the J2 output D160h7 (recess 160H7 x 13);
-#   horizontal plate 16 (z 277..293) on top of the vertical one (welded along x 0..14): 200 wide at the joint,
-#   round D256 around the J3 axis; bore D185H7 for the J3 spigot + 12 x M8 on D230 (DIN912 from the J3 reducer side).
-#   The J3 motor and rear cover hang below the plate (rear z=200), open from below and from +X - the cable loop
-#   enters the J3 rear from below. No gussets yet.
-# J2 axis z=137, output face x=0; J3 axis x=105, J3 flange back face z=293 (layout v2 as before the tube variant).
+#   vertical plate 14 (x 0..14) on the J2 output: disc D190 + web 200 wide up to the top z=375; J2 holes as before;
+#   centring skirt on the J2 output D160h7 (recess 160H7 x 13); notch D240 (z 295..359) round the J3 reducer ring
+#   D214 and the motor housing flange D230 - the web keeps two legs |y| > 54..75;
+#   horizontal plate 16 (z 359..375) on top of the vertical one: 200 wide at the joint, round D256 round the J3 axis,
+#   edge x=-14 (it passes over the J2 housing - a body of revolution about the J2 axis).
+# J3 mounting (user 2026-10-22): the plate lies on the OUTPUT-side face of the reducer ring (z=365, r 86..107),
+#   centred on the reducer outer ring D214h7 by the counterbore D214H7 x 6 in its bottom; bore D176 round the output
+#   shaft D172 (it turns); 12 x M8 through-tapped on D200: screws M8 x 70 DIN912 from the motor side (heads in the
+#   J3 housing flange) through the reducer holes D9.
+# The J3 motor and rear cover hang below (rear z=200), open from below for the cable loop.
+# J2 axis z=137, output face x=0; J3 axis x=105, J3 reducer ring output face z=365, J3 output z=384.
 ASSEMBLY LINK-2
-DATA material=AlMg welded concept=4
+DATA material=AlMg welded concept=6
 
 PART LINK-2-01_Weldment
 MOTION fixed
@@ -16,14 +20,16 @@ DENSITY 2700
 COLOR 175 195 170
 # ---- vertical plate on the J2 output + centring skirt
 PRISM X 0 14 CIRC 0 137 190
-PRISM X 0 14 RECT -100 100 137 293   # web up to the top of the horizontal plate
+PRISM X 0 14 RECT -100 100 137 375   # web up to the top of the horizontal plate
 PRISM X -13 0 RING 0 137 186 160   # centring skirt, recess 160H7 x 13
 # ---- horizontal plate for J3
-PRISM Z 277 293 RECT 0 105 -100 100   # over the vertical plate to the J3 axis
-PRISM Z 277 293 CIRC 105 0 256   # round around the J3 flange D252
-CUT Z 276 294 RECT -40 0 -140 140   # nothing of the round plate on the J2 side (x<0)
-TAP Z 279 293 105 0 12 230 M8 255   # 12-M8 x 14 from the face (drill ~16): J3 flange
-CUT Z 276 294 CIRC 105 0 185   # bore D185H7 for the J3 spigot (D185h7, 4 long; also trims the top of the vertical plate)
+PRISM Z 359 375 RECT -14 105 -100 100   # over the vertical plate to the J3 axis
+PRISM Z 359 375 CIRC 105 0 256   # round round the J3 reducer D214
+CUT Z 358 376 RECT -40 -14 -140 140   # edge x=-14
+CUT Z 295 359 CIRC 105 0 240   # notch in the web round the reducer ring D214 and the housing flange D230
+CUT Z 358 365 CIRC 105 0 214   # counterbore D214H7 x 6 on the reducer outer ring D214h7 (its face z=365 on the bottom)
+CUT Z 364 376 CIRC 105 0 176   # bore D176 round the output shaft D172
+TAP Z 365 375 105 0 12 200 M8 270   # 12-M8 through (10): screws from the motor side through the reducer holes D9
 # ---- J2 output holes in the vertical plate
 CUT X -14 15 CIRC 0 137 60   # centre (J2 output end plate)
 CUT X -14 15 PATTERN 0 137 3 142 9 21   # M8 at 69 deg (joint)
@@ -33,5 +39,5 @@ CUT X -14 15 PATTERN 0 137 3 110 11 10   # M10 at 80 deg (joint)
 CUT X -14 15 PATTERN 0 137 3 110 11 350   # M10 at 100 deg (joint)
 CUT X -14 15 PATTERN 0 137 3 142 12 339   # access to the 3 Rc1/8 plugs
 PORTP j2_out X 0 -1 role=on_j2_output fit=160H7 bolts=9xM8_D142+6xM10_D110
-PORTP j3_base Z 293 1 role=j3_seat fit=185H7 bolts=12xM8_D230 screws_from=reducer_side
+PORTP j3_base Z 365 -1 role=on_j3_reducer_ring_output_face fit=214H7 cbore=6 bolts=12xM8_D200_from_motor_side
 END
