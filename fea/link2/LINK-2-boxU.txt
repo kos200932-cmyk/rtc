@@ -1,0 +1,36 @@
+# LINK-2 BOX concept (2026-10-22, for discussion): welded box round J3 - closed section from the J3 seat to the J2 output
+# Coordinates: robot world frame at the zero pose, mm. J2 axis z=137, output face x=0; J3 axis x=135.
+#   back wall = the plate on the J2 output (x 0..14, z 42..375, 200 wide) + 2 ribs y +-(92..100) down to z 60;
+#   top = the J3 shelf 16 (z 359..375): counterbore D214H7 x 6 on the J3 reducer ring, bore D176, 12-M8 on D200;
+#   2 side walls 8 (y +-118..126) - outside the J3 flange D230 - from the back wall (widening 200 -> 252) to x=270,
+#   z 200..375 (within |y|<=110 for x<44: J2 turns over link 1); front wall 8 (x 262..270); bottom 8 (z 200..208) - BOLTED cover in reality (J3 goes in from below),
+#   hole D150 for the cable loop to the J3 rear.
+ASSEMBLY LINK-2
+DATA material=AlMg welded concept=box
+
+PART LINK-2-01_Weldment
+MOTION fixed
+DENSITY 2700
+COLOR 175 195 170
+PRISM X 0 14 CIRC 0 137 190
+PRISM X 0 14 RECT -100 100 137 375   # back wall
+PRISM X -13 0 RING 0 137 186 160   # centring skirt, recess 160H7 x 13
+PRISM Z 359 375 POLY 0 -100 44 -110 60 -126 270 -126 270 126 60 126 44 110 0 100   # top (J3 shelf)
+PRISM Z 200 359 POLY 14 92 14 100 44 110 60 126 270 126 270 118 64 118 47 102   # side wall +Y
+PRISM Z 200 359 POLY 14 -92 47 -102 64 -118 270 -118 270 -126 60 -126 44 -110 14 -100   # side wall -Y
+PRISM Y 92 100 POLY 14 137 40 137 40 200 14 200   # rib +Y below the box (back wall), not below the J2 axis
+PRISM Y -100 -92 POLY 14 137 40 137 40 200 14 200   # rib -Y
+PRISM X 262 270 RECT -126 126 200 359   # front wall
+CUT Z 358 365 CIRC 135 0 214   # counterbore D214H7 x 6 on the J3 reducer outer ring
+CUT Z 364 376 CIRC 135 0 176   # bore D176 round the J3 output shaft D172
+TAP Z 365 375 135 0 12 200 M8 270   # 12-M8 through: screws from the motor side through the reducer holes D9
+CUT X -14 15 CIRC 0 137 60
+CUT X -14 15 PATTERN 0 137 3 142 9 21
+CUT X -14 15 PATTERN 0 137 3 142 9 9
+CUT X -14 15 PATTERN 0 137 3 142 9 351
+CUT X -14 15 PATTERN 0 137 3 110 11 10
+CUT X -14 15 PATTERN 0 137 3 110 11 350
+CUT X -14 15 PATTERN 0 137 3 142 12 339
+PORTP j2_out X 0 -1 role=on_j2_output fit=160H7 bolts=9xM8_D142+6xM10_D110
+PORTP j3_base Z 365 -1 role=on_j3_reducer_ring_output_face fit=214H7 cbore=6 bolts=12xM8_D200_from_motor_side
+END

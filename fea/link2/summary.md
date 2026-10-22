@@ -10,6 +10,9 @@ bottom z=365, r 88..107 + its wall D214) about the point (135, 0, 365). AlMg, E 
 | + closed box (front wall x 54..64) | 5.43 | 0.60 / 0.91, 58 | 4.6, 201 | 0.37 |
 | ribs + rim 24 above the shelf (outside D216) | 7.02 | 0.50 / 0.87, 37 | 4.2, 129 | 0.35 |
 | web 25 below the J3 flange + ribs z 60..359 + rim | 8.36 | 0.39 / 0.45, 24 | 3.1, 109 | 0.25 |
+| **box round J3** (LINK-2-boxB: walls 8 outside D230, bottom = bolted cover with hole D150) | 7.44 | 0.25 / 0.11, 19 | 2.9, 227 (peak in the sharp corner rib/bottom at x 40) | 0.25 |
+| same box, open bottom (LINK-2-boxU) | ~6.6 | 0.50 / 0.71, 82 | 3.9, 402 (same corner) | 0.33 |
 
 TCP lever ~2.4 m: 1 mrad -> ~2.4 mm. J3 tilting moment at its face up to 989 N·m (any direction), J2 torque up to 1200 N·m.
 Variant specs: fea/link2/LINK-2-ribs|box|rim|strong.txt.
+Box: J2 free -92..+92 (walls within |y|<=110 for x<44, bottom z>=200 - J2 turns over link 1).
