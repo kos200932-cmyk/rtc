@@ -44,29 +44,31 @@ def draw(ax, path):
     redp = kv(next(po for po in fh["ports"] if po["name"] == "reducer")["info"])
     xb = next(po for po in fh["ports"] if po["name"] == "base")["x"]
     r_link = float(base["link_bore"].rstrip("H7")) / 2
+    r_lo = float(base["link_od"]) / 2
     r_fl = max(y for _, y in fh["pts"])
-    x_fl0 = min(x for x, y in fh["pts"] if y == r_fl)
+    x_fl1 = max(x for x, y in fh["pts"] if y == r_fl)
     ring = next(p for p in red if p["name"].endswith("Housing"))
     x_ring1 = max(x for x, y in ring["pts"] if y == max(yy for _, yy in ring["pts"]))
-    # link (previous) on the reducer side of the flange, its bore on the reducer ring
-    t_link = 16
-    ax.add_patch(Rectangle((xb, r_link), t_link, r_fl + 14 - r_link, fc="#f2e6c9", ec="k", lw=0.8, hatch="///", zorder=1))
-    # screws
+    # link (previous): cylinder = flange OD on the MOTOR side of the flange, bore on the spigot, to the rear end
+    x_rear = min(x for p in prt for x, _ in p["pts"]) - 30
+    ax.add_patch(Rectangle((x_rear, r_link), xb - x_rear, r_lo - r_link, fc="#f2e6c9", ec="k", lw=0.8, hatch="///",
+                           zorder=1))
+    # screws link -> flange: DIN912 from the reducer side (heads on the flange front face), thread in the link
     n, size = base["screws"].split("_")[0].split("x")
     hd, hk = HEAD[size]
     d = float(size[1:])
     r_s = float(base["pcd"]) / 2
-    ax.add_patch(Rectangle((x_fl0, r_s - d / 2), xb - x_fl0 + 1.5 * d, d, fc="#e0a100", ec="k", lw=0.5, zorder=5))
-    ax.add_patch(Rectangle((x_fl0 - hk, r_s - hd / 2), hk, hd, fc="#e0a100", ec="k", lw=0.5, zorder=5))
+    ax.add_patch(Rectangle((xb - 1.5 * d, r_s - d / 2), x_fl1 - xb + 1.5 * d, d, fc="#e0a100", ec="k", lw=0.5, zorder=5))
+    ax.add_patch(Rectangle((x_fl1, r_s - hd / 2), hk, hd, fc="#e0a100", ec="k", lw=0.5, zorder=5))
     nr, sr = redp["bolts"].split("x")
     hd2, hk2 = HEAD[sr]
     d2 = float(sr[1:])
     r_r = float(redp["pcd"]) / 2
-    ax.add_patch(Rectangle((xb - 2 * d2, r_r - d2 / 2), x_ring1 - xb + 2 * d2, d2, fc="#c62828", ec="k", lw=0.5, zorder=5))
+    ax.add_patch(Rectangle((x_fl1 - 2 * d2, r_r - d2 / 2), x_ring1 - x_fl1 + 2 * d2, d2, fc="#c62828", ec="k", lw=0.5, zorder=5))
     ax.add_patch(Rectangle((x_ring1, r_r - hd2 / 2), hk2, hd2, fc="#c62828", ec="k", lw=0.5, zorder=5))
     ax.axhline(0, color=MUTE, lw=0.8, ls="-.")
     xs = [x for p in red + prt for x, _ in p["pts"]]
-    ax.set_xlim(min(xs) - 12, max(xs) + 12)
+    ax.set_xlim(min(xs) - 34, max(xs) + 12)
     ax.set_ylim(-4, r_fl + 26)
     ax.set_aspect("equal")
     ax.tick_params(labelsize=7, colors=MUTE)
@@ -76,8 +78,9 @@ def draw(ax, path):
     title = (f"{j['name']}: {os.path.basename(j['use']['reducer']).split('.')[0]} + "
              f"{os.path.basename(j['use']['motor']).split('.')[0]}")
     ax.set_title(title, fontsize=10.5, color=INK, loc="left")
-    txt = (f"фланец D{2 * r_fl:.0f}, звено: расточка D{2 * r_link:.0f}H7 по корпусу редуктора, {n} × {size} DIN912 на "
-           f"D{2 * r_s:.0f}\nфланец → редуктор: {nr} × {sr} DIN912 на D{2 * r_r:.0f} со стороны выхода")
+    txt = (f"фланец D{2 * r_fl:.0f}; звено — цилиндр D{2 * r_lo:.0f} со стороны двигателя, центрирование поясок "
+           f"D{2 * r_link:.0f}h7;\nзвено → фланец: {n} × {size} DIN912 на D{2 * r_s:.0f} со стороны редуктора; "
+           f"фланец → редуктор: {nr} × {sr} на D{2 * r_r:.0f} со стороны выхода")
     ax.text(0.01, -0.13, txt, transform=ax.transAxes, fontsize=8.3, color=INK, va="top")
 
 
@@ -99,8 +102,8 @@ def main():
         draw(ax, p)
     for ax in axs.ravel()[n:]:
         ax.axis("off")
-    leg = [Patch(fc="#2a5d9f", label="фланец + корпус двигателя"), Patch(fc="#f2e6c9", hatch="///", label="звено (предыдущее)"),
-           Patch(fc="#e0a100", label="винты звено → фланец"), Patch(fc="#c62828", label="винты фланец → редуктор"),
+    leg = [Patch(fc="#2a5d9f", label="фланец + корпус двигателя"), Patch(fc="#f2e6c9", hatch="///", label="звено: цилиндр (предыдущее)"),
+           Patch(fc="#e0a100", label="винты фланец → звено"), Patch(fc="#c62828", label="винты фланец → редуктор"),
            Patch(fc="#b8c2cc", label="корпус редуктора"), Patch(fc="#e3b36e", label="входной вал"),
            Patch(fc="#8fbf7f", label="выходной вал"), Patch(fc="#d98c5f", label="стакан ротора"),
            Patch(fc="#555b63", label="двигатель (контур)")]

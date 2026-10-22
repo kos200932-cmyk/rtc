@@ -16,7 +16,7 @@ LINK   SHM-KB32-02_ClampFlange  DMRD-KB32-02_InputShaft
 LINK   RI70-KV95-rotor         DMRD-KB32-02_InputShaft   # the rotor turns with the input shaft
 DESIGN rotor_cup         # tube D36 through the input shaft (both D36 bores), rotor seat D38, disc D45 on the shaft face
 DESIGN clamp_flange      # on the output end of the input shaft: 6xM3 D40.5 + 3xM3 into the cup tube
-DESIGN flange_housing    # link flange D170 (12xM5 D152) + motor housing: on the reducer pilot D122H7, stator seat D76
+DESIGN flange_housing    # link flange D172 (12xM5 D154, spigot D122h7 on the motor side) + motor housing on the reducer pilot
 DESIGN rear_cover        # closes the motor housing, carries the angle sensor
 #    port A                 port B
 JOIN reducer.input          rotor_cup.shaft
@@ -26,6 +26,6 @@ JOIN motor.stator           flange_housing.stator
 JOIN reducer.base           flange_housing.reducer
 JOIN flange_housing.rear    rear_cover.housing
 # Interfaces of the joint for the arm layout
-OUT  base     flange_housing.base   # link: bore D142H7 on the reducer ring, face x=24, 12xM5 DIN912 on D152 from the motor side
+OUT  base     flange_housing.base   # link cylinder D172 on the motor side: spigot D122h7, face x=9, 12xM5 DIN912 on D154 from the reducer side
 OUT  output   reducer.output        # output shaft -> next link: 112h7 + 16xM5 PCD100 (recess >= D50 x 4 for the clamp flange)
 END

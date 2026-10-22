@@ -1,9 +1,9 @@
 # SHM-KB50: parts of the joint DMRD-KB50 + RI115-PH-KV40, flange layout (user, 2026-10-22).
 # Coordinates: the frame of DMRD-KB50 (x=0 - motor end of the input shaft), mm. Level 2: interfaces only.
-# Link interface: the previous link on the REDUCER side of the flange, bore D214H7 on the reducer ring D214h7;
-# 12 x M8 DIN912 on D228 through the flange (heads on the motor side) into M8 of the link (D228: thread 2.5 mm from
-# the link bore). Flange D250. Flange -> reducer: 12 x M8 DIN912 from the output side through the reducer 12 x D9 (D200)
-# into M8 of the flange. The 6-M5 of the reducer ring (D200) are not used.
+# Link interface (2026-10-22): the previous link is a cylinder D252 (= the joint flange) on the MOTOR side of
+# the flange, centred by the spigot D185h7 of the flange in its bore D185H7; 12 x M8 DIN912 on D230 from the
+# reducer side through the flange into M8 of the link (D230: the heads clear the reducer ring D214 by 1.5 mm).
+# Flange -> reducer: 12 x M8 DIN912 from the output side through the reducer holes (D200) into M8 of the flange.
 #
 # Rotor: RI115 bore D74 is smaller than the shaft D75h7 and the 6-M5 of the shaft end (D65, DIN912 heads r 28.25..36.75)
 # would lie under the rotor seat (r 37) - so the cup is a tube through the hollow input shaft (as SHM-60 / SHM-150),
@@ -44,36 +44,36 @@ PORT  shaft  118   -1  role=on_shaft_end bolts=6xM5 pcd=65 ang=90
 END
 
 # ---- flange + motor housing (one part, fixed) -------------------------------------------------------
-# Bore D185H7 on the reducer pilot (x 35..49; relief from x 33), face x=49 on the reducer ring D214 (input side).
-# Flange D250 x 27..49 (22 thick: M8 thread 16 + drill, 6 mm web in front of the pilot relief).
-# The reducer boss D125 is larger than the stator seat D115: the housing steps out behind the stator -
-# D127 over the boss (x 6..33, outer D134), D113.5 shoulder at x 0..6 (stop of the lamination), stator seat D115
-# (wall 4, outer D123), rear flange D132 x -38..-31 for the stator clamp (4 x M4 on D127.5).
-# Reducer oil plugs (x=35, D140) are under the flange.
+# Bore D185H7 on the reducer pilot (relief from x 33), face x=49 on the reducer ring D214 (input side). Flange D252 x 27..49.
+# Link (NEW, 2026-10-22): on the MOTOR side of the flange - the link cylinder D252 (= flange) centred by the spigot
+# D185h7 x 4 (x 23..27) in its bore D185H7, face x=27; 12 x M8 DIN912 on D230 from the REDUCER side (heads x 49.., r 108.5.. - outside the reducer ring r 107) through the flange into M8 of the link.
+# Flange -> reducer: 12 x M8 DIN912 from the output side through the reducer holes (D200) into M8 of the flange. D127 over the reducer boss D125. Reducer oil plugs (x=35, D140) under the flange.
 PART SHM-KB50-03_FlangeHousing
 MOTION fixed
-P -38   57.5     # stator seat D115 (lamination x -27..0)
-P -38   66       # rear flange D132
-P -31   66
-P -31   61.5     # outer D123 - wall 4 over the stator
-P 4     61.5
-P 4     67       # outer D134 over the reducer boss
-P 27    67
-P 27    125      # link flange D250
-P 49    125
-P 49    92.5     # bore D185H7 on the reducer pilot
-P 33    92.5
-P 33    63.5     # D127 over the reducer boss D125
-P 6     63.5
-P 6     56.75    # shoulder D113.5 - stop of the lamination at x=0
-P 0     56.75
-P 0     57.5
+P -38    57.5
+P -38    66
+P -31    66
+P -31    61.5
+P 4      61.5
+P 4      67
+P 23     67
+P 23     92.5
+P 27     92.5
+P 27     126
+P 49     126
+P 49     92.5
+P 33     92.5
+P 33     63.5
+P 6      63.5
+P 6      56.75
+P 0      56.75
+P 0      57.5
 #       x     dir  n   pcd    size depth  angle  drillDepth
 THREAD  49    -1   12  200    M8   16     90     19     # 12-M8: reducer -> flange (DIN912 from the output side)
 THREAD  -38   1    4   127.5  M4   6      45     7      # 4-M4 for the stator clamp
 #      x     dir  n   pcd    d    depth  angle
-HOLES  49    -1   12  228    9    0      105      # 12 x D9: flange -> link (DIN912 M8, heads at x=27)
-PORT  base     49    1   role=fixed fit=214 fit_on=reducer_ring link_bore=214H7 fit_x=49..99 holes=12xD9 pcd=228 ang=105 screws=12xM8_DIN912 thread_in=link mate=prev_link
+HOLES  49    -1   12  230    9    0      105      # 12 x D9: link screws M8 DIN912 (heads on the reducer side)
+PORT  base     27    -1  role=fixed fit=185h7 fit_x=23..27 link_bore=185H7 link_od=252 holes=12xD9 pcd=230 ang=105 screws=12xM8_DIN912 from=reducer_side thread_in=link mate=prev_link
 PORT  reducer  49    1   role=on_reducer fit=185H7 fit_x=35..49 bolts=12xM8 pcd=200 ang=90
 PORT  stator   0     -1  role=stator_seat fit=115 fit_x=-27..0 shoulder_x=0
 PORT  rear     -38   -1  role=rear_end bore=115 bolts=4xM4 pcd=127.5 ang=45
