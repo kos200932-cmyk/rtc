@@ -3,7 +3,7 @@
 #   disc on the J3 output (centring skirt on D172h7, 16 x M8 on D154, heads on top outside the tube),
 #   tube D120 x 5 on the J3 axis (cable inside),
 #   J4 seat cylinder D220 / D168H7 on the J4 axis: face x=-20 against the J4 flange (spigot D168h7), 18 x M6 on D202
-#   (screws DIN912 from the J4 reducer side); flat 90 below the axis with the hole D120H7 for the tube,
+#   (screws DIN912 from the J4 reducer side); no flat: the tube goes through a hole D120H7 in the wall to the bore,
 #   undercut D196 between the M6 land and the tube zone; open end x=173 (cover later).
 # J3 output face z=384; J4 axis z=1467, J4 flange back face x=-20, J4 rear (with the cover) x=65; cable bend R40 ends there.
 ASSEMBLY LINK-3
@@ -18,14 +18,16 @@ PRISM Z 384 399 CIRC 105 0 200
 PRISM Z 372 384 RING 105 0 200 172   # centring skirt, recess 172H7 x 12 (7 mm above the reducer ring)
 CUT Z 383 400 CIRC 105 0 80   # cable + the clamp flange of the J3 input shaft (D75, turns with the input)
 CUT Z 383 400 PATTERN 105 0 16 154 9 270   # 16 x D9 -> 16-M8 of the output, DIN912 heads on top (r 70..84, outside the tube)
-# ---- tube D120 x 5 on the J3 axis, into the hole of the J4 seat flat (up to the bore D168)
-PRISM Z 399 1382 RING 105 0 120 110
+# ---- tube D120 x 5 on the J3 axis, through the wall of the J4 seat cylinder (flush with the bore D168)
 # ---- J4 seat cylinder on the J4 axis (world X), centre y=0 z=1467
 PRISM X -20 173 RING 0 1467 220 168
 TAP X -20 -6 0 1467 18 202 M6 190   # 18-M6 x 12 (drill 14): J4 flange, screws from the reducer side
 CUT X -4 15 RING 0 1467 222 196   # undercut D196 between the M6 land (16) and the tube zone
-CUT X 15 174 RECT -120 120 1340 1377   # flat 90 below the J4 axis over the tube zone
-CUT Z 1370 1384 CIRC 105 0 120   # hole D120H7 in the flat for the tube (into the bore)
+# tube D120x5 into the J4 cylinder (no flat, 2026-10-22): hole D120H7 through the wall, the tube goes in through
+# the whole wall and is trimmed flush with the bore D168 (saddle end), welded round on the outside of the cylinder
+CUT Z 1340 1420 CIRC 105 0 120   # hole D120H7 through the bottom wall of the cylinder
+PRISM Z 399 1420 RING 105 0 120 110   # tube D120 x 5 up into the cylinder
+CUT X -21 174 CIRC 0 1467 168   # tube end flush with the bore D168 (J4 housing stays clear)
 PORTP j3_out Z 384 -1 role=on_j3_output fit=172H7 bolts=16xM8_D154
 PORTP j4_base X -20 -1 role=j4_seat fit=168H7 bolts=18xM6_D202 screws_from=reducer_side
 END
