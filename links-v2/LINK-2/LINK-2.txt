@@ -1,39 +1,37 @@
-# LINK-2 (v2, tube): J2 (SHM-1000 output) -> J3 (SHM-KB50) - concept of the user 2026-10-22 (LINK-2-concept-tube.png)
+# LINK-2 (v2, bracket): J2 (SHM-1000 output) -> J3 (SHM-KB50) - two plates at 90 deg, welded (user 2026-10-22)
 # Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
-#   hollow tube D200 x 6 on the J2 axis (x 12..236), blind end 12 mm on the J2 output (holes as before),
-#   centring skirt on the J2 output D160h7 (recess 160H7 x 13), open end x=236 (cover later);
-#   round plate D256 x 16 (z 235..251) welded on the top of the tube (2 mm into the tube wall = the weld line),
-#   bore D185H7 for the J3 spigot + 12 x M8 on D230 (screws DIN912 from the J3 reducer side), edge x=-14 (3 mm to
-#   the J2 housing, x<=-17); window D140 in the tube wall under the plate for the J3 motor housing (D134).
-# J3 is lowered along its axis by 42 mm (plate on the tube): J3 flange back face z=251 (was 293), J3 output z=342
-#   (was 384), J3 rear z=158 - inside the tube (its cover must stay within ~D150; the envelope assumes D176).
-# J2 axis z=137, output face x=0; J3 axis x=105.
+#   vertical plate 14 (x 0..14) on the J2 output: disc D190 + web 200 wide up to the top z=293; J2 holes as before;
+#   centring skirt on the J2 output D160h7 (recess 160H7 x 13);
+#   horizontal plate 16 (z 277..293) on top of the vertical one (welded along x 0..14): 200 wide at the joint,
+#   round D256 around the J3 axis; bore D185H7 for the J3 spigot + 12 x M8 on D230 (DIN912 from the J3 reducer side).
+#   The J3 motor and rear cover hang below the plate (rear z=200), open from below and from +X - the cable loop
+#   enters the J3 rear from below. No gussets yet.
+# J2 axis z=137, output face x=0; J3 axis x=105, J3 flange back face z=293 (layout v2 as before the tube variant).
 ASSEMBLY LINK-2
-DATA material=AlMg welded concept=3
+DATA material=AlMg welded concept=4
 
 PART LINK-2-01_Weldment
 MOTION fixed
 DENSITY 2700
 COLOR 175 195 170
-# ---- blind end on the J2 output + centring skirt
-PRISM X 0 12 CIRC 0 137 200
+# ---- vertical plate on the J2 output + centring skirt
+PRISM X 0 14 CIRC 0 137 190
+PRISM X 0 14 RECT -100 100 137 293   # web up to the top of the horizontal plate
 PRISM X -13 0 RING 0 137 186 160   # centring skirt, recess 160H7 x 13
-# ---- hollow tube on the J2 axis
-PRISM X 12 236 RING 0 137 200 188
-# ---- plate for J3 (welded on the tube top, 2 mm into the wall)
-PRISM Z 235 251 CIRC 105 0 256   # round plate D256 around the J3 flange D252 (clears link 1 while J2 turns)
-CUT Z 234 252 RECT -40 -14 -140 140   # edge x=-14 (J2 housing side)
-TAP Z 237 251 105 0 12 230 M8 255   # 12-M8 x 14 from the face (drill ~16): J3 flange, screws from the reducer side
-CUT Z 195 252 CIRC 105 0 140   # window D140 through the tube wall for the J3 motor housing
-CUT Z 234 252 CIRC 105 0 185   # bore D185H7 for the J3 spigot (D185h7, 4 long)
-# ---- J2 output holes in the blind end
-CUT X -14 13 CIRC 0 137 60   # centre (J2 output end plate)
-CUT X -14 13 PATTERN 0 137 3 142 9 21   # M8 at 69 deg (joint)
-CUT X -14 13 PATTERN 0 137 3 142 9 9   # M8 at 81 deg (joint)
-CUT X -14 13 PATTERN 0 137 3 142 9 351   # M8 at 99 deg (joint)
-CUT X -14 13 PATTERN 0 137 3 110 11 10   # M10 at 80 deg (joint)
-CUT X -14 13 PATTERN 0 137 3 110 11 350   # M10 at 100 deg (joint)
-CUT X -14 13 PATTERN 0 137 3 142 12 339   # access to the 3 Rc1/8 plugs
+# ---- horizontal plate for J3
+PRISM Z 277 293 RECT 0 105 -100 100   # over the vertical plate to the J3 axis
+PRISM Z 277 293 CIRC 105 0 256   # round around the J3 flange D252
+CUT Z 276 294 RECT -40 0 -140 140   # nothing of the round plate on the J2 side (x<0)
+TAP Z 279 293 105 0 12 230 M8 255   # 12-M8 x 14 from the face (drill ~16): J3 flange
+CUT Z 276 294 CIRC 105 0 185   # bore D185H7 for the J3 spigot (D185h7, 4 long; also trims the top of the vertical plate)
+# ---- J2 output holes in the vertical plate
+CUT X -14 15 CIRC 0 137 60   # centre (J2 output end plate)
+CUT X -14 15 PATTERN 0 137 3 142 9 21   # M8 at 69 deg (joint)
+CUT X -14 15 PATTERN 0 137 3 142 9 9   # M8 at 81 deg (joint)
+CUT X -14 15 PATTERN 0 137 3 142 9 351   # M8 at 99 deg (joint)
+CUT X -14 15 PATTERN 0 137 3 110 11 10   # M10 at 80 deg (joint)
+CUT X -14 15 PATTERN 0 137 3 110 11 350   # M10 at 100 deg (joint)
+CUT X -14 15 PATTERN 0 137 3 142 12 339   # access to the 3 Rc1/8 plugs
 PORTP j2_out X 0 -1 role=on_j2_output fit=160H7 bolts=9xM8_D142+6xM10_D110
-PORTP j3_base Z 251 1 role=j3_seat fit=185H7 bolts=12xM8_D230 screws_from=reducer_side
+PORTP j3_base Z 293 1 role=j3_seat fit=185H7 bolts=12xM8_D230 screws_from=reducer_side
 END
