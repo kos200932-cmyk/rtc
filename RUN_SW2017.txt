@@ -51,7 +51,8 @@
     joints\SHM-KB45\SHM-KB45.txt     J4: KB45 + RI115
     joints\SHM-KB50\SHM-KB50.txt     J3: KB50 + RI115
   Отдельные компоненты:
-    components\DMRD\KB25|KB32|KB45|KB50|80E\DMRD-*.txt редукторы (3 детали + сборка); KB50 - новый (J3 новой компоновки)
+    components\DMRD\KB14|KB17|KB20|KB25|KB32|KB45|KB50|80E\DMRD-*.txt редукторы (3 детали + сборка);
+                                        KB14, KB17, KB20 - новые (чертежи 2026), кандидаты на J7 / J6
     components\ISKRA\RU178G\RU178G-UU-CC0-P5.txt      ОПУ (2 кольца + сборка)
     Двигатели T-motor - STEP + карточки (components\T-motor\...), импортируются при сборке шарнира.
 

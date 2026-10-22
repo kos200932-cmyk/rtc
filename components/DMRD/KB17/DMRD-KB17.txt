@@ -1,0 +1,84 @@
+# DMRD-KB17 - reducer model from the catalog drawing (DMRD-KB17.jpg, 2026)
+# Three parts: housing (fixed), input shaft and output shaft (both rotate about X).
+# X - along the axis from the left (input) end of the input shaft, mm; Y - radius, mm.
+# The drawing uses FIRST-ANGLE projection (GB): the view placed on the LEFT of
+# section B-B shows the RIGHT (output) end (x = 56.5) and vice versa - same layout as DMRD-KB25.
+# Axial stack: 6.5 (shaft end) + 15 (D52 10 + D67h7 5) + 25 (D80h7) + 10 (D62h7 output) = 56.5
+# Output shaft D62h7: 10 outside the housing + 8 inside (pocket D62 x 8 in the housing, ASSUMED like KB25).
+# Inside depth from section A-A: smooth D3.5 x 9 at the face + thread M3 x 6 + drill tail 2 + point ~1 = 18
+# -> output shaft 18 long (x 38.5..56.5).
+# Input shaft D25h7: bore D19H7 x 20 at the right end, 10 deep at the left end (diameter ASSUMED = D19),
+# middle - ASSUMED D20 (not dimensioned). 3-M3 RADIAL through holes at 2.5 from the left end, every 120 deg
+# (clamping of the motor adapter) - NOT modelled (radial holes are not supported for revolved parts).
+# Output face (left view): 20 places at 18 deg on D54 - 16-M3 + 4 larger holes on the axes (reducer's own
+# fasteners, not modelled, as for KB25).
+# Oil plugs 2-PT1/16 on D53 (on the edge of the D52 boss, as drawn).
+# PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
+
+COMPONENT DMRD-KB17
+TYPE reducer
+# Catalog (drawing table 2026; thrust "2600 KN" on the drawing = 2600 N): rpm, N*m, N, N*m, arcmin, kg.
+DATA n_in_rated=2000 T_rated=23 T_startstop=35 T_peak=42 F_axial=2600 M_tilt=48 lost_motion_arcmin=1.5
+DATA ratios=21/29/49/59/79/99/119/159 ratio=? mass=1.1
+
+ASSEMBLY DMRD-KB17
+
+# ---- 01: housing (simplified, one solid; fixed) ------------------------------
+PART DMRD-KB17-01_Housing
+MOTION fixed
+MASS 0.66   # kg: 60% of 1.1 kg (split as for KB25)
+P 6.5   12.5
+P 6.5   26       # D52, 10 long
+P 16.5  26
+P 16.5  33.5     # D67h7 pilot, 5 long
+P 21.5  33.5
+P 21.5  40       # D80h7 (outer), 25 long
+P 46.5  40
+P 46.5  31       # pocket D62 x 8 deep for the output shaft
+P 38.5  31
+P 38.5  12.5
+#      x     dir  n   pcd    d    depth  angle
+HOLES  21.5  1    12  74     3.5  0      90       # 12-D3.5 through the D80 ring, every 30 deg from the vertical
+#       x     dir  n   pcd    size depth  angle
+THREAD  21.5  1    4   74     M3   6      45       # 4-M3 on the same circle, 15 deg off the D3.5 holes (depth ASSUMED 6)
+HOLES  16.5  1    2   53     6.3  9      90       # 2-PT1/16 oil plugs, LEFT side (D67 step face), PCD 53
+PORT  base  21.5  -1   role=fixed fit=67h7 fit_x=16.5..21.5 holes=12xD3.5 pcd=74 ang=90 mate=link   # housing -> link: pilot D67h7 + holes on D74
+END
+
+# ---- 02: input shaft D25h7 (rotates) -----------------------------------------
+PART DMRD-KB17-02_InputShaft
+MOTION rotate
+MASS 0.11   # kg: 10% of 1.1 kg
+P 0     9.5      # bore D19 at the left end, 10 deep (diameter ASSUMED)
+P 0     12.5     # outer D25h7
+P 56.5  12.5
+P 56.5  9.5      # bore D19H7 at the right end, 20 deep
+P 36.5  9.5
+P 36.5  10       # middle bore - ASSUMED D20 (not dimensioned)
+P 10    10
+P 10    9.5
+PORT  input 0     -1   role=input fit=25h7 fit_x=0..6.5 radial=3xM3_through x=2.5 mate=rotor_cup   # motor rotor via an adapter (3 radial M3)
+END
+
+# ---- 03: output shaft D62h7 (rotates; 10 outside + 8 inside the housing) ------
+PART DMRD-KB17-03_OutputShaft
+MOTION rotate
+MASS 0.33   # kg: 30% of 1.1 kg
+P 38.5  12.5
+P 38.5  31
+P 56.5  31
+P 56.5  12.5
+# Blind holes on the output face (section A-A): smooth D3.5 x 9 at the face, then M3 thread 6.
+# 16 holes at 18 / 36 / 54 / 72 deg off the axes (four patterns of 4, step 90; the axes themselves are free).
+#      x     dir  n   pcd    d    depth  angle
+HOLES  56.5  -1   4   54     3.5  9      18
+HOLES  56.5  -1   4   54     3.5  9      36
+HOLES  56.5  -1   4   54     3.5  9      54
+HOLES  56.5  -1   4   54     3.5  9      72
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  47.5  -1   4   54     M3   6      18     8      # 16-M3 thread 6 below the smooth part, drill 8
+THREAD  47.5  -1   4   54     M3   6      36     8
+THREAD  47.5  -1   4   54     M3   6      54     8
+THREAD  47.5  -1   4   54     M3   6      72     8
+PORT  output 56.5 1    role=output fit=62h7 fit_x=46.5..56.5 bolts=16xM3 pcd=54 ang=18 ang2=36,54,72 pattern=4x4_step90 mate=next_link
+END
