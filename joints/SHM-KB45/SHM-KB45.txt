@@ -1,0 +1,28 @@
+# Joint SHM-KB45: reducer DMRD-KB45 + frameless motor RI115-PH-KV40, flange layout (J4 of the new line-up,
+# robot/RTC-7-layout-v2.md). The motor housing and the link flange are one part on the input side of the reducer;
+# the previous link sits on the reducer side of the flange, centred on the outer ring D190 of the reducer.
+JOINT SHM-KB45
+DATA T_nom=375          # N*m, DMRD-KB45 rated
+#     role     component      file
+USE   reducer  DMRD-KB45      components/DMRD/KB45/DMRD-KB45.txt
+USE   motor    RI115-PH-KV40  components/T-motor/RI115-PH-KV40/RI115-PH-KV40.txt
+LATER sensor_out     # angle sensor of the output shaft
+LATER sensor_motor   # rotor angle sensor for motor control
+# Build in SolidWorks: run BuildFromSpec on this file. Joint frame = DMRD-KB45 frame (x=0 - motor end of the input shaft).
+PARTS  SHM-KB45-parts.txt
+PLACE  motor  0  flip            # motor card x=0 (rotor / lamination face) at x=0, Hall side outward (-X)
+LINK   SHM-KB45-01_RotorCup     DMRD-KB45-02_InputShaft
+LINK   RI115-PH-KV40-rotor     DMRD-KB45-02_InputShaft   # the rotor turns with the input shaft
+DESIGN rotor_cup         # on reducer.input (65h7, 6xM4 PCD57.5 on the shaft end), carries the rotor ID74
+DESIGN flange_housing    # link flange D220 (18xM6 D202) + motor housing: on the reducer pilot D168H7, stator seat D115
+DESIGN rear_cover        # closes the motor housing, carries the angle sensor
+#    port A                 port B
+JOIN reducer.input          rotor_cup.shaft
+JOIN motor.rotor            rotor_cup.rotor
+JOIN motor.stator           flange_housing.stator
+JOIN reducer.base           flange_housing.reducer
+JOIN flange_housing.rear    rear_cover.housing
+# Interfaces of the joint for the arm layout
+OUT  base     flange_housing.base   # link: bore D190H7 on the reducer ring, face x=40, 18xM6 DIN912 on D202 from the motor side
+OUT  output   reducer.output        # output shaft -> next link: 158h7 + 16xM8 PCD140
+END

@@ -1,0 +1,31 @@
+# Joint SHM-KB32: reducer DMRD-KB32 + frameless motor RI70-KV95, flange layout (J5 of the new line-up,
+# robot/RTC-7-layout-v2.md). Motor housing + link flange - one part on the input side of the reducer; the previous
+# link on the reducer side of the flange, centred on the outer ring D142h7 of the reducer.
+JOINT SHM-KB32
+DATA T_nom=103          # N*m, DMRD-KB32 rated
+#     role     component      file
+USE   reducer  DMRD-KB32      components/DMRD/KB32/DMRD-KB32.txt
+USE   motor    RI70-KV95      components/T-motor/RI70-KV95/RI70-KV95.txt
+LATER sensor_out     # angle sensor of the output shaft
+LATER sensor_motor   # rotor angle sensor for motor control
+# Build in SolidWorks: run BuildFromSpec on this file. Joint frame = DMRD-KB32 frame (x=0 - motor end of the input shaft).
+PARTS  SHM-KB32-parts.txt
+PLACE  motor  -2  flip           # motor card x=0 (rotor / lamination face) at x=-2 (on the cup disc), Hall side outward (-X)
+LINK   SHM-KB32-01_RotorCup     DMRD-KB32-02_InputShaft
+LINK   SHM-KB32-02_ClampFlange  DMRD-KB32-02_InputShaft
+LINK   RI70-KV95-rotor         DMRD-KB32-02_InputShaft   # the rotor turns with the input shaft
+DESIGN rotor_cup         # tube D36 through the input shaft (both D36 bores), rotor seat D38, disc D45 on the shaft face
+DESIGN clamp_flange      # on the output end of the input shaft: 6xM3 D40.5 + 3xM3 into the cup tube
+DESIGN flange_housing    # link flange D170 (12xM5 D152) + motor housing: on the reducer pilot D122H7, stator seat D76
+DESIGN rear_cover        # closes the motor housing, carries the angle sensor
+#    port A                 port B
+JOIN reducer.input          rotor_cup.shaft
+JOIN reducer.input          clamp_flange.shaft
+JOIN motor.rotor            rotor_cup.rotor
+JOIN motor.stator           flange_housing.stator
+JOIN reducer.base           flange_housing.reducer
+JOIN flange_housing.rear    rear_cover.housing
+# Interfaces of the joint for the arm layout
+OUT  base     flange_housing.base   # link: bore D142H7 on the reducer ring, face x=24, 12xM5 DIN912 on D152 from the motor side
+OUT  output   reducer.output        # output shaft -> next link: 112h7 + 16xM5 PCD100 (recess >= D50 x 4 for the clamp flange)
+END

@@ -35,6 +35,11 @@
     joints\SHM-150\SHM-150.txt
     joints\SHM-500\SHM-500.txt
     joints\SHM-1000\SHM-1000.txt
+  Шарниры новой компоновки (фланец крепления к звену + корпус двигателя, звено со стороны редуктора):
+    joints\SHM-KB25\SHM-KB25.txt     J1, J6: KB25 + RI70
+    joints\SHM-KB32\SHM-KB32.txt     J5: KB32 + RI70
+    joints\SHM-KB45\SHM-KB45.txt     J4: KB45 + RI115
+    joints\SHM-KB50\SHM-KB50.txt     J3: KB50 + RI115
   Отдельные компоненты:
     components\DMRD\KB25|KB32|KB45|KB50|80E\DMRD-*.txt редукторы (3 детали + сборка); KB50 - новый (J3 новой компоновки)
     components\ISKRA\RU178G\RU178G-UU-CC0-P5.txt      ОПУ (2 кольца + сборка)
