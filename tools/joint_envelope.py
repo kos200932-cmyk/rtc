@@ -100,12 +100,17 @@ def envelope(joint_path, rear_allowance=25.0):   # 25 mm on the rear cover for t
     x_out = out_shaft[1]
     x_rear = min(s[0] for s in fixed + rot) - rear_allowance
     r_fixed = max(s[2] for s in fixed)
+    # rear cover: closes the motor housing -> its OD = the largest fixed radius within the last 10 mm of the
+    # fixed parts (was 0.7 R - too big for the flange layout, where R is the link flange); never above 0.7 R
+    x_fix0 = min(x for nm, kind, pts in profiles if kind == "fixed" for x, _ in pts)
+    r_back = [y for nm, kind, pts in profiles if kind == "fixed" for x, y in pts if x <= x_fix0 + 10.0]
+    r_cover = min(r_fixed * 0.7, max(r_back)) if r_back else r_fixed * 0.7
     return {"name": j["name"], "fixed": fixed, "rot": rot, "x_out": x_out, "x_rear": x_rear,
             "x_base": ports.get(base_ref, ports.get("base")), "R": r_fixed, "R_out": out_shaft[2],
             "L": x_out - x_rear, "rear_allowance": rear_allowance, "bore": 2 * bore,
             "profiles": profiles + [("cover", "cover", [(x_rear, 0.0), (x_rear + rear_allowance, 0.0),
-                                                       (x_rear + rear_allowance, r_fixed * 0.7),
-                                                       (x_rear, r_fixed * 0.7)])]}
+                                                       (x_rear + rear_allowance, r_cover),
+                                                       (x_rear, r_cover)])], "R_cover": r_cover}
 
 
 def all_joints():

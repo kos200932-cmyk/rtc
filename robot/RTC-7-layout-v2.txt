@@ -14,7 +14,7 @@ UNITS mm deg
 # AXIS name joint  point on the axis (x y z)  direction  motor/output side  face= output face centre
 AXIS  J1  SHM-KB25m 0 0 0              0 0 1   motor=-Z output=+Z face=0.0,0.0,-35.0           # base turn: ШМ-150 under the ОПУ RU178G, output -> inner ring (link 1)
 AXIS  J2  SHM-1000  0 0 137            1 0 0   motor=-X output=+X face=0.0,0.0,137.0           # shoulder; output face on the J1 axis
-AXIS  J3  SHM-KB50  105 0 137          0 0 1   motor=-Z output=+Z face=105.0,0.0,384.0         # upper-arm roll; cables enter here from the loop below (bottom 200 above the ОПУ)
+AXIS  J3  SHM-KB50  105 0 137          0 0 1   motor=-Z output=+Z face=105.0,0.0,342.0         # upper-arm roll; lowered 42 (2026-10-22): flange on the plate of the tube link 2, rear z=158 inside the tube
 AXIS  J4  SHM-KB45  105 0 1467         1 0 0   motor=+X output=-X face=-100.0,0.0,1467.0       # elbow; 1330 above J2; rear end Rb34 from the J3 axis
 AXIS  J5  SHM-KB32  -174 0 1467        0 0 1   motor=-Z output=+Z face=-174.0,0.0,1644.0       # forearm roll; rear end Rb45 above J4
 AXIS  J6  SHM-KB25  -174 0 2617        1 0 0   motor=-X output=+X face=-5.0,0.0,2617.0        # wrist; 1150 above J4; rear end Rb56 from the J5 axis

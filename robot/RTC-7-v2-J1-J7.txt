@@ -10,7 +10,7 @@ COMP J1     joints/SHM-KB25/SHM-KB25.txt             0 0 -94.5            0 0 1 
 COMP L1     links-v2/LINK-1/LINK-1.txt                    0 0 0     1 0 0   0 0 1   rigid
 COMP J2     joints/SHM-1000/SHM-1000.txt             -149 0 137           1 0 0     0 0 1
 COMP L2     links-v2/LINK-2/LINK-2.txt                    0 0 0     1 0 0   0 0 1   rigid
-COMP J3     joints/SHM-KB50/SHM-KB50.txt             105 0 266            0 0 1     1 0 0
+COMP J3     joints/SHM-KB50/SHM-KB50.txt             105 0 224            0 0 1     1 0 0
 COMP L3     links-v2/LINK-3/LINK-3.txt                    0 0 0     1 0 0   0 0 1   rigid
 COMP J4     joints/SHM-KB45/SHM-KB45.txt             -1 0 1467            -1 0 0    0 0 1
 COMP L4     links-v2/LINK-4/LINK-4.txt                    0 0 0     1 0 0   0 0 1   rigid
