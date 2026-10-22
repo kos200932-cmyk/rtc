@@ -194,6 +194,8 @@ def prism(axis, a0, a1, shape, a):
     res = None
     for f in faces(axis, a0, shape, a):
         s = BRepPrimAPI_MakePrism(f, gp_Vec(*v)).Shape()
+        if volume(s)[0] < 0:                 # clockwise profile in (u, v) -> inside-out solid: flip it
+            s.Reverse()
         res = s if res is None else BRepAlgoAPI_Fuse(res, s).Shape()
     return res
 

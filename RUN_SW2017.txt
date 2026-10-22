@@ -35,6 +35,8 @@
     joints\SHM-150\SHM-150.txt
     joints\SHM-500\SHM-500.txt
     joints\SHM-1000\SHM-1000.txt
+  Звенья новой компоновки (robot\RTC-7-layout-v2.txt, цилиндры посадки вместо сварных коробок):
+    links-v2\LINK-3\LINK-3.txt       звено 3: диск на выходе J3 + труба D120 + цилиндр посадки J4 (лыска, рёбра)
   Шарниры новой компоновки (фланец крепления к звену + корпус двигателя, звено со стороны редуктора):
     joints\SHM-KB25\SHM-KB25.txt     J1, J6: KB25 + RI70
     joints\SHM-KB32\SHM-KB32.txt     J5: KB32 + RI70
