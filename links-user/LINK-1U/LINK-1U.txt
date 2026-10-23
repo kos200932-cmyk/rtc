@@ -1,13 +1,17 @@
-# LINK-1U: link J1 -> J2 of the user (STEP J1-J2.STEP, SolidWorks 2017, 2026-10-23) recognised into BuildFromSpec ops.
-# Coordinates: THE FRAME OF THE USER'S STEP (not the robot world frame), mm:
-#   Z - along the J1 axis, the base plate z 0..18 (z=0 - its face toward J2), J2 hangs at -Z;
-#   J1 axis x=0 y=0; J2 axis along X at y=0 z=-85; J2 plate (wall) x -135..-117.
-# Recognised: base plate 18 (y +-112, x -135..110, corners 45 x 40 at +X) with the bore D190; wall 18 for J2
-#   (rectangle y +-112 down to z -128.08 + round D240 round the J2 axis, bottom z=-205) with the bore D115
-#   (1 x 45 chamfers both sides - not in the ops), 12 x D6.8 on D139 (M8 tap drills, every 30 deg from +Y),
-#   5 x D14 on D217 (30 / 150 / 210 / 270 / 330 deg); 2 gussets 10 (y +-112..122) from the wall to x=70,
-#   bottom edge from (-105, -127) to (70, -12), triangular windows R10 30 mm inside the edges;
-#   10 x 45 chamfers on the outer top edges (x=-135 and the gusset tops).
+# LINK-1U: link J1 -> J2 of the user (STEP J1-J2.STEP + assembly IGES J1-J2.IGS, SolidWorks 2017, 2026-10-23),
+# recognised into BuildFromSpec ops. Coordinates: THE FRAME OF THE USER'S PART, mm. In the user's assembly:
+#   part X = the J1 axis (upward), the J1 axis runs through y=0 z=-85 of the part;
+#   part Z = the J2 axis (horizontal), through x=0 y=0 - the two axes cross at (0, 0, -85);
+#   assembly (ОПУ base plane x=0): part x = assembly x - 171.
+# Recognised:
+#   BASE on J1 (part X plane, x -135..-117, 18 thick): rectangle y +-112 + round R120 round the J1 axis, bore D115,
+#     12 x D6.8 on D139 (M8 tap drills, every 30 deg from +Y), 5 x D14 on D217 (30 / 150 / 210 / 270 / 330 deg) -
+#     lies on the user's adapter "Юла" on the J1 output / ОПУ inner ring (assembly x 36..54);
+#   J2 PLATE (part Z plane, z 0..18, 18 thick): y +-112, from the base to x=110, corners 45 x 40, bore D190 on the
+#     output-side pilot D190h7 of the DMRD-80E, its flange D222 on the face z=0 (85 from the J1 axis); the 80E body
+#     and the AK80-9 motor are on the J1-axis side, the output shaft (face 139 from the J1 axis) outside;
+#     the 16 holes D9 of the 80E flange are NOT in the STEP part;
+#   2 gussets 10 (y +-112..122) between the base and the plate, windows R10; 10 x 45 chamfers on the outer edges.
 # Angles of the hole patterns in the X plane: from +Y toward +Z.
 ASSEMBLY LINK-1U
 DATA material=? welded concept=user source=J1-J2_user.STEP
