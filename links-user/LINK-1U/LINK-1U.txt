@@ -1,0 +1,48 @@
+# LINK-1U: link J1 -> J2 of the user (STEP J1-J2.STEP, SolidWorks 2017, 2026-10-23) recognised into BuildFromSpec ops.
+# Coordinates: THE FRAME OF THE USER'S STEP (not the robot world frame), mm:
+#   Z - along the J1 axis, the base plate z 0..18 (z=0 - its face toward J2), J2 hangs at -Z;
+#   J1 axis x=0 y=0; J2 axis along X at y=0 z=-85; J2 plate (wall) x -135..-117.
+# Recognised: base plate 18 (y +-112, x -135..110, corners 45 x 40 at +X) with the bore D190; wall 18 for J2
+#   (rectangle y +-112 down to z -128.08 + round D240 round the J2 axis, bottom z=-205) with the bore D115
+#   (1 x 45 chamfers both sides - not in the ops), 12 x D6.8 on D139 (M8 tap drills, every 30 deg from +Y),
+#   5 x D14 on D217 (30 / 150 / 210 / 270 / 330 deg); 2 gussets 10 (y +-112..122) from the wall to x=70,
+#   bottom edge from (-105, -127) to (70, -12), triangular windows R10 30 mm inside the edges;
+#   10 x 45 chamfers on the outer top edges (x=-135 and the gusset tops).
+# Angles of the hole patterns in the X plane: from +Y toward +Z.
+ASSEMBLY LINK-1U
+DATA material=? welded concept=user source=J1-J2_user.STEP
+
+PART LINK-1U-01_Weldment
+MOTION fixed
+DENSITY 7850
+COLOR 200 150 145
+# ---- base plate (J1 output side)
+PRISM Z 0 18 POLY -135 -112 70 -112 110 -72 110 72 70 112 -135 112
+# ---- wall for J2
+PRISM X -135 -117 RECT -112 112 -128.08 18
+PRISM X -135 -117 CIRC 0 -85 240
+CUT X -136 -116 RECT 112 125 -210 20   # the round part stays within y +-112
+CUT X -136 -116 RECT -125 -112 -210 20
+CUT X -136 -116 RECT -125 125 18 40   # nothing of the round part above the plate
+# ---- gussets
+PRISM Y 112 122 POLY -135 -127 -105 -127 70 -12 70 18 -135 18
+PRISM Y -122 -112 POLY -135 -127 -105 -127 70 -12 70 18 -135 18
+# ---- chamfers 10 x 45 on the outer top edges
+CUT Y -123 123 POLY -136 7 -124 19 -136 19   # edge x=-135, z=18
+CUT X -136 71 POLY 123 7 123 19 111 19   # gusset +Y, edge y=122, z=18
+CUT X -136 71 POLY -123 7 -111 19 -123 19   # gusset -Y
+# ---- windows in the gussets (30 from the bottom edge, 12 from the wall and the plate, corners R10)
+CUT Y 111 123 RPOLY -105 -12 10 15.383 -12 10 -105 -91.098 10
+CUT Y -123 -111 RPOLY -105 -12 10 15.383 -12 10 -105 -91.098 10
+# ---- holes
+CUT Z -1 19 CIRC 0 0 190   # bore D190 (J1)
+CUT X -136 -116 CIRC 0 -85 115   # bore D115 (J2)
+TAP X -135 -117 0 -85 12 139 M8 0   # 12 x D6.8 (M8 tap drills) on D139, from +Y every 30 deg
+CUT X -136 -116 CIRC 93.963 -30.75 14   # 5 x D14 on D217
+CUT X -136 -116 CIRC -93.963 -30.75 14
+CUT X -136 -116 CIRC 93.963 -139.25 14
+CUT X -136 -116 CIRC -93.963 -139.25 14
+CUT X -136 -116 CIRC 0 -193.5 14
+PORTP j1_out Z 18 1 role=on_j1_output bore=190
+PORTP j2_base X -117 1 role=j2_seat bore=115 holes=12xM8_D139+5xD14_D217
+END
