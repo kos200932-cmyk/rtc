@@ -10,11 +10,11 @@
 #   J2 PLATE (part Z plane, z 0..18, 18 thick): y +-112, from the base to x=110, corners 45 x 40, bore D190 on the
 #     output-side pilot D190h7 of the DMRD-80E, its flange D222 on the face z=0 (85 from the J1 axis); the 80E body
 #     and the AK80-9 motor are on the J1-axis side, the output shaft (face 139 from the J1 axis) outside;
-#     the 16 holes D9 of the 80E flange are NOT in the STEP part;
+#     16 x D9 on D206 for the 80E flange added (2026-10-23, user);
 #   2 gussets 10 (y +-112..122) between the base and the plate, windows R10; 10 x 45 chamfers on the outer edges.
 # Angles of the hole patterns in the X plane: from +Y toward +Z.
 ASSEMBLY LINK-1U
-DATA material=? welded concept=user source=J1-J2_user.STEP
+DATA material=30KhGSA welded concept=user source=J1-J2_user.STEP
 
 PART LINK-1U-01_Weldment
 MOTION fixed
@@ -39,14 +39,15 @@ CUT X -136 71 POLY -123 7 -111 19 -123 19   # gusset -Y
 CUT Y 111 123 RPOLY -105 -12 10 15.383 -12 10 -105 -91.098 10
 CUT Y -123 -111 RPOLY -105 -12 10 15.383 -12 10 -105 -91.098 10
 # ---- holes
-CUT Z -1 19 CIRC 0 0 190   # bore D190 (J1)
-CUT X -136 -116 CIRC 0 -85 115   # bore D115 (J2)
+CUT Z -1 19 CIRC 0 0 190   # bore D190 on the 80E output-side pilot D190h7 (J2)
+CUT Z -1 19 PATTERN 0 0 16 206 9 0   # 16 x D9 on D206 for the 80E flange D222 (in the user's assembly the 80E is turned 0.69 deg)
+CUT X -136 -116 CIRC 0 -85 115   # bore D115 on the tube D114 of the adapter 'Юла' (J1)
 TAP X -135 -117 0 -85 12 139 M8 0   # 12 x D6.8 (M8 tap drills) on D139, from +Y every 30 deg
 CUT X -136 -116 CIRC 93.963 -30.75 14   # 5 x D14 on D217
 CUT X -136 -116 CIRC -93.963 -30.75 14
 CUT X -136 -116 CIRC 93.963 -139.25 14
 CUT X -136 -116 CIRC -93.963 -139.25 14
 CUT X -136 -116 CIRC 0 -193.5 14
-PORTP j1_out Z 18 1 role=on_j1_output bore=190
-PORTP j2_base X -117 1 role=j2_seat bore=115 holes=12xM8_D139+5xD14_D217
+PORTP j1_out X -135 -1 role=on_j1_adapter bore=115 holes=12xM8_D139+5xD14_D217
+PORTP j2_base Z 0 -1 role=j2_80E_flange bore=190 holes=16xD9_D206
 END
