@@ -58,10 +58,13 @@ def main():
     ap.add_argument("--name", default="link")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
-    parts = lb.parse(a.spec)[0]
-    shape = lb.build_part(parts[0])
     step = os.path.join(a.out, a.name + ".step")
-    lb.write_step(shape, step)
+    if a.spec.lower().endswith((".step", ".stp")):          # a ready solid (e.g. a part of the user's assembly)
+        import shutil
+        shutil.copyfile(a.spec, step)
+    else:
+        shape = lb.build_part(lb.parse(a.spec)[0][0])
+        lb.write_step(shape, step)
     tags, X, E, surf, nid = fc.mesh(step, a.h)
     fixed = [int(t) for t in tags[sel(X, a.fixed)]]
     load = [int(t) for t in tags[sel(X, a.load)]]
