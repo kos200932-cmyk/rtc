@@ -27,3 +27,20 @@ Box: J2 free -92..+92 (walls within |y|<=110 for x<44, bottom z>=200 - J2 turns 
 | steel thin + horizontal shelf 265 (LINK-2-ribs-steel-thin-short) | 8.4 | 0.48 / 1.15, 78 | 3.6, 282 | 1.8 | 0.31 |
 
 Loads with the steel bracket (13.8 kg): J2 1212 N·m (87 % of 1400), J2 motor 110 % (was 109 %), J3 unchanged, moving mass 120.3 kg.
+
+## ACCEPTED (2026-10-23): LINK-2 steel 30ХГСА, shelves 14 / 16, ribs 10 x 48 full height (links-v2/LINK-2/LINK-2.txt)
+
+Mass 13.71 kg. E 210 GPa, tet10 h 4.5 mm (188 k nodes). Worst loads at the J3 seat from robot/RTC-7-loads-v2 (J3 tilting
+989 N·m in any direction, J3 torque 347 N·m, axial 691 N, radial 704 N), applied together:
+
+| Case | rot x / y / z, mrad | u, mm | vM max (peak) | vM away from the boundary | n = 835 / vM peak |
+|---|---|---|---|---|---|
+| W1: My 989 + Mz 347 + Fz -691 + Fx 704 | 0.16 / 2.02 / 0.73 | 0.30 | 349 (rib top end x=62, z=358) | 283 | 2.4 |
+| W2: Mx 989 + Mz 347 + Fz -691 + Fy 704 | 0.43 / 0.15 / 1.36 | 0.18 | 174 (rib foot x=15, z=150) | 174 | 4.8 |
+| W3: Mx 700 + My 700 + Mz 347 + Fz -691 + Fx, Fy 500 | 0.35 / 1.47 / 1.18 | 0.28 | 298 | 276 | 2.8 |
+| unit: Mx / My / Mz 1 kN·m, Fz -1 kN | 0.24 // 1.79 // 2.09 // 0.21 | | 66 / 243 / 259 / 28 | | |
+
+30ХГСА quenched + tempered: σт >= 835 MPa, σв >= 1080 MPa (ГОСТ 4543). The peaks sit at the sharp ends of the ribs
+(rib top under the shelf, rib foot on the web) - model singularities of square ends; in the part: sniped / radiused
+rib ends R10..15, full-penetration welds there. Weld zone, conservatively 0.7 σт = 585 MPa: n = 1.7 (W1 peak).
+TCP (lever ~2.4 m): W1 ~ 2.0 mrad -> ~5 mm; real My is lower (J2 tilting <= ~480 N·m) -> ~2.5 mm.

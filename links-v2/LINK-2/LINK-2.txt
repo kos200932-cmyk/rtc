@@ -1,10 +1,10 @@
-# LINK-2 (v2, bracket): J2 (SHM-1000 output) -> J3 (SHM-KB50) - angle bracket with equal shelves + 2 gussets (user 2026-10-22)
-# Coordinates: robot world frame at the zero pose, mm. Welded aluminium:
+# LINK-2 (v2, bracket): J2 (SHM-1000 output) -> J3 (SHM-KB50) - angle bracket with equal shelves + 2 full-height ribs, STEEL 30KhGSA (user 2026-10-23)
+# Coordinates: robot world frame at the zero pose, mm. welded steel 30ХГСА (ГОСТ 4543), quenched + tempered after welding; seat machined after heat treatment:
 #   vertical shelf 14 (x 0..14) on the J2 output: disc D190 + web 200 wide, z 42..375 (height 333); J2 holes as before;
 #   centring skirt on the J2 output D160h7 (recess 160H7 x 13);
 #   horizontal shelf 16 (z 359..375) on top of it: 200 wide, x 0..333 (length 333 = the vertical shelf), far corners R30,
 #   + round D256 round the J3 axis (x=135) for the J3 screw circle;
-#   2 gussets 10 thick (y +-90..100, flush with the web edges), legs 65 in the inner corner.
+#   2 ribs 10 x 48 (y +-90..100, flush with the web edges, x 14..62) from z=150 up to the shelf - full height of the web.
 # J3 axis 135 from the J2 output face (J3..J7 shifted +30 in X, user 2026-10-22): the J3 ring D214 and its housing
 #   flange D230 clear the vertical shelf (x >= 20) - no notch.
 # J3 mounting: the shelf lies on the OUTPUT-side face of the J3 reducer ring (z=365), centred on its outer ring
@@ -12,11 +12,11 @@
 #   (screws M8 x 70 DIN912 from the motor side, heads in the J3 housing flange, through the reducer holes D9).
 # J2 axis z=137, output face x=0; J3 axis x=135, J3 ring output face z=365, J3 output z=384.
 ASSEMBLY LINK-2
-DATA material=AlMg welded concept=7
+DATA material=30KhGSA welded concept=8
 
 PART LINK-2-01_Weldment
 MOTION fixed
-DENSITY 2700
+DENSITY 7850
 COLOR 175 195 170
 # ---- vertical shelf on the J2 output + centring skirt
 PRISM X 0 14 CIRC 0 137 190
@@ -25,9 +25,9 @@ PRISM X -13 0 RING 0 137 186 160   # centring skirt, recess 160H7 x 13
 # ---- horizontal shelf for J3
 PRISM Z 359 375 RPOLY 0 -100 0 333 -100 30 333 100 30 0 100 0   # 333 x 200
 PRISM Z 359 375 CIRC 135 0 256   # round D256 round the J3 axis (screw circle D200 of the J3 ring)
-# ---- gussets in the inner corner (legs 65)
-PRISM Y 90 100 POLY 14 359 79 359 14 294
-PRISM Y -100 -90 POLY 14 359 79 359 14 294
+# ---- ribs, full height of the web (stiffness of the web out of its plane; FEA fea/link2/summary.md)
+PRISM Y 90 100 POLY 14 359 62 359 62 150 14 150
+PRISM Y -100 -90 POLY 14 359 62 359 62 150 14 150
 # ---- J3 seat
 CUT Z 358 365 CIRC 135 0 214   # counterbore D214H7 x 6 on the reducer outer ring D214h7 (its face z=365 on the bottom)
 CUT Z 364 376 CIRC 135 0 176   # bore D176 round the output shaft D172
