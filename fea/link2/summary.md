@@ -16,3 +16,14 @@ bottom z=365, r 88..107 + its wall D214) about the point (135, 0, 365). AlMg, E 
 TCP lever ~2.4 m: 1 mrad -> ~2.4 mm. J3 tilting moment at its face up to 989 N·m (any direction), J2 torque up to 1200 N·m.
 Variant specs: fea/link2/LINK-2-ribs|box|rim|strong.txt.
 Box: J2 free -92..+92 (walls within |y|<=110 for x<44, bottom z>=200 - J2 turns over link 1).
+
+## Steel bracket (E 210 GPa, 7850 kg/m3), ribs 10 x 50 full height (y +-95), 2026-10-23
+
+| Variant | mass, kg | Mx 1 kN·m: rot x / z, vM far | My 1 kN·m: rot y, vM far | Mz 347 N·m: rot z | Fz -700 N: rot y |
+|---|---|---|---|---|---|
+| AlMg ribs (LINK-2-ribs) | 4.76 | 0.69 / 1.32, 61 | 4.6, 171 | 2.0 | 0.37 |
+| **steel, same geometry** (LINK-2-ribs-steel) | 13.8 | 0.24 / 0.45, 59 | **1.66, 180** | 0.70 | 0.135 |
+| steel thin: shelves 8 / 14, ribs 6 (LINK-2-ribs-steel-thin) | 9.9 | 0.48 / 1.15, 76 | 3.6, 280 | 1.8 | 0.31 |
+| steel thin + horizontal shelf 265 (LINK-2-ribs-steel-thin-short) | 8.4 | 0.48 / 1.15, 78 | 3.6, 282 | 1.8 | 0.31 |
+
+Loads with the steel bracket (13.8 kg): J2 1212 N·m (87 % of 1400), J2 motor 110 % (was 109 %), J3 unchanged, moving mass 120.3 kg.
