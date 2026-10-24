@@ -62,7 +62,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v27 (2026-10-19)"
+Private Const MACRO_VERSION As String = "v28 (2026-10-24)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -2537,6 +2537,20 @@ Private Function ImportStepPart(ByVal stepPath As String, ByVal axis As String, 
     If Not FileExists(stepPath) Then
         gLog = gLog & "STEP not found: " & stepPath & vbCrLf
         Exit Function
+    End If
+    ' v28: a part imported before is reused (it may be open in SOLIDWORKS - then it cannot be saved
+    ' again); delete the .SLDPRT or replace the STEP by a newer one to import it again
+    If FileExists(outPath) Then
+        Dim reuse As Boolean
+        On Error Resume Next
+        reuse = (FileDateTime(outPath) >= FileDateTime(stepPath))
+        If Not (swApp.GetOpenDocumentByName(outPath) Is Nothing) Then reuse = True
+        On Error GoTo 0
+        If reuse Then
+            gSummary = gSummary & Mid(outPath, InStrRev(outPath, "") + 1) & ": imported before, reused" & vbCrLf
+            ImportStepPart = outPath
+            Exit Function
+        End If
     End If
     Dim m As SldWorks.ModelDoc2, impData As Object, errs As Long, oldTpl As String
     If gTplPart = "" Then gTplPart = FindTemplate("prtdot", swDefaultTemplatePart, "part")
