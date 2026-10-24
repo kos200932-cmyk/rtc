@@ -1,0 +1,31 @@
+# Joint SHM-KB50F (= SHM-KB50 with the flange D236 for the box link LINK-2B, 2026-10-24): reducer DMRD-KB50 + frameless motor RI115-PH-KV40, flange layout (J3 of the new line-up,
+# robot/RTC-7-layout-v2.md). Motor housing + link flange - one part on the input side of the reducer; the previous
+# link on the reducer side of the flange, centred on the outer ring D214h7 of the reducer.
+JOINT SHM-KB50F
+DATA T_nom=415          # N*m, DMRD-KB50 rated
+#     role     component      file
+USE   reducer  DMRD-KB50      components/DMRD/KB50/DMRD-KB50.txt
+USE   motor    RI115-PH-KV40  components/T-motor/RI115-PH-KV40/RI115-PH-KV40.txt
+LATER sensor_out     # angle sensor of the output shaft
+LATER sensor_motor   # rotor angle sensor for motor control
+# Build in SolidWorks: run BuildFromSpec on this file. Joint frame = DMRD-KB50 frame (x=0 - motor end of the input shaft).
+PARTS  SHM-KB50F-parts.txt
+PLACE  motor  0  flip            # motor card x=0 (rotor / lamination face) at x=0, Hall side outward (-X)
+LINK   SHM-KB50F-01_RotorCup     DMRD-KB50-02_InputShaft
+LINK   SHM-KB50F-02_ClampFlange  DMRD-KB50-02_InputShaft
+LINK   RI115-PH-KV40-rotor     DMRD-KB50-02_InputShaft   # the rotor turns with the input shaft
+DESIGN rotor_cup         # tube D55 through the input shaft (both D55 bores), rotor seat D74
+DESIGN clamp_flange      # on the output end of the input shaft: 6xM5 D65 + 3xM4 into the cup tube
+DESIGN flange_housing    # motor housing + flange D230 on the reducer (6xM5); 12xM8 from the motor side into the link
+DESIGN rear_cover        # closes the motor housing, carries the angle sensor
+#    port A                 port B
+JOIN reducer.input          rotor_cup.shaft
+JOIN reducer.input          clamp_flange.shaft
+JOIN motor.rotor            rotor_cup.rotor
+JOIN motor.stator           flange_housing.stator
+JOIN reducer.base           flange_housing.reducer
+JOIN flange_housing.rear    rear_cover.housing
+# Interfaces of the joint for the arm layout
+OUT  base     flange_housing.base   # link plate on the flange D236 (x=49), ring D214 through the plate bore 214H7, 24xM5 D224 from below
+OUT  output   reducer.output        # output shaft -> next link: 172h7 + 16xM8 PCD154 (recess >= D78 x 9 for the clamp flange)
+END

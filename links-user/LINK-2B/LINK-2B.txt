@@ -2,9 +2,9 @@
 #   Z = J2 axis (outward, from the J1 axis), J2 output face (end plate D159 of the 80E) at z=14 in the pocket D160 x 14;
 #   Y = J3 axis = J1 axis direction at the zero pose (up), X = Y x Z. J3 axis: x=0, z=150 (intersects the J2 axis).
 # Plate 24 (z 0..24) on the J2 output, two side walls 10 (x +-120..130) up to z 224, J3 shelf 18 (y 1..19) to z 274.
-# J3 seat changed to the KB50 interface (as LINK-2): the ring output face of the reducer in a counterbore D214H7 x 6 from
-#   below, bore D176 for the output shaft, 12 x M8 on D200 from the motor side (DIN912 M8x70) -> J3 is 50 lower than
-#   in the user's model (there the D214 bore is through and nothing can hold the screws). Holes on D110 D11 (M10).
+# J3 seat (user 2026-10-24): the KB50 ring D214h7 goes through the plate bore D214H7 (as drawn by the user); J3 is held
+#   by the flange D236 of its motor housing (joint SHM-KB50F) under the plate: 24 x M5 on D224 from below, tapped through
+#   the plate (2.5 mm between the thread and the bore). Holes on D110 D11 (M10).
 ASSEMBLY LINK-2B
 DATA material=30KhGSA welded source=J2-J3.STEP
 
@@ -23,9 +23,8 @@ CUT Z 13 25 PATTERN 0 0 3 142 9 99
 CUT Z 13 25 PATTERN 0 0 3 142 9 111
 CUT Z 13 25 PATTERN 0 0 3 110 11 80
 CUT Z 13 25 PATTERN 0 0 3 110 11 100
-CUT Y 0 7 CIRC 0 150 214
-CUT Y 6 20 CIRC 0 150 176
-TAP Y 7 19 0 150 12 200 M8 0
-PORTP j3_base Y 7 -1 role=on_j3_reducer_ring_output_face fit=214H7 cbore=6 bolts=12xM8_D200_from_motor_side
+CUT Y 0 20 CIRC 0 150 214
+TAP Y 1 19 0 150 24 224 M5 7.5
+PORTP j3_base Y 1 -1 role=on_j3_flange_D236 fit=214H7_ring_through bolts=24xM5_D224_from_below
 PORTP j2_out Z 14 -1 role=on_j2_output fit=160H7x14 bolts=9xM8_D142+6xM10_D110
 END
