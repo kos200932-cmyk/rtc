@@ -50,3 +50,11 @@ The J2 reducer torsion dominates; LINK-2B is ~15 % of the budget -> it can be li
 | C | 6 / 12 / 14 / 60x74 | 6.96 | 1.42 | 288 / 176 | 2.9 | 2.0 |
 Hot spot in every variant: inner corner wall / plate at the lower wall end (x=±120, y=-35, z=25) - add fillet R8..10
 (or a fillet weld leg 6) there, as on LINK-1U. Shelf >= 14: the M5 thread needs >= 10 (2 d) of engagement.
+
+## ACCEPTED (2026-10-24): variant B + fillets R8 wall / plate (links-user/LINK-2B/LINK-2B.txt), 7.29 kg
+| Case | rot x / y / z, mrad | vM max / far, MPa | n = 835 / max | weld 585 / far |
+|---|---|---|---|---|
+| W1 Mx+ | 1.13 / 0.01 / 0.00 | 257 / 102 (fillet end x=120, y=-34) | 3.2 | 5.7 |
+| W3 Mx Mz | 0.82 / 0.01 / 0.06 | 199 / 86 | 4.2 | 6.8 |
+The fillets take the hot spot down from 146 to 102 MPa; the max sits on the boundary (tie) sets. TCP ~2.6 mm.
+No interference in the J1..J4 assembly (tools/gen_user_l123.py).
