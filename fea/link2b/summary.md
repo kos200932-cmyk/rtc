@@ -60,3 +60,14 @@ The fillets take the hot spot down from 146 to 102 MPa; the max sits on the boun
 No interference in the J1..J4 assembly (tools/gen_user_l123.py).
 
 Edit 2026-10-24: side walls end at z 200 (start of the shelf chamfer, they stuck out 24 mm past it) -> 7.17 kg.
+
+## Shelf 14 -> 8 (user 2026-10-24): links-user/LINK-2B/LINK-2B.txt, 6.25 kg, h 4 mm
+| Case | rot x / y / z, mrad | vM max / far, MPa | n = 835 / max | weld 585 / far |
+|---|---|---|---|---|
+| W1 Mx+ | 1.92 / 0.01 / 0.00 | 274 / 173 (fillet end x=120, y=-35, z=29) | 3.0 | 3.4 |
+| W1 Mx- | 1.64 / 0.01 / 0.00 | 242 / 147 | 3.4 | 4.0 |
+| W2 Mz | 0.14 / 0.01 / 0.21 | 132 / 74 | 6.3 | 7.9 |
+| W3 Mx Mz | 1.40 / 0.01 / 0.15 | 241 / 136 | 3.5 | 4.3 |
+Stiffness: 1.92 mrad at the J3 face (~4.4 mm at the TCP) - now about as compliant as the J2 reducer in torsion (1.8 mrad).
+M5 thread in 8 mm of 30ХГСА (1.6 d): stripping ~47 kN >> screw load 6.3 kN - OK; screws DIN912 M5x25 (flange 16 + 8
+thread, 1 mm out above the shelf top - free space outside the ring D214).

@@ -2,7 +2,7 @@
 #   Z = J2 axis (outward, from the J1 axis), J2 output face (end plate D159 of the 80E) at z=14 in the pocket D160 x 14;
 #   Y = J3 axis = J1 axis direction at the zero pose (up), X = Y x Z. J3 axis: x=0, z=150 (intersects the J2 axis).
 # User's box (recognised, 9.84 kg) lightened - variant B accepted 2026-10-24 (fea/link2b/summary.md): plate 24 within D190
-#   on the J2 output, 14 outside (z 10..24), side walls 6 (x +-120..126) up to z 200 (= start of the shelf chamfer), J3 shelf 14 (y 1..15) to z 274,
+#   on the J2 output, 14 outside (z 10..24), side walls 6 (x +-120..126) up to z 200 (= start of the shelf chamfer), J3 shelf 8 (y 1..9, user 2026-10-24) to z 274,
 #   shelf corners 60 x 74; fillets R8 wall / plate inside the box (hot spot).
 # J3 seat (user 2026-10-24): the KB50 ring D214h7 goes through the plate bore D214H7 (as drawn by the user); J3 is held
 #   by the flange D236 of its motor housing (joint SHM-KB50F) under the plate: 24 x M5 on D224 from below, tapped through
@@ -15,9 +15,9 @@ MOTION fixed
 DENSITY 7850
 COLOR 200 190 175
 PRISM Z 0 24 POLY -20 100 20 100 120 50 120 -36 40 -86 -40 -86 -120 -36 -120 50
-PRISM X 120 126 POLY -36 0 50 0 50 116.2 15 200 1 200 -36 116.2
-PRISM X -126 -120 POLY -36 0 50 0 50 116.2 15 200 1 200 -36 116.2
-PRISM Y 1 15 POLY -120 24 120 24 120 200 60 274 -60 274 -120 200
+PRISM X 120 126 POLY -36 0 50 0 50 116.2 9 200 1 200 -36 116.2
+PRISM X -126 -120 POLY -36 0 50 0 50 116.2 9 200 1 200 -36 116.2
+PRISM Y 1 9 POLY -120 24 120 24 120 200 60 274 -60 274 -120 200
 CUT Z -1 14 CIRC 0 0 160
 CUT Z -1 10 RING 0 0 420 190
 CUT Z 13 25 PATTERN 0 0 3 142 9 69
@@ -26,17 +26,17 @@ CUT Z 13 25 PATTERN 0 0 3 142 9 99
 CUT Z 13 25 PATTERN 0 0 3 142 9 111
 CUT Z 13 25 PATTERN 0 0 3 110 11 80
 CUT Z 13 25 PATTERN 0 0 3 110 11 100
-CUT Y 0 16 CIRC 0 150 214
-TAP Y 1 15 0 150 24 224 M5 7.5
+CUT Y 0 10 CIRC 0 150 214
+TAP Y 1 9 0 150 24 224 M5 7.5
 # fillets R8: inner corner wall (x=+-120) / plate (z=24), below and above the shelf (filler square minus circle)
 PRISM Y -36 1 RECT 112 120 24 32
 CUT Y -36 1 CIRC 112 32 16
 PRISM Y -36 1 RECT -120 -112 24 32
 CUT Y -36 1 CIRC -112 32 16
-PRISM Y 15 50 RECT 112 120 24 32
-CUT Y 15 50 CIRC 112 32 16
-PRISM Y 15 50 RECT -120 -112 24 32
-CUT Y 15 50 CIRC -112 32 16
+PRISM Y 9 50 RECT 112 120 24 32
+CUT Y 9 50 CIRC 112 32 16
+PRISM Y 9 50 RECT -120 -112 24 32
+CUT Y 9 50 CIRC -112 32 16
 PORTP j3_base Y 1 -1 role=on_j3_flange_D236 fit=214H7_ring_through bolts=24xM5_D224_from_below
 PORTP j2_out Z 14 -1 role=on_j2_output fit=160H7x14 bolts=9xM8_D142+6xM10_D110
 END
