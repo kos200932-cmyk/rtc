@@ -17,8 +17,8 @@
 
 Если макрос остановится - пришлите текст итогового окна (Finished with warnings / Stopped).
 
-ПОЛНАЯ СБОРКА J1..J7 (та же конфигурация + звенья 4-6 и J5..J7 из руки v2): links-user\RTC-7-user-J1-J7.txt
-  Шаги 1-2 те же (звено 2, шарнир SHM-KB50F), затем закрыть все документы и запустить links-user\RTC-7-user-J1-J7.txt.
+ПОЛНАЯ СБОРКА J1..J7 (та же конфигурация + звенья 4-6 и J5, J6 из руки v2; J7 = SHM-KB17: KB17 + RI70): links-user\RTC-7-user-J1-J7.txt
+  Шаги 1-2 те же (звено 2, шарнир SHM-KB50F), J7 SHM-KB17 построится сам; затем закрыть все документы и запустить links-user\RTC-7-user-J1-J7.txt.
   Ожидаемый итог: arm assembly RTC-7-user-J1-J7: 16 component(s), lock mates: 14 of 14.
   Если звенья 3-6 / шарниры J4-J7 уже строились для руки v2 (robot\RTC-7-v2-J1-J7.txt) - они берутся готовыми.
   Предпросмотр: links-user\RTC-7-user-J1-J7-preview.png (пересечений в нулевой позе нет).

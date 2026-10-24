@@ -1,0 +1,71 @@
+# SHM-KB17: parts of the joint DMRD-KB17 + RI70-KV95 (J7, 2026-10-24). Coordinates: the frame of DMRD-KB17 (x=0 - motor
+# end of the input shaft), mm. Level 2: interfaces only (no chamfers / fillets / standard fasteners).
+# KB17 input shaft D25h7 has no axial threads at its ends: the motor adapter is clamped by 3 x M3 RADIAL through the
+# shaft at x=2.5 (catalog) - here the rotor cup sits ON the shaft end D25 (x 0..6) and the 3 radial M3 go through the
+# cup wall into the shaft (radial holes are not modelled in revolved parts - drill / tap them on assembly).
+#   torque: shaft -> 3 x M3 radial (+ fit 25H7/k6, Loctite) -> cup -> rotor (RI70 peak 2.68 N*m; J7 needs ~0.1 N*m)
+#   rotor x -15..0 on the seat D38 (Hall side outward), stator lamination x -13..0, windings to x 3.5 (3 mm clear of the
+#   reducer boss D52 at x 6.5), leads to x -44.5. Cables (J7 D16): through the cup bore D19 = the shaft bore D19.
+# Housing: link interface as SHM-60 (pilot D94h7 x 1.5..6.5, flange D110 x 6.5..21.5, 12 x D4.5 on D102, M4 from the
+# reducer side - heads r 47.5..54.5, clear of the KB17 ring r 40); on the reducer: bore D67H7 on its pilot x 16.5..21.5,
+# face x=21.5 on the ring; reducer -> housing: 12 x M3 DIN912 from the output side through the reducer D3.5 (D74) into M3
+# of the housing (thread 4.5; heads on the reducer output-side face at r 34.25..39.75, outside the output shaft D62).
+# Stator seat D76, shoulder D74 at x=0, clamp ring from behind (part 03) as SHM-60.
+
+PART SHM-KB17-01_RotorCup
+MOTION rotate
+P -18   9.5
+P -18   21       # collar D42 - axial stop of the rotor
+P -15   21
+P -15   19       # rotor seat D38 x 15
+P 6     19       # sleeve D38 over the shaft end, ends 0.5 before the reducer boss (x 6.5)
+P 6     12.5     # bore D25H7 on the shaft end, x 0..6
+P 0     12.5
+P 0     9.5      # shoulder on the shaft face; bore D19 = cable passage (as the shaft)
+PORT  shaft  0     1   role=on_shaft_end fit=25H7 fit_x=0..6 radial=3xM3_at_x2.5 shoulder_x=0
+PORT  rotor  -15   -1  role=rotor_seat fit=38 fit_x=-15..0 collar=42
+END
+
+PART SHM-KB17-02_MotorHousing
+MOTION fixed
+P -22   38       # stator seat D76 (lamination x -13..0)
+P -22   46       # rear flange D92 for the clamp-ring screws
+P -15   46
+P -15   41.5     # outer D83 - wall 3.5 over the stator
+P 1.5   41.5
+P 1.5   47       # pilot D94h7 for the link (as SHM-60)
+P 6.5   47
+P 6.5   55       # flange D110, link face at x=6.5
+P 21.5  55
+P 21.5  33.5     # face on the reducer ring D80 (input side), bore D67H7 on the reducer pilot x 16.5..21.5
+P 16.5  33.5
+P 16.5  37       # D74 over the windings / reducer boss D52
+P 0     37       # shoulder D74 at x=0 - stop of the lamination
+P 0     38
+#      x     dir  n   pcd    d    depth  angle
+HOLES  21.5  -1   12  102    4.5  0      90       # 12 x D4.5: link screws M4 DIN912 from the reducer side (= SHM-60)
+#       x     dir  n   pcd    size depth  angle  drillDepth
+THREAD  21.5  -1   12  74     M3   4.5    90     5      # 12-M3: reducer -> housing (DIN912 from the output side)
+THREAD  -22   1    4   85     M3   6      45     7      # 4-M3 for the clamp ring
+PORT  base     6.5   -1  role=fixed fit=94h7 fit_x=1.5..6.5 holes=12xD4.5 pcd=102 ang=90 mate=prev_link
+PORT  reducer  21.5  1   role=on_reducer fit=67H7 fit_x=16.5..21.5 bolts=12xM3 pcd=74 ang=90
+PORT  stator   0     -1  role=stator_seat fit=76 fit_x=-13..0 shoulder_x=0
+PORT  rear     -22   -1  role=rear_end bore=76 bolts=4xM3 pcd=85 ang=45
+END
+
+# ---- stator clamp ring (fixed) - as SHM-60 --------------------------------------------------------------
+PART SHM-KB17-03_StatorClamp
+MOTION fixed
+P -25   35.5
+P -25   46       # flange D92
+P -22   46
+P -22   38       # in the housing bore D76
+P -13   38
+P -13   37       # lip on the lamination face (r 37..38)
+P -19.5 37
+P -19.5 35.5     # bore D71 for the leads
+#      x     dir  n   pcd    d    depth  angle
+HOLES  -25   1    4   85     3.4  3      45       # 4 x D3.4 -> 4-M3 of the housing
+PORT  housing  -22   1   role=on_housing bolts=4xM3 pcd=85 ang=45
+PORT  stator   -13   1   role=stator_stop
+END

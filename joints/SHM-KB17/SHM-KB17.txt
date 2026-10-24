@@ -1,0 +1,28 @@
+# Joint SHM-KB17: reducer DMRD-KB17 + frameless motor RI70-KV95 - J7 (flange roll) of the user's arm (2026-10-24,
+# user: "J7 - KB17 instead of KB14"). Replaces SHM-60 (KB25) in J7 with the SAME link interface: motor housing flange
+# D110 with pilot D94h7 (face x=6.5), 12 x D4.5 on D102 -> LINK-6 (seat D94H7 + 12 x M4 on D102) unchanged.
+# The joint is 3 mm shorter than SHM-60 at the output (KB17 output face x=56.5, SHM-60 x=59.5).
+JOINT SHM-KB17
+DATA T_nom=23           # N*m, DMRD-KB17 rated (J7 needs ~0 N*m / tilting 10 of 48 / axial 127 of 2600 N)
+#     role     component      file
+USE   reducer  DMRD-KB17      components/DMRD/KB17/DMRD-KB17.txt
+USE   motor    RI70-KV95      components/T-motor/RI70-KV95/RI70-KV95.txt
+LATER sensor_out     # angle sensor of the output shaft
+LATER sensor_motor   # rotor angle sensor for motor control
+# Build in SolidWorks: run BuildFromSpec on this file. Joint frame = DMRD-KB17 frame (x=0 - motor end of the input shaft).
+PARTS  SHM-KB17-parts.txt
+PLACE  motor  0  flip            # motor card x=0 (rotor / lamination face) at x=0, Hall side outward (-X)
+LINK   SHM-KB17-01_RotorCup     DMRD-KB17-02_InputShaft
+LINK   RI70-KV95-rotor         DMRD-KB17-02_InputShaft   # the rotor turns with the input shaft
+DESIGN rotor_cup         # cup on the shaft end D25h7 (x 0..6), 3 x M3 radial through the cup into the shaft, rotor seat D38
+DESIGN motor_housing     # stator seat D76 + flange D110 / pilot D94h7 (= SHM-60 link interface) on the reducer pilot D67
+DESIGN stator_clamp      # as SHM-60
+#    port A                 port B
+JOIN reducer.input          rotor_cup.shaft
+JOIN motor.rotor            rotor_cup.rotor
+JOIN motor.stator           motor_housing.stator
+JOIN reducer.base           motor_housing.reducer
+# Interfaces of the joint for the arm layout
+OUT  base     motor_housing.base   # = SHM-60: pilot D94h7 x 1.5..6.5, face x=6.5, 12 x D4.5 on D102 (M4 DIN912 from the reducer side into the link)
+OUT  output   reducer.output       # output shaft -> flange: 62h7 + 16xM3 PCD54 (4 x 4 at 18/36/54/72 deg)
+END

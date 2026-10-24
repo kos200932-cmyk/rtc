@@ -49,7 +49,7 @@
     links-user\RTC-7-user-J1-J2.txt   СБОРКА J1-J2 пользователя: пластина + ОПУ + J1 (KB25) + Юла + звено 1 V2 + J2 (80E), положения из IGES
     links-user\RTC-7-user-J1-J3.txt   СБОРКА J1-J2-J3, вариант "J3 над J2": сборка J1-J2 + звено 2 LINK-2U + J3 (SHM-KB50);
                                       J2 развёрнут на 180 град. вокруг оси под отверстия LINK-2U; ход J2 без касаний -50..+50
-    links-user\RTC-7-user-J1-J7.txt   ПОЛНАЯ РУКА пользователя: J1..J4 (ниже) + звенья 4-6 и J5..J7 из руки v2; шаги - links-user\RUN_SW2017_user_J1-J4.txt
+    links-user\RTC-7-user-J1-J7.txt   ПОЛНАЯ РУКА пользователя: J1..J4 (ниже) + звенья 4-6, J5, J6 из руки v2, J7 = SHM-KB17; шаги - links-user\RUN_SW2017_user_J1-J4.txt
     links-user\RTC-7-user-J1-J4.txt   СБОРКА J1..J4 с коробом звена 2 пользователя (J2-J3.STEP): звено 1 V2 + звено 2 LINK-2B + J3 + звено 3 + J4
     links-user\LINK-2B\LINK-2B.txt  звено 2 пользователя, облегчённое (30ХГСА, 7,25 кг): стенки 6, полка 10, плита 24, R8; J3 на фланце D236, 24xM5;
                                       как нарисовано (сквозное D214) - links-user\LINK-2B\variants\LINK-2B-asdrawn.txt
@@ -62,6 +62,7 @@
     joints\SHM-KB32\SHM-KB32.txt     J5: KB32 + RI70
     joints\SHM-KB45\SHM-KB45.txt     J4: KB45 + RI115
     joints\SHM-KB50\SHM-KB50.txt     J3: KB50 + RI115
+    joints\SHM-KB17\SHM-KB17.txt     J7 руки пользователя: KB17 + RI70, присоединение к звену 6 как у SHM-60 (D94h7, 12xM4 D102)
     joints\SHM-KB50F\SHM-KB50F.txt   J3 под короб LINK-2B: фланец корпуса D236, 24xD5.5 на D224, 12xM8 (винты с торца кольца)
   Отдельные компоненты:
     components\DMRD\KB14|KB17|KB20|KB25|KB32|KB45|KB50|80E\DMRD-*.txt редукторы (3 детали + сборка);
