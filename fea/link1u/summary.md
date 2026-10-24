@@ -31,3 +31,13 @@ J1 housing only held against turning (user) - does not change the loads of this 
 | V3 | 8 / 12 / 5 | 10 / 20 | 4.87 | 0.84 | 2.2 | 243 / 168 | 3.4 |
 
 Base >= 12: 12 x M8 threaded in it (engagement 1.5 d). Peaks: inner corner base / gusset bottom and base / plate.
+
+## ACCEPTED V2 + fillets R8 (2026-10-24): links-user/LINK-1U/LINK-1U.txt, 5.50 kg
+| Case | rot x / y / z, mrad | vM peak / away, MPa | n (835 / peak) |
+|---|---|---|---|
+| W1 | 0.33 / 0.40 / 0.45 | 183 / 100 | 4.6 |
+| W2 | 0.33 / -0.48 / 0.45 | 232 / 115 | 3.6 |
+| W3 | 0.61 / 0.01 / 0.61 | 256 / 99 | 3.3 |
+Fillets R8: base / gussets and base / plate (filler prisms). Peaks: the gusset ends at the base bottom (z=-127) and the
+fillet tangents - mesh 4 mm vs R8, partly numerical. Max rotation 0.61 mrad -> ~1.6 mm at the TCP.
+No interference with the parts of the user's assembly (IGES).

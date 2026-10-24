@@ -1,0 +1,22 @@
+# J1-J2 of the user (IGES J1-J2.IGS, 2026-10-23) with the accepted LINK-1U V2 - for BuildFromSpec (ROBOTASM).
+# Frame = the user's assembly frame, mm: X = J1 axis (up), x = 0 - the ОПУ base plane. Positions and turns of the
+# components are taken from the IGES instances (J1 turned 30 deg, link 1 + J2 at 11.25 deg about the J1 axis); the 80E
+# turned so that its 16 holes D9 match the plate holes (in the user's model it was 0.69 deg off).
+# Run BuildFromSpec on this file: missing models are built first (ОПУ, SHM-KB25, YULA, LINK-1U, SHM-1000), then placed
+# and locked. Not in this file: "Пластина переходная" (no spec for it yet).
+ROBOTASM RTC-7-user-J1-J2
+REBUILD no
+
+#    name   file                                                origin (x y z)                 X axis                  Z axis
+COMP OPU    components/ISKRA/RU178G/RU178G-UU-CC0-P5.txt         0 0 0                          1 0 0                   0 0 1
+COMP J1     joints/SHM-KB25/SHM-KB25.txt                         -33.5 0 0                      1 0 0                   0 -0.5 0.866025
+COMP YULA   links-user/YULA/YULA.txt                             0 0 0                          1 0 0                   0 0 1   rigid
+COMP L1     links-user/LINK-1U/LINK-1U.txt                       171 16.5827 83.3667            1 0 0                   0 0.19509 0.980785   rigid
+COMP J2     joints/SHM-1000/SHM-1000.txt                         171 -1.95090 -9.80785          0 0.19509 0.980785      -1 0 0
+
+# Degrees of freedom: ОПУ outer ring and J1 housing fixed (in the real arm J1 is held only against turning); the
+# adapter YULA is locked to the J1 output shaft, the ОПУ inner ring and link 1 to YULA, the J2 housing to link 1.
+LOCK YULA YULA-01_Adapter            J1   DMRD-KB25-03_OutputShaft
+LOCK OPU  RU178G-02_InnerRing        YULA YULA-01_Adapter   keep
+LOCK L1   LINK-1U-01_Weldment        YULA YULA-01_Adapter
+LOCK J2   DMRD-80E-01_Housing        L1   LINK-1U-01_Weldment

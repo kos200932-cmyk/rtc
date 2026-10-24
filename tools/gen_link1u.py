@@ -1,5 +1,5 @@
 import sys
-def gen(tp, tb, tg, off, path, a=12.0):
+def gen(tp, tb, tg, off, path, a=12.0, R=0.0):
     """tp plate (z 0..tp), tb base (x -135..-135+tb), tg gusset thickness (y 112-tg..112 inner faces stay? -> keep outer at 122), off window offset"""
     xb = -135 + tb                      # base inner face
     yi, yo = 112, 112 + tg              # gusset inner face on the plate / base edge, outer = 112 + tg
@@ -39,8 +39,17 @@ CUT X -136 {xb+1} CIRC -93.963 -30.75 14
 CUT X -136 {xb+1} CIRC 93.963 -139.25 14
 CUT X -136 {xb+1} CIRC -93.963 -139.25 14
 CUT X -136 {xb+1} CIRC 0 -193.5 14
-END
 """
+    if R > 0:   # fillets in the inner corners as filler prisms: square R x R minus the circle R (macro has no FILLET op)
+        L += f"""# ---- fillets R{R:g} in the inner corners (filler = square R x R minus a circle R)
+PRISM Z -127 0 RECT {xb} {xb+R} {yi-R} {yi}   # base / gusset +Y, along Z
+CUT Z -127 0 CIRC {xb+R} {yi-R} {2*R}
+PRISM Z -127 0 RECT {xb} {xb+R} {-yi} {-yi+R}   # base / gusset -Y
+CUT Z -127 0 CIRC {xb+R} {-yi+R} {2*R}
+PRISM Y {-yi} {yi} RECT {xb} {xb+R} {-R} 0   # base / plate, along Y
+CUT Y {-yi} {yi} CIRC {xb+R} {-R} {2*R}
+"""
+    L += "END\n"
     open(path, "w").write(L)
 if __name__ == "__main__":
-    gen(*[float(v) for v in sys.argv[1:5]], sys.argv[5], *[float(v) for v in sys.argv[6:7]])
+    gen(*[float(v) for v in sys.argv[1:5]], sys.argv[5], *[float(v) for v in sys.argv[6:8]])
