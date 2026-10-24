@@ -13,3 +13,9 @@ Bolts (hand check): 12 x M8 on D139 (link base <- flange <- ОПУ ring): tiltin
 bolt vs friction ~2.5 kN. 16 x M4 on D77 (into the KB25 output): 135 N·m -> 0.22 kN per bolt vs friction ~0.6 kN (n 2.7).
 Open point: the adapter ties the KB25 output to the ОПУ inner ring rigidly - the tilting moment is shared by the ОПУ
 and the KB25 output bearing (KB25 M_tilt 193.5 N·m) by their stiffnesses + any misalignment of the two axes.
+
+## J1 housing held only against turning (user, 2026-10-24): J1 hangs on its output on the ОПУ -> the KB25 output
+bearing no longer shares the arm tilting moment. Yula carries: J1 torque (135 N·m peak) + J1 weight + the bolt stack.
+Lighter variant links-user/YULA/variants/YULA-light.txt: upper tube D115 shortened 18 -> 10 (spigot in the link
+base), bore above the lip D88 -> D100: 1.35 kg (was 1.81); J1 torque 135 N·m + weight: vM 8.2 / 2.5 MPa; stack
+1239 N·m: 5.6 MPa. Heights unchanged (flange x 28..36 is the spacer between the ОПУ ring and the link base).

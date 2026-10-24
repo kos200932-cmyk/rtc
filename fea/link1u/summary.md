@@ -19,3 +19,15 @@ radial 1019 N; + J2 joint weight 25.1 kg (246 N at 50 mm from the J1 axis). Grav
 
 Peaks: inner corner base / gusset (x=-117, y=+-112, z=-128) and base / plate. TCP lever ~2.6 m from J2:
 max ~0.23 mrad -> ~0.6 mm. Masses (30ХГСА): LINK-1U 9.70 kg, "Юла" 1.80 kg, "Пластина переходная" 2.46 kg.
+
+## Lighter variants (2026-10-24, tools/gen_link1u.py; specs links-user/LINK-1U/variants/), same loads, h 4
+J1 housing only held against turning (user) - does not change the loads of this link.
+
+| Variant | plate / base / gusset, mm | window offset base+plate / bottom | mass, kg | max rot, mrad | TCP ~2.6 m, mm | vM peak / away | n (835 / peak) |
+|---|---|---|---|---|---|---|---|
+| current | 18 / 18 / 10 | 12 / 30 | 9.70 | 0.23 | 0.6 | 111 / 67 | 7.5 |
+| V1 | 12 / 14 / 8 | 12 / 25 | 6.87 | 0.42 | 1.1 | 179 / 104 | 4.7 |
+| **V2** | 10 / 12 / 6 | 10 / 20 | 5.45 | 0.65 | 1.7 | 234 / 159 | 3.6 |
+| V3 | 8 / 12 / 5 | 10 / 20 | 4.87 | 0.84 | 2.2 | 243 / 168 | 3.4 |
+
+Base >= 12: 12 x M8 threaded in it (engagement 1.5 d). Peaks: inner corner base / gusset bottom and base / plate.
