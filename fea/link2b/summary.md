@@ -58,3 +58,5 @@ Hot spot in every variant: inner corner wall / plate at the lower wall end (x=±
 | W3 Mx Mz | 0.82 / 0.01 / 0.06 | 199 / 86 | 4.2 | 6.8 |
 The fillets take the hot spot down from 146 to 102 MPa; the max sits on the boundary (tie) sets. TCP ~2.6 mm.
 No interference in the J1..J4 assembly (tools/gen_user_l123.py).
+
+Edit 2026-10-24: side walls end at z 200 (start of the shelf chamfer, they stuck out 24 mm past it) -> 7.17 kg.
