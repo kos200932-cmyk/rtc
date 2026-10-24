@@ -18,3 +18,9 @@ Result: the plate itself is far from bearing failure; the weak point are the 4 x
 tighten for ~12 kN (8.8, ~20 N·m) or use thread inserts (Heli-Coil M8, length 1.5 d), or through bolts with nuts.
 Note: with 12 x M4 the J1 housing is bolted rigidly to the plate - this does not match "J1 housing held only against
 turning"; for that the M4 joint must be replaced by an anti-rotation pin / torque arm free in tilt and axially.
+
+## Decision (user, 2026-10-24)
+- 4 x M8 threaded in the plate: tightening limited - preload <= 12 kN (class 8.8, T ~ 0.2 * 12 kN * 8 mm ~ 19 N·m);
+  flank pressure 98 MPa (~ allowable). Joint opening under the tilting moment: max external load per bolt on D217
+  1239 N·m * 108.5 / (6 * 108.5^2) ~ 1.9 kN << 12 kN - no gap. The 8 through bolts with nuts keep the full preload.
+- J1 anti-rotation decoupling (instead of the rigid 12 x M4): later.

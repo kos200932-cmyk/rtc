@@ -7,6 +7,7 @@
 # Angles in the X plane: from +Y toward +Z. Material Д16Т (user, 2026-10-24), 2780 kg/m3.
 ASSEMBLY BASEPLATE
 DATA material=D16T concept=user source=J1-J2.IGS
+DATA tightening_M8_threaded=12kN_8.8_19Nm open_item=J1_anti_rotation_decoupling
 
 PART BASEPLATE-01_Plate
 MOTION fixed
@@ -16,7 +17,7 @@ PRISM X -10 0 CIRC 0 0 240
 CUT X -11 1 CIRC 0 0 112   # bore D112
 CUT X -2 1 CIRC 0 0 182   # counterbore D182 x 2 under the ОПУ inner ring
 TAP X -10 -2 0 0 12 120 M4 15   # 12 x M4 on D120: J1 flange housing
-TAP X -10 0 0 0 4 217 M8 45   # 4 x M8 on D217
+TAP X -10 0 0 0 4 217 M8 45   # 4 x M8 on D217 - in Д16Т: preload <= 12 kN (8.8, ~19 N·m, decision 2026-10-24)
 CUT X -11 1 PATTERN 0 0 4 217 9 15   # 8 x D9 on D217 (two sets of 4)
 CUT X -11 1 PATTERN 0 0 4 217 9 75
 PORTP opu X 0 1 role=under_opu_outer_ring
