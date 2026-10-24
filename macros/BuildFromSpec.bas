@@ -63,7 +63,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v29 (2026-10-24)"
+Private Const MACRO_VERSION As String = "v30 (2026-10-24)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -141,12 +141,13 @@ Private gData As String
 Private gPartPaths() As String  ' parts built by the last BuildSpecFile
 Private gSummary As String          ' "key=value key=value ..." from DATA lines
 Private gLog As String
+Private gRebuildAll As Boolean      ' v30: REBUILD yes of an arm - joints rebuild their reducers too
 Private gTopSpec As String          ' spec file picked by the user - its result stays open
 Private gHidden As Collection       ' models loaded without a window for AddComponent5
 
 Sub main()
     Set swApp = Application.SldWorks
-    gLog = "": gSummary = "": gTplPart = "": gTplAsm = ""
+    gLog = "": gSummary = "": gTplPart = "": gTplAsm = "": gRebuildAll = False
     Set gHidden = New Collection
 
     Dim specPath As String, asmPath As String, ok As Boolean
@@ -1910,7 +1911,18 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
     Dim mp() As String, q As Long
     For k = 0 To nU - 1
         If FileHasKeyword(uFile(k), "PART") Then
-            If Not BuildSpecFile(uFile(k), uModel(k)) Then Exit Function
+            ' v30: a component (reducer) built before is reused - rebuilding it here re-saves its parts over the
+            ' files other models in memory refer to (their mates then break); REBUILD yes of an arm rebuilds it
+            uModel(k) = ""
+            If FirstArg(uFile(k), "ASSEMBLY") <> "" And Not gRebuildAll Then
+                uModel(k) = Left(uFile(k), InStrRev(uFile(k), "")) & FirstArg(uFile(k), "ASSEMBLY") & ".SLDASM"
+                If Not FileExists(uModel(k)) Then uModel(k) = ""
+            End If
+            If uModel(k) <> "" Then
+                gSummary = gSummary & Mid(uModel(k), InStrRev(uModel(k), "") + 1) & ": built before, reused" & vbCrLf
+            ElseIf Not BuildSpecFile(uFile(k), uModel(k)) Then
+                Exit Function
+            End If
             If uModel(k) = "" Then
                 gLog = gLog & uRole(k) & ": the spec has no ASSEMBLY line" & vbCrLf
                 Exit Function
@@ -2061,6 +2073,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
                 aName = t(1)
             Case "REBUILD"
                 rebuild = (LCase(t(1)) = "yes")
+                gRebuildAll = rebuild
             Case "COMP"
                 If UBound(t) < 11 Then gLog = gLog & "COMP needs: name file ox oy oz xx xy xz zx zy zz" & vbCrLf: Exit Function
                 If nC > 63 Then gLog = gLog & "too many COMP lines" & vbCrLf: Exit Function

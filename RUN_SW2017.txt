@@ -1,4 +1,4 @@
-﻿Запуск генерации в SolidWorks 2017 (архив rtc, ветка joints-structure, макрос BuildFromSpec v29)
+﻿Запуск генерации в SolidWorks 2017 (архив rtc, ветка joints-structure, макрос BuildFromSpec v30)
 Рука новой компоновки v2 - пошагово в RUN_SW2017_ARM_v2.txt
 
 1. Распакуйте архив в папку без пробелов и кириллицы в пути, например C:\rtc\.
