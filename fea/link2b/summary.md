@@ -71,3 +71,12 @@ Edit 2026-10-24: side walls end at z 200 (start of the shelf chamfer, they stuck
 Stiffness: 1.92 mrad at the J3 face (~4.4 mm at the TCP) - now about as compliant as the J2 reducer in torsion (1.8 mrad).
 M5 thread in 8 mm of 30ХГСА (1.6 d): stripping ~47 kN >> screw load 6.3 kN - OK; screws DIN912 M5x25 (flange 16 + 8
 thread, 1 mm out above the shelf top - free space outside the ring D214).
+
+## Shelf 10 (user 2026-10-24, "8 - stiffness not enough"): links-user/LINK-2B/LINK-2B.txt, 6.55 kg, h 4 mm
+| Case | rot x / y / z, mrad | vM max / far, MPa | n = 835 / max | weld 585 / far |
+|---|---|---|---|---|
+| W1 Mx+ | 1.64 / 0.01 / 0.00 | 272 / 151 | 3.1 | 3.9 |
+| W1 Mx- | 1.40 / 0.01 / 0.00 | 232 / 129 | 3.6 | 4.5 |
+| W2 Mz | 0.12 / 0.01 / 0.15 | 120 / 53 | 7.0 | 11 |
+| W3 Mx Mz | 1.19 / 0.01 / 0.11 | 238 / 118 | 3.5 | 5.0 |
+Shelf 8 / 10 / 14: 1.92 / 1.64 / 1.13 mrad (W1). Screws DIN912 M5x25 (flange 16 + 9 in the 10 mm thread).
