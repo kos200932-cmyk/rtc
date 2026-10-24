@@ -63,7 +63,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v30 (2026-10-24)"
+Private Const MACRO_VERSION As String = "v31 (2026-10-24)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -1915,11 +1915,11 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
             ' files other models in memory refer to (their mates then break); REBUILD yes of an arm rebuilds it
             uModel(k) = ""
             If FirstArg(uFile(k), "ASSEMBLY") <> "" And Not gRebuildAll Then
-                uModel(k) = Left(uFile(k), InStrRev(uFile(k), "")) & FirstArg(uFile(k), "ASSEMBLY") & ".SLDASM"
+                uModel(k) = Left(uFile(k), InStrRev(uFile(k), "\")) & FirstArg(uFile(k), "ASSEMBLY") & ".SLDASM"
                 If Not FileExists(uModel(k)) Then uModel(k) = ""
             End If
             If uModel(k) <> "" Then
-                gSummary = gSummary & Mid(uModel(k), InStrRev(uModel(k), "") + 1) & ": built before, reused" & vbCrLf
+                gSummary = gSummary & Mid(uModel(k), InStrRev(uModel(k), "\") + 1) & ": built before, reused" & vbCrLf
             ElseIf Not BuildSpecFile(uFile(k), uModel(k)) Then
                 Exit Function
             End If
@@ -2565,7 +2565,7 @@ Private Function ImportStepPart(ByVal stepPath As String, ByVal axis As String, 
         If Not (swApp.GetOpenDocumentByName(outPath) Is Nothing) Then reuse = True
         On Error GoTo 0
         If reuse Then
-            gSummary = gSummary & Mid(outPath, InStrRev(outPath, "") + 1) & ": imported before, reused" & vbCrLf
+            gSummary = gSummary & Mid(outPath, InStrRev(outPath, "\") + 1) & ": imported before, reused" & vbCrLf
             ImportStepPart = outPath
             Exit Function
         End If
