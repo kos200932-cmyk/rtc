@@ -24,6 +24,13 @@ if __name__=="__main__":
     lk=[l for l in rest.split("\n") if l.startswith("LOCK") and not l.split()[1] in ("L3","J4")]
     lk+=["LOCK %-4s %-26s %-4s %s"%(t[1],"DMRD-KB17-01_Housing" if t[1]=="J7" else t[2],t[3],t[4]) for t in locks if t[1] in dist]
     txt=head+"# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, the ОПУ inner ring and\n# link 1 on YULA, each joint housing on the link before it, each link on the output shaft of the joint before it.\n"+"\n".join(lk)+"\n"
+    # models changed in the user's configuration: rebuilt on every run (macro v29 "rebuild"), the rest built when missing
+    out=[]
+    for l in txt.split("\n"):
+        t=l.split()
+        if t[:1]==["COMP"] and t[1] in ("L2","J3","J7"): l=l+" rebuild"
+        out.append(l)
+    txt="\n".join(out).replace("REBUILD no\n","REBUILD no      # yes - rebuild ALL models; COMP ... rebuild - only that one (macro v29)\n")
     open("links-user/RTC-7-user-J1-J7.txt","w",encoding="utf-8",newline="\r\n").write(txt)
     print(txt)
 

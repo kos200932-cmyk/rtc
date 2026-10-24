@@ -42,7 +42,8 @@ Attribute VB_Name = "BuildFromSpec"
 '                                       - a joint / link / component spec (built if needed, or a
 '                                         .SLDASM / .SLDPRT) placed with its origin at (ox,oy,oz)
 '                                         and its X / Z axes along the given directions, fixed;
-'                                         optional last word: rigid (a link) / flex (default for .SLDASM)
+'                                         optional words: rigid (a link) / flex (default for .SLDASM),
+'                                         rebuild - build this model again even if it exists (v29)
 '       LOCK <comp> <part|-> <comp> <part|->  - instead of fixing: the first component is locked to a part
 '                                         of the second (e.g. a link to the output shaft of a joint);
 '                                         the joints are flexible, so the arm keeps its degrees of freedom;
@@ -62,7 +63,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v28 (2026-10-24)"
+Private Const MACRO_VERSION As String = "v29 (2026-10-24)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -2048,6 +2049,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     Dim aName As String, rebuild As Boolean, k As Long, q As Long
     Dim cName(0 To 63) As String, cFile(0 To 63) As String, cFr(0 To 63, 0 To 8) As Double, nC As Long
     Dim cRigid(0 To 63) As Boolean, lk(0 To 63, 0 To 3) As String, nLk As Long, lkKeep(0 To 63) As Boolean
+    Dim cRebuild(0 To 63) As Boolean
     folder = Left(specPath, InStrRev(specPath, "\"))
     lines = ReadLines(specPath)
     For li = LBound(lines) To UBound(lines)
@@ -2068,7 +2070,10 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
                 For q = 0 To 8
                     cFr(nC, q) = Num(t(3 + q))
                 Next q
-                If UBound(t) >= 12 Then cRigid(nC) = (LCase(t(12)) = "rigid")
+                For q = 12 To UBound(t)
+                    If LCase(t(q)) = "rigid" Then cRigid(nC) = True
+                    If LCase(t(q)) = "rebuild" Then cRebuild(nC) = True   ' v29: rebuild this model even if it exists
+                Next q
                 nC = nC + 1
             Case "LOCK"
                 If UBound(t) < 4 Then gLog = gLog & "LOCK needs: comp part comp part" & vbCrLf: Exit Function
@@ -2097,14 +2102,14 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
             ElseIf FileHasKeyword(cFile(k), "JOINT") Then
                 jn = FirstArg(cFile(k), "JOINT")
                 cModel(k) = Left(cFile(k), InStrRev(cFile(k), "\")) & jn & ".SLDASM"
-                If rebuild Or Not FileExists(cModel(k)) Then
+                If rebuild Or cRebuild(k) Or Not FileExists(cModel(k)) Then
                     If Not BuildJoint(cFile(k)) Then Exit Function
                 End If
             Else
                 jn = FirstArg(cFile(k), "ASSEMBLY")
                 If jn = "" Then gLog = gLog & "COMP " & cName(k) & ": the spec has no ASSEMBLY line" & vbCrLf: Exit Function
                 cModel(k) = Left(cFile(k), InStrRev(cFile(k), "\")) & jn & ".SLDASM"
-                If rebuild Or Not FileExists(cModel(k)) Then
+                If rebuild Or cRebuild(k) Or Not FileExists(cModel(k)) Then
                     If Not BuildSpecFile(cFile(k), asmPath) Then Exit Function
                 End If
             End If

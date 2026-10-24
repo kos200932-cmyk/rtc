@@ -5,7 +5,7 @@
 # v2 arm, J4 seat on top). J2 is turned so that the centres of its output hole groups point up (card 90 deg = +X): the box
 # holes match; the 16 flange holes D9 of the 80E still match link 1 (90 deg = 4 x 22.5).
 ROBOTASM RTC-7-user-J1-J7
-REBUILD no
+REBUILD no      # yes - rebuild ALL models; COMP ... rebuild - only that one (macro v29)
 
 #    name   file                                                origin (x y z)               X axis                     Z axis
 COMP BASE  links-user/BASEPLATE/BASEPLATE.txt                   0 0 0                        1 0 0                      0 0 1 rigid
@@ -14,8 +14,8 @@ COMP J1    joints/SHM-KB25/SHM-KB25.txt                         -33.5 0 0       
 COMP YULA  links-user/YULA/YULA.txt                             0 0 0                        1 0 0                      0 0 1 rigid
 COMP L1    links-user/LINK-1U/LINK-1U.txt                       171 16.5827 83.3667          1 0 0                      0 0.19509 0.980785 rigid
 COMP J2    joints/SHM-1000/SHM-1000.txt                         171 -1.9509 -9.80785         0 0.19509 0.98079          0 0.98079 -0.19509
-COMP L2    links-user/LINK-2B/LINK-2B.txt                       171 24.38629 122.59816       0 -0.98079 0.19509         0 0.19509 0.98079 rigid
-COMP J3    joints/SHM-KB50F/SHM-KB50F.txt                       123 53.64984 269.71595       1 0 0                      0 0.19509 0.98079
+COMP L2    links-user/LINK-2B/LINK-2B.txt                       171 24.38629 122.59816       0 -0.98079 0.19509         0 0.19509 0.98079 rigid rebuild
+COMP J3    joints/SHM-KB50F/SHM-KB50F.txt                       123 53.64984 269.71595       1 0 0                      0 0.19509 0.98079 rebuild
 COMP L3    links-v2/LINK-3/LINK-3.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid
 COMP J4    joints/SHM-KB45/SHM-KB45.txt                         1324 32.97026 165.75271      0 -0.19509 -0.98079        1 0 0
 COMP L4    links-v2/LINK-4/LINK-4.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid
@@ -23,7 +23,7 @@ COMP J5    joints/SHM-KB32/SHM-KB32.txt                         1435.5 -0.78036 
 COMP L5    links-v2/LINK-5/LINK-5.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid
 COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2474 20.58203 103.47285      0 0.19509 0.98079          1 0 0
 COMP L6    links-v2/LINK-6/LINK-6.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid
-COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 42.04196 211.35923    1 0 0                      0 0.19509 0.98079
+COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 42.04196 211.35923    1 0 0                      0 0.19509 0.98079 rebuild
 
 # Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, the ОПУ inner ring and
 # link 1 on YULA, each joint housing on the link before it, each link on the output shaft of the joint before it.
