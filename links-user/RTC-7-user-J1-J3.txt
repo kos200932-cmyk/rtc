@@ -1,0 +1,30 @@
+# J1-J2-J3 of the user's arm, variant "J3 over J2" (2026-10-24) - for BuildFromSpec (ROBOTASM).
+# Frame = the user's assembly frame, mm: X = J1 axis (up), x = 0 - the ОПУ base plane (as RTC-7-user-J1-J2.txt).
+# = RTC-7-user-J1-J2 + link 2 LINK-2U (steel 30ХГСА bracket over the J2 housing) + J3 (SHM-KB50).
+# J2 Z axis is +X here (in RTC-7-user-J1-J2 it is -X): the J2 joint is turned 180 deg about its axis so that the output
+# holes match the LINK-2U holes (robot convention); the 16 flange holes D9 of the 80E still match link 1.
+# J3 axis at the zero pose = the J1 axis; J3 reducer ring output face (LINK-2U seat) x = 454, J3 output face x = 473,
+# 283 above the J2 axis (x = 171); J3 rear cover 7 mm over the top of the 80E housing.
+# Range of J2 without contacts: -50..+50 deg (beyond that the J3 rear cover touches the link-1 plate).
+ROBOTASM RTC-7-user-J1-J3
+REBUILD no
+
+#    name   file                                                origin (x y z)                 X axis                  Z axis
+COMP BASE   links-user/BASEPLATE/BASEPLATE.txt                   0 0 0                          1 0 0                   0 0 1   rigid
+COMP OPU    components/ISKRA/RU178G/RU178G-UU-CC0-P5.txt         0 0 0                          1 0 0                   0 0 1
+COMP J1     joints/SHM-KB25/SHM-KB25.txt                         -33.5 0 0                      1 0 0                   0 -0.5 0.866025
+COMP YULA   links-user/YULA/YULA.txt                             0 0 0                          1 0 0                   0 0 1   rigid
+COMP L1     links-user/LINK-1U/LINK-1U.txt                       171 16.5827 83.3667            1 0 0                   0 0.19509 0.980785   rigid
+COMP J2     joints/SHM-1000/SHM-1000.txt                         171 -1.95090 -9.80785          0 0.19509 0.980785      1 0 0
+# L2: link frame = J2 output face centre shifted 137 down along the J1 axis (link X = J2 axis outward, link Z = J1 axis up)
+COMP L2     links-user/LINK-2U/LINK-2U.txt                       34 27.11765 136.32915          0 0.19509 0.980785      1 0 0   rigid
+COMP J3     joints/SHM-KB50/SHM-KB50.txt                         355 0 0                        1 0 0                   0 0.19509 0.980785
+
+# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, the ОПУ inner ring and
+# link 1 on YULA, the J2 housing on link 1, link 2 on the J2 output shaft, the J3 housing on link 2.
+LOCK YULA YULA-01_Adapter            J1   DMRD-KB25-03_OutputShaft
+LOCK OPU  RU178G-02_InnerRing        YULA YULA-01_Adapter   keep
+LOCK L1   LINK-1U-01_Weldment        YULA YULA-01_Adapter
+LOCK J2   DMRD-80E-01_Housing        L1   LINK-1U-01_Weldment
+LOCK L2   LINK-2U-01_Weldment        J2   DMRD-80E-03_OutputShaft
+LOCK J3   DMRD-KB50-01_Housing       L2   LINK-2U-01_Weldment
