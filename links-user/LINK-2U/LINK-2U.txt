@@ -1,0 +1,36 @@
+# LINK-2U: J2 -> J3 of the user's arm, J3 OVER J2 (concept 2026-10-24, preview). Robot frame of the link:
+#   origin on the J2 axis below the J2 output face, X = J2 axis outward (from the J1 axis), Z = up (J1 axis direction);
+#   J2 output face x=0, J2 axis z=137; the J1 axis is the line x=-139, y=0 (the J2 output face is 139 from it).
+# J3 axis = the J1 axis at the zero pose (x=-139): J3 must stay behind the plate on the J2 output (its flange D230 r115
+#   -> x3 <= -120) and above the J2 housing (top z 248): J3 reducer ring output face z=420, rear z=255.
+# Steel 30ХГСА. Vertical plate 14 on the J2 output (disc D190 + web 200, widened to 252 above z 330), shelf 16 back over
+#   J2 to the J3 seat (counterbore D214H7 x 6, bore D176, 12 x M8 on D200 as LINK-2), side walls 8 (y +-118..126,
+#   outside the J3 flange) z 330..414 from the plate to x=-239.
+ASSEMBLY LINK-2U
+DATA material=30KhGSA welded concept=J3_over_J2
+
+PART LINK-2U-01_Weldment
+MOTION fixed
+DENSITY 7850
+COLOR 225 185 60
+PRISM X 0 14 CIRC 0 137 190
+PRISM X 0 14 RECT -100 100 137 430
+PRISM X 0 14 RECT -126 126 330 430
+PRISM X -13 0 RING 0 137 186 160
+PRISM Z 414 430 RECT -139 14 -126 126
+PRISM Z 414 430 CIRC -139 0 256
+PRISM Y 118 126 RECT -239 0 330 414
+PRISM Y -126 -118 RECT -239 0 330 414
+CUT Z 413 420 CIRC -139 0 214
+CUT Z 419 431 CIRC -139 0 176
+TAP Z 420 430 -139 0 12 200 M8 270
+CUT X -14 15 CIRC 0 137 60
+CUT X -14 15 PATTERN 0 137 3 142 9 21
+CUT X -14 15 PATTERN 0 137 3 142 9 9
+CUT X -14 15 PATTERN 0 137 3 142 9 351
+CUT X -14 15 PATTERN 0 137 3 110 11 10
+CUT X -14 15 PATTERN 0 137 3 110 11 350
+CUT X -14 15 PATTERN 0 137 3 142 12 339
+PORTP j2_out X 0 -1 role=on_j2_output fit=160H7 bolts=9xM8_D142+6xM10_D110
+PORTP j3_base Z 420 -1 role=on_j3_reducer_ring_output_face fit=214H7 cbore=6 bolts=12xM8_D200_from_motor_side
+END
