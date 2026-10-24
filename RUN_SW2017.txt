@@ -48,8 +48,8 @@
   Звено пользователя J1-J2 (распознано из STEP J1-J2.STEP, своя система координат STEP):
     links-user\RTC-7-user-J1-J2.txt   СБОРКА J1-J2 пользователя: пластина + ОПУ + J1 (KB25) + Юла + звено 1 V2 + J2 (80E), положения из IGES
     links-user\LINK-1U\LINK-1U.txt  звено 1 V2 (30ХГСА, 5,5 кг): плита 10, основание 12, косынки 6, окна, скругления R8
-    links-user\YULA\YULA.txt        Юла облегчённая (30ХГСА, 1,35 кг); исходная - links-user\YULA\variants\YULA-user.txt
-    links-user\BASEPLATE\BASEPLATE.txt  пластина переходная под ОПУ (Д16Т, 0,87 кг)
+    links-user\YULA\YULA.txt        Юла облегчённая (30ХГСА, 1,39 кг, посадка 12 заподлицо с основанием); исходная - links-user\YULA\variants\YULA-user.txt
+    links-user\BASEPLATE\BASEPLATE.txt  пластина переходная под ОПУ (Д16Т, 12 мм, 1,07 кг)
   Шарниры новой компоновки (фланец крепления к звену + корпус двигателя, звено со стороны редуктора):
     joints\SHM-KB25\SHM-KB25.txt     J1, J6: KB25 + RI70
     joints\SHM-KB32\SHM-KB32.txt     J5: KB32 + RI70

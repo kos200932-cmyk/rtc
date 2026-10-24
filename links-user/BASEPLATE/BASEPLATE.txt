@@ -1,7 +1,8 @@
 # BASEPLATE ("Пластина переходная"): the user's base plate under the ОПУ (IGES J1-J2.IGS, 2026-10-23), recognised
 # into BuildFromSpec ops. Coordinates: the user's assembly frame, mm: X = J1 axis (up), x = 0 - the ОПУ base plane
-# (the plate is x -10..0, under the ОПУ outer ring).
-#   disc D240 x 10; bore D112; counterbore D182 x 2 in the top face (clearance under the ОПУ inner ring);
+# (the plate is x -12..0, under the ОПУ outer ring; 12 thick since 2026-10-24 - closes the 2 mm gap to the
+# KB25 flange housing, whose face is at x=-12).
+#   disc D240 x 12 (was 10); bore D112; counterbore D182 x 2 in the top face (clearance under the ОПУ inner ring);
 #   12 x M4 on D120 (15 + 30 k deg) - J1 (KB25) flange housing;
 #   on D217: 4 x M8 (45 + 90 k deg) and 8 x D9 (15 / 75 / 105 / 165 / 195 / 255 / 285 / 345 deg) - ОПУ outer ring / base.
 # Angles in the X plane: from +Y toward +Z. Material Д16Т (user, 2026-10-24), 2780 kg/m3.
@@ -13,13 +14,13 @@ PART BASEPLATE-01_Plate
 MOTION fixed
 DENSITY 2780
 COLOR 200 160 200
-PRISM X -10 0 CIRC 0 0 240
-CUT X -11 1 CIRC 0 0 112   # bore D112
+PRISM X -12 0 CIRC 0 0 240
+CUT X -13 1 CIRC 0 0 112   # bore D112
 CUT X -2 1 CIRC 0 0 182   # counterbore D182 x 2 under the ОПУ inner ring
-TAP X -10 -2 0 0 12 120 M4 15   # 12 x M4 on D120: J1 flange housing
-TAP X -10 0 0 0 4 217 M8 45   # 4 x M8 on D217 - in Д16Т: preload <= 12 kN (8.8, ~19 N·m, decision 2026-10-24)
-CUT X -11 1 PATTERN 0 0 4 217 9 15   # 8 x D9 on D217 (two sets of 4)
-CUT X -11 1 PATTERN 0 0 4 217 9 75
+TAP X -12 -2 0 0 12 120 M4 15   # 12 x M4 on D120: J1 flange housing
+TAP X -12 0 0 0 4 217 M8 45   # 4 x M8 on D217, thread 12 - in Д16Т: preload <= 12 kN (8.8, ~19 N·m, decision 2026-10-24)
+CUT X -13 1 PATTERN 0 0 4 217 9 15   # 8 x D9 on D217 (two sets of 4)
+CUT X -13 1 PATTERN 0 0 4 217 9 75
 PORTP opu X 0 1 role=under_opu_outer_ring
-PORTP base X -10 -1 role=on_base holes=8xD9_D217
+PORTP base X -12 -1 role=on_base holes=8xD9_D217
 END

@@ -24,3 +24,7 @@ turning"; for that the M4 joint must be replaced by an anti-rotation pin / torqu
   flank pressure 98 MPa (~ allowable). Joint opening under the tilting moment: max external load per bolt on D217
   1239 N·m * 108.5 / (6 * 108.5^2) ~ 1.9 kN << 12 kN - no gap. The 8 through bolts with nuts keep the full preload.
 - J1 anti-rotation decoupling (instead of the rigid 12 x M4): later.
+
+## 2026-10-24: plate 12 thick (x -12..0) - closes the 2 mm gap to the KB25 flange housing (face x=-12), 1.07 kg
+M8 thread now 12 long (1.5 d): flank pressure at 12 kN 82 MPa (was 98), stripping 53 MPa; M4 thread 10 long: 58 MPa.
+Preload limit 12 kN kept.
