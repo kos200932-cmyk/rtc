@@ -80,3 +80,12 @@ thread, 1 mm out above the shelf top - free space outside the ring D214).
 | W2 Mz | 0.12 / 0.01 / 0.15 | 120 / 53 | 7.0 | 11 |
 | W3 Mx Mz | 1.19 / 0.01 / 0.11 | 238 / 118 | 3.5 | 5.0 |
 Shelf 8 / 10 / 14: 1.92 / 1.64 / 1.13 mrad (W1). Screws DIN912 M5x25 (flange 16 + 9 in the 10 mm thread).
+
+## Trials 2026-10-24 (W1 Mx+ = the governing case)
+| Variant | shelf / walls / plate outside D190 | mass, kg | W1 rot, mrad | vM max / far, MPa | n = 835 / max |
+|---|---|---|---|---|---|
+| main now (links-user/LINK-2B/LINK-2B.txt) | 10 / 6 / 14 | 6.55 | 1.64 | 272 / 151 | 3.1 |
+| LINK-2B-S8W10 (user) | 8 / 10 / 14 | 7.07 | 1.65 | 233 / 159 | 3.6 |
+| **LINK-2B-S10P24** | 10 / 6 / 24 | 7.25 | **1.07** | 199 / 115 | 4.2 |
+Walls 6 -> 10 give strength but no stiffness (the walls are not the compliant member); the plate on the J2 output
+outside D190 is: 14 -> 24 (+0.7 kg) takes the rotation from 1.64 to 1.07 mrad.
