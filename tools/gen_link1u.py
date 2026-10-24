@@ -1,5 +1,5 @@
 import sys
-def gen(tp, tb, tg, off, path, a=12.0, R=0.0):
+def gen(tp, tb, tg, off, path, a=12.0, R=0.0, ch=10.0, m8ang=0.0):
     """tp plate (z 0..tp), tb base (x -135..-135+tb), tg gusset thickness (y 112-tg..112 inner faces stay? -> keep outer at 122), off window offset"""
     xb = -135 + tb                      # base inner face
     yi, yo = 112, 112 + tg              # gusset inner face on the plate / base edge, outer = 112 + tg
@@ -25,15 +25,15 @@ CUT X -136 {xb+1} RECT -125 -112 -210 {tp+2}
 CUT X -136 {xb+1} RECT -125 125 {tp} 40
 PRISM Y {yi} {yo} POLY -135 -127 -105 -127 70 -12 70 {tp} -135 {tp}
 PRISM Y {-yo} {-yi} POLY -135 -127 -105 -127 70 -12 70 {tp} -135 {tp}
-CUT Y -123 123 POLY -136 {tp-11} {-135+11} {tp+1} -136 {tp+1}
-CUT X -136 71 POLY {yo+1} {tp-11} {yo+1} {tp+1} {yo-11} {tp+1}
-CUT X -136 71 POLY {-yo-1} {tp-11} {-yo+11} {tp+1} {-yo-1} {tp+1}
+CUT Y -123 123 POLY -136 {tp-ch-1} {-135+ch+1} {tp+1} -136 {tp+1}
+CUT X -136 71 POLY {yo+1} {tp-ch-1} {yo+1} {tp+1} {yo-ch-1} {tp+1}
+CUT X -136 71 POLY {-yo-1} {tp-ch-1} {-yo+ch+1} {tp+1} {-yo-1} {tp+1}
 CUT Y {yi-1} {yo+1} RPOLY {xw0} {zw0} 10 {x_top:.3f} {zw0} 10 {xw0} {zl(xw0):.3f} 10
 CUT Y {-yo-1} {-yi+1} RPOLY {xw0} {zw0} 10 {x_top:.3f} {zw0} 10 {xw0} {zl(xw0):.3f} 10
 CUT Z -1 {tp+1} CIRC 0 0 190
 CUT Z -1 {tp+1} PATTERN 0 0 16 206 9 0
 CUT X -136 {xb+1} CIRC 0 -85 115
-TAP X -135 {xb} 0 -85 12 139 M8 0
+TAP X -135 {xb} 0 -85 12 139 M8 {m8ang}
 CUT X -136 {xb+1} CIRC 93.963 -30.75 14
 CUT X -136 {xb+1} CIRC -93.963 -30.75 14
 CUT X -136 {xb+1} CIRC 93.963 -139.25 14
@@ -52,4 +52,4 @@ CUT Y {-yi} {yi} CIRC {xb+R} {-R} {2*R}
     L += "END\n"
     open(path, "w").write(L)
 if __name__ == "__main__":
-    gen(*[float(v) for v in sys.argv[1:5]], sys.argv[5], *[float(v) for v in sys.argv[6:8]])
+    gen(*[float(v) for v in sys.argv[1:5]], sys.argv[5], *[float(v) for v in sys.argv[6:10]])
