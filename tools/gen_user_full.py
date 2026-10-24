@@ -22,8 +22,11 @@ if __name__=="__main__":
     lines=[g.comp(n, J7F if n=="J7" else comps[n][0], M@comps[n][1], "rigid" if comps[n][2] else "") for n in dist]
     head=head.rstrip("\n")+"\n"+"\n".join(lines)+"\n\n"
     lk=[l for l in rest.split("\n") if l.startswith("LOCK") and not l.split()[1] in ("L3","J4")]
+    # 2026-10-24: no LOCK of the ОПУ inner ring (it closed the only loop J1 output - YULA - ОПУ inner ring; flexible
+    # sub-assemblies then reported errors in SW). The ОПУ stays fixed as a whole, YULA turns with the J1 output.
+    lk=[l for l in lk if l.split()[1]!="OPU"]
     lk+=["LOCK %-4s %-26s %-4s %s"%(t[1],"DMRD-KB17-01_Housing" if t[1]=="J7" else t[2],t[3],t[4]) for t in locks if t[1] in dist]
-    txt=head+"# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, the ОПУ inner ring and\n# link 1 on YULA, each joint housing on the link before it, each link on the output shaft of the joint before it.\n"+"\n".join(lk)+"\n"
+    txt=head+"# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, link 1 on YULA\n# (the ОПУ stays fixed as a whole: no loop), each joint housing on the link before it, each link on the output shaft of the joint before it.\n"+"\n".join(lk)+"\n"
     # models changed in the user's configuration: rebuilt on every run (macro v29 "rebuild"), the rest built when missing
     out=[]
     for l in txt.split("\n"):

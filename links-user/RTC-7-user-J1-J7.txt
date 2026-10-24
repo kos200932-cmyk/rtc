@@ -25,10 +25,9 @@ COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2474 20.58203 10
 COMP L6    links-v2/LINK-6/LINK-6.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid
 COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 42.04196 211.35923    1 0 0                      0 0.19509 0.98079 rebuild
 
-# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, the ОПУ inner ring and
-# link 1 on YULA, each joint housing on the link before it, each link on the output shaft of the joint before it.
+# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, link 1 on YULA
+# (the ОПУ stays fixed as a whole: no loop), each joint housing on the link before it, each link on the output shaft of the joint before it.
 LOCK YULA YULA-01_Adapter            J1   DMRD-KB25-03_OutputShaft
-LOCK OPU  RU178G-02_InnerRing        YULA YULA-01_Adapter   keep
 LOCK L1   LINK-1U-01_Weldment        YULA YULA-01_Adapter
 LOCK J2   DMRD-80E-01_Housing        L1   LINK-1U-01_Weldment
 LOCK L2   LINK-2B-01_Weldment        J2   DMRD-80E-03_OutputShaft
