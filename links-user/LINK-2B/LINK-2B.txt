@@ -1,9 +1,9 @@
 # LINK-2B: J2 -> J3 box bracket of the user (STEP J2-J3.STEP, 2026-10-24), recognised. Frame = the user's part frame:
 #   Z = J2 axis (outward, from the J1 axis), J2 output face (end plate D159 of the 80E) at z=14 in the pocket D160 x 14;
 #   Y = J3 axis = J1 axis direction at the zero pose (up), X = Y x Z. J3 axis: x=0, z=150 (intersects the J2 axis).
-# User's box (recognised, 9.84 kg) lightened - variant B accepted 2026-10-24 (fea/link2b/summary.md): plate 24 within D190
-#   on the J2 output, 14 outside (z 10..24), side walls 6 (x +-120..126) up to z 200 (= start of the shelf chamfer), J3 shelf 10 (y 1..11, user 2026-10-24) to z 274,
-#   shelf corners 60 x 74; fillets R8 wall / plate inside the box (hot spot).
+# User's box (recognised, 9.84 kg) lightened, accepted 2026-10-24 (fea/link2b/summary.md): plate 24 on the J2 output,
+#   side walls 6 (x +-120..126) up to z 200 (= start of the shelf chamfer), J3 shelf 10 (y 1..11), shelf corners 60 x 74,
+#   fillets R8 wall / plate inside the box (hot spot). 7.25 kg; J3 face 1.07 mrad under the worst J3 loads, n 4.2.
 # J3 seat (user 2026-10-24): the KB50 ring D214h7 goes through the plate bore D214H7 (as drawn by the user); J3 is held
 #   by the flange D236 of its motor housing (joint SHM-KB50F) under the plate: 24 x M5 on D224 from below, tapped through
 #   the plate (2.5 mm between the thread and the bore). Holes on D110 D11 (M10).
@@ -19,7 +19,6 @@ PRISM X 120 126 POLY -36 0 50 0 50 116.2 11 200 1 200 -36 116.2
 PRISM X -126 -120 POLY -36 0 50 0 50 116.2 11 200 1 200 -36 116.2
 PRISM Y 1 11 POLY -120 24 120 24 120 200 60 274 -60 274 -120 200
 CUT Z -1 14 CIRC 0 0 160
-CUT Z -1 10 RING 0 0 420 190
 CUT Z 13 25 PATTERN 0 0 3 142 9 69
 CUT Z 13 25 PATTERN 0 0 3 142 9 81
 CUT Z 13 25 PATTERN 0 0 3 142 9 99

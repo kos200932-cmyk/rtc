@@ -89,3 +89,6 @@ Shelf 8 / 10 / 14: 1.92 / 1.64 / 1.13 mrad (W1). Screws DIN912 M5x25 (flange 16 
 | **LINK-2B-S10P24** | 10 / 6 / 24 | 7.25 | **1.07** | 199 / 115 | 4.2 |
 Walls 6 -> 10 give strength but no stiffness (the walls are not the compliant member); the plate on the J2 output
 outside D190 is: 14 -> 24 (+0.7 kg) takes the rotation from 1.64 to 1.07 mrad.
+
+## ACCEPTED (2026-10-24): shelf 10 / walls 6 / plate 24 (= LINK-2B-S10P24) -> links-user/LINK-2B/LINK-2B.txt, 7.25 kg
+W1: 1.07 mrad (~2.5 mm at the TCP), vM 199 / 115 MPa, n 4.2; W3: 0.78 mrad, 181 / 91 MPa. Screws J3 flange: 24 x DIN912 M5x25.
