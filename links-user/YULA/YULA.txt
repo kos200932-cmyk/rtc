@@ -1,7 +1,7 @@
-# YULA ("Юла"): the user's adapter J1 output -> ОПУ inner ring -> link 1 (IGES J1-J2.IGS, 2026-10-23), recognised
+# YULA ("Юла", LIGHT - accepted 2026-10-24): the user's adapter J1 output -> ОПУ inner ring -> link 1 (IGES J1-J2.IGS, 2026-10-23), recognised
 # into BuildFromSpec ops. Coordinates: the user's assembly frame, mm: X = J1 axis (up), x=0 - the ОПУ base plane.
-#   tube D115 / D88, x 20..54: its outer D115 in the bore D115 of the link-1 base (x 36..54), below (x 20..26) round
-#     the J1 output shaft D86;
+#   tube D115 / D88 x 20..26 round the J1 output shaft D86; above the flange the spigot D115 / D100 x 36..46 in the
+#     bore D115 of the link-1 base (12 thick) - lightened from 18 long / D88 (variants/YULA-user.txt = the user's original);
 #   lip D66 x 26..32 on the J1 output face (x=26): 16 x D6.3 on D77 (screws into the 16-M4 of the KB25 output), every 22.5 deg from 18.75;
 #   flange D160 x 28..36 between the ОПУ inner ring (face x=28) and the link-1 base (face x=36):
 #     12 x D9 on D139 (M8 into the link base), every 30 deg from 18.75.
@@ -16,11 +16,11 @@ COLOR 110 175 90
 PRISM X 20 26 RING 0 0 115 88
 PRISM X 26 28 RING 0 0 115 66
 PRISM X 28 32 RING 0 0 160 66
-PRISM X 32 36 RING 0 0 160 88
-PRISM X 36 54 RING 0 0 115 88
+PRISM X 32 36 RING 0 0 160 100
+PRISM X 36 46 RING 0 0 115 100
 CUT X 25 33 PATTERN 0 0 16 77 6.3 18.75   # 16 x D6.3 on D77 (the KB25 output has 16-M4 there - D6.3 measured from the IGES)
 CUT X 27 37 PATTERN 0 0 12 139 9 18.75   # 12 x D9: M8 into the link-1 base (D139)
 PORTP j1_out X 26 -1 role=on_j1_output fit=86 bolts=16xM4_D77
 PORTP opu X 28 -1 role=on_opu_inner_ring
-PORTP link1 X 36 1 role=link1_base fit=115 bolts=12xM8_D139
+PORTP link1 X 36 1 role=link1_base fit=115x10 bolts=12xM8_D139
 END
