@@ -28,3 +28,25 @@ vM max sits on the boundary sets (fixed / load faces, stress singularities of th
   flange use hardened washers (or steel flange).
 - Reducer ring -> flange D236, 12 x M8 8.8 on D200 from the ring face into the flange (16): 2 x 1038 / (12 x 0.1) =
   1.73 kN + 0.06 kN per screw vs preload ~16 kN -> OK.
+
+## Stiffness budget of the J1-J2-J3 chain (worst loads of robot/RTC-7-loads-v2, each at its own worst pose - upper bound)
+| Element | load | rotation, mrad | TCP (lever ~2.4-2.6 m), mm |
+|---|---|---|---|
+| ОПУ RU178 (K ~5.4e6 N·m/rad) | tilting 1239 N·m | 0.23 | 0.6 |
+| LINK-1U V2 (30ХГСА) | J2 loads | 0.61 | 1.6 |
+| J2 80E torsion (K 196 N·m/arcmin = 6.7e5 N·m/rad) | 1212 N·m | 1.80 | 4.3 |
+| J2 80E lost motion 1 arcmin | - | 0.29 | 0.7 |
+| J2 80E tilting (K 1176 N·m/arcmin) | 479 N·m | 0.12 | 0.3 |
+| **LINK-2B (30ХГСА, 9.84 kg)** | J3 loads | **0.56** | **1.3** |
+| J3 KB50 | 989 N·m tilting / 347 N·m | no catalog stiffness | ? |
+The J2 reducer torsion dominates; LINK-2B is ~15 % of the budget -> it can be lightened.
+
+## Mass reduction study (specs fea/link2b/LINK-2B-A|B|C.txt), same loads, h 4.5
+| Variant | walls / shelf / plate outside D190 / shelf chamfers | mass, kg | W1 rot, mrad | vM max / far, MPa | n = 835 / max | weld 585 / max |
+|---|---|---|---|---|---|---|
+| current LINK-2B | 10 / 18 / 24 / 50x50 | 9.84 | 0.56 | 160 / 84 | 5.2 | 3.7 |
+| A | 6 / 14 / 24 / 50x50 | 8.18 | 0.85 | 210 / 122 | 4.0 | 2.8 |
+| **B** (recommended) | 6 / 14 / 14 (z 0..10 removed outside D190) / 60x74 | **7.27** | 1.17 | 255 / 146 | 3.3 | 2.3 |
+| C | 6 / 12 / 14 / 60x74 | 6.96 | 1.42 | 288 / 176 | 2.9 | 2.0 |
+Hot spot in every variant: inner corner wall / plate at the lower wall end (x=±120, y=-35, z=25) - add fillet R8..10
+(or a fillet weld leg 6) there, as on LINK-1U. Shelf >= 14: the M5 thread needs >= 10 (2 d) of engagement.
