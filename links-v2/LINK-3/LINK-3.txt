@@ -31,4 +31,7 @@ PRISM Z 399 1420 RING 135 0 120 110   # tube D120 x 5 up into the cylinder
 CUT X 9 204 CIRC 0 1467 168   # tube end flush with the bore D168 (J4 housing stays clear)
 PORTP j3_out Z 384 -1 role=on_j3_output fit=172H7 bolts=16xM8_D154
 PORTP j4_base X 10 -1 role=j4_seat fit=168H7 bolts=18xM6_D202 screws_from=reducer_side
+# planes through the J3 axis (macro v32 REV: the joint AXIS lies in both)
+PORTP j3_axA X 135 1 role=plane_through_j3_axis
+PORTP j3_axB Y 0 1 role=plane_through_j3_axis
 END

@@ -21,19 +21,34 @@ if __name__=="__main__":
     J7F="joints/SHM-KB17/SHM-KB17.txt"   # user 2026-10-24: J7 = KB17 (SHM-KB17, link interface = SHM-60, same joint frame)
     lines=[g.comp(n, J7F if n=="J7" else comps[n][0], M@comps[n][1], "rigid" if comps[n][2] else "") for n in dist]
     head=head.rstrip("\n")+"\n"+"\n".join(lines)+"\n\n"
-    lk=[l for l in rest.split("\n") if l.startswith("LOCK") and not l.split()[1] in ("L3","J4")]
-    # 2026-10-24: no LOCK of the ОПУ inner ring (it closed the only loop J1 output - YULA - ОПУ inner ring; flexible
-    # sub-assemblies then reported errors in SW). The ОПУ stays fixed as a whole, YULA turns with the J1 output.
-    lk=[l for l in lk if l.split()[1]!="OPU"]
-    lk+=["LOCK %-4s %-26s %-4s %s"%(t[1],"DMRD-KB17-01_Housing" if t[1]=="J7" else t[2],t[3],t[4]) for t in locks if t[1] in dist]
-    txt=head+"# Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed; YULA on the J1 output shaft, link 1 on YULA\n# (the ОПУ stays fixed as a whole: no loop), each joint housing on the link before it, each link on the output shaft of the joint before it.\n"+"\n".join(lk)+"\n"
+    # v32 mates (2026-10-25): the joints are RIGID sub-assemblies; joint housing -> previous link: LOCK of the whole
+    # components; link -> joint output: REV (the output shaft AXIS in two link planes through the axis + PORT_output on
+    # the link port plane) - the link turns about the joint axis. No nested lock mates, no flexible sub-assemblies.
+    lk=["LOCK L1   -                          YULA -",
+        "LOCK J2   -                          L1   -",
+        "LOCK J3   -                          L2   -",
+        "LOCK J4   -                          L3   -",
+        "LOCK J5   -                          L4   -",
+        "LOCK J6   -                          L5   -",
+        "LOCK J7   -                          L6   -",
+        "#   link  link part               plane A      plane B      port plane   joint  joint part (output shaft)",
+        "REV YULA  YULA-01_Adapter         PORT_j1_axA  PORT_j1_axB  PORT_j1_out  J1     DMRD-KB25-03_OutputShaft",
+        "REV L2    LINK-2B-01_Weldment     PORT_j2_axA  PORT_j2_axB  PORT_j2_out  J2     DMRD-80E-03_OutputShaft",
+        "REV L3    LINK-3-01_Weldment      PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft",
+        "REV L4    LINK-4-01_Weldment      PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft",
+        "REV L5    LINK-5-01_Weldment      PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft",
+        "REV L6    LINK-6-01_Weldment      PORT_j6_axA  PORT_j6_axB  PORT_j6_out  J6     DMRD-KB25-03_OutputShaft",
+        "# J7 (flange roll): nothing after it in this assembly"]
+    txt=head+"# Degrees of freedom (macro v32): base plate, ОПУ and J1 fixed; every joint is a RIGID sub-assembly locked to the link\n# before it; YULA (+ link 1) and links 2..6 turn about the axes of J1..J6 (REV). Turn them by dragging the links.\n"+"\n".join(lk)+"\n"
     # models changed in the user's configuration: rebuilt on every run (macro v29 "rebuild"), the rest built when missing
     out=[]
     for l in txt.split("\n"):
         t=l.split()
-        if t[:1]==["COMP"] and t[1] in ("L2","J3","J7"): l=l+" rebuild"
+        if t[:1]==["COMP"] and (t[1][0]=="J" or t[1]=="OPU") and "rigid" not in t: l=l+" rigid"     # joints, ОПУ rigid (v32)
+        t=l.split()
+        if t[:1]==["COMP"] and t[1] in ("YULA","L2","L3","L4","L5","L6") and "rebuild" not in t: l=l+" rebuild"   # PORT planes of the axes added
         out.append(l)
-    txt="\n".join(out).replace("REBUILD no\n","REBUILD no      # yes - rebuild ALL models; COMP ... rebuild - only that one (macro v29)\n")
+    txt="\n".join(out).replace("REBUILD no\n","REBUILD no      # yes - rebuild ALL models; COMP ... rebuild - only that one\n")
     open("links-user/RTC-7-user-J1-J7.txt","w",encoding="utf-8",newline="\r\n").write(txt)
     print(txt)
 

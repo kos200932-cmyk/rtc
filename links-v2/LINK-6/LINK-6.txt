@@ -26,4 +26,7 @@ CUT X 15 38 CIRC 0 2617 46   # cable + the clamp flange of the J6 input shaft (D
 CUT X 24 38 PATTERN 0 2617 16 77 4.5 348.75   # 16 x D4.5 -> 16-M4 of the output
 PORTP j6_out X 25 -1 role=on_j6_output fit=86H7 bolts=16xM4_D77
 PORTP j7_base Z 2725 1 role=j7_seat fit=94H7 bolts=12xM4_D102 screws_from=reducer_side
+# planes through the J6 axis (macro v32 REV: the joint AXIS lies in both)
+PORTP j6_axA Y 0 1 role=plane_through_j6_axis
+PORTP j6_axB Z 2617 1 role=plane_through_j6_axis
 END

@@ -27,4 +27,7 @@ CUT X -84 -63 CIRC 0 1467 60   # cable
 CUT X -84 -69 PATTERN 0 1467 16 140 9 191.25   # 16 x D9 -> 16-M8 of the output
 PORTP j4_out X -70 1 role=on_j4_output fit=158H7 bolts=16xM8_D140
 PORTP j5_base Z 1587.5 1 role=j5_seat fit=122H7 bolts=12xM5_D154 screws_from=reducer_side
+# planes through the J4 axis (macro v32 REV: the joint AXIS lies in both)
+PORTP j4_axA Y 0 1 role=plane_through_j4_axis
+PORTP j4_axB Z 1467 1 role=plane_through_j4_axis
 END

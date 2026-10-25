@@ -23,4 +23,7 @@ CUT X 27 37 PATTERN 0 0 12 139 9 0   # 12 x D9 on D139, every 30 deg from 0 - co
 PORTP j1_out X 26 -1 role=on_j1_output fit=86 bolts=16xM4_D77
 PORTP opu X 28 -1 role=on_opu_inner_ring
 PORTP link1 X 36 1 role=link1_base fit=115x12 bolts=12xM8_D139
+# planes through the J1 axis (macro v32 REV: the joint AXIS lies in both)
+PORTP j1_axA Y 0 1 role=plane_through_j1_axis
+PORTP j1_axB Z 0 1 role=plane_through_j1_axis
 END

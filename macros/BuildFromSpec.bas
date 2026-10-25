@@ -44,6 +44,9 @@ Attribute VB_Name = "BuildFromSpec"
 '                                         and its X / Z axes along the given directions, fixed;
 '                                         optional words: rigid (a link) / flex (default for .SLDASM),
 '                                         rebuild - build this model again even if it exists (v29)
+'       REV <link> <linkPart> <planeA> <planeB> <portPlane> <joint> <jointPart>  (v32) - revolute joint: the AXIS of
+'                                         the joint part (output shaft) in the two link planes, its PORT_output on the
+'                                         link port plane; the link turns about the joint axis, the joint stays rigid
 '       LOCK <comp> <part|-> <comp> <part|->  - instead of fixing: the first component is locked to a part
 '                                         of the second (e.g. a link to the output shaft of a joint);
 '                                         the joints are flexible, so the arm keeps its degrees of freedom;
@@ -63,7 +66,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v31 (2026-10-24)"
+Private Const MACRO_VERSION As String = "v32 (2026-10-25)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -2062,6 +2065,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     Dim cName(0 To 63) As String, cFile(0 To 63) As String, cFr(0 To 63, 0 To 8) As Double, nC As Long
     Dim cRigid(0 To 63) As Boolean, lk(0 To 63, 0 To 3) As String, nLk As Long, lkKeep(0 To 63) As Boolean
     Dim cRebuild(0 To 63) As Boolean
+    Dim rv(0 To 63, 0 To 6) As String, nRv As Long   ' v32: REV lines
     folder = Left(specPath, InStrRev(specPath, "\"))
     lines = ReadLines(specPath)
     For li = LBound(lines) To UBound(lines)
@@ -2088,6 +2092,14 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
                     If LCase(t(q)) = "rebuild" Then cRebuild(nC) = True   ' v29: rebuild this model even if it exists
                 Next q
                 nC = nC + 1
+            Case "REV"
+                If UBound(t) < 7 Then gLog = gLog & "REV needs: link linkPart planeA planeB portPlane joint jointPart" & vbCrLf: Exit Function
+                If nRv <= 63 Then
+                    For q = 0 To 6
+                        rv(nRv, q) = t(1 + q)
+                    Next q
+                    nRv = nRv + 1
+                End If
             Case "LOCK"
                 If UBound(t) < 4 Then gLog = gLog & "LOCK needs: comp part comp part" & vbCrLf: Exit Function
                 If nLk <= 63 Then
@@ -2186,11 +2198,50 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
         End If
     Next q
 
+    ' 4. v32: revolute joints - REV link linkPart planeA planeB portPlane joint jointPart:
+    '    the AXIS of the joint part (output shaft) lies in the two link planes (both contain the joint axis), its
+    '    PORT_output plane on the link port plane -> the link turns about the joint axis; the joints stay RIGID.
+    Dim nRvOk As Long, pl As SldWorks.Component2, pj As SldWorks.Component2, fe(0 To 4) As SldWorks.Feature, okR As Boolean
+    For q = 0 To nRv - 1
+        ia = -1: ib = -1
+        For k = 0 To nC - 1
+            If StrComp(cName(k), rv(q, 0), vbTextCompare) = 0 Then ia = k
+            If StrComp(cName(k), rv(q, 5), vbTextCompare) = 0 Then ib = k
+        Next k
+        If ia < 0 Or ib < 0 Then
+            gLog = gLog & "REV " & rv(q, 0) & " -> " & rv(q, 5) & ": component not found" & vbCrLf
+        Else
+            Set pl = FindDeep(comps(ia), rv(q, 1)): Set pj = FindDeep(comps(ib), rv(q, 6))
+            okR = Not (pl Is Nothing Or pj Is Nothing)
+            If okR Then
+                Set fe(0) = FindFeature(pl.FirstFeature, rv(q, 2)): Set fe(1) = FindFeature(pl.FirstFeature, rv(q, 3))
+                Set fe(2) = FindFeature(pl.FirstFeature, rv(q, 4))
+                Set fe(3) = FindFeature(pj.FirstFeature, AXIS_NAME): Set fe(4) = FindFeature(pj.FirstFeature, "PORT_output")
+                For k = 0 To 4
+                    If fe(k) Is Nothing Then okR = False
+                Next k
+            End If
+            If Not okR Then
+                gLog = gLog & "REV " & rv(q, 0) & " -> " & rv(q, 5) & ": part or plane / AXIS / PORT_output not found - stays fixed" & vbCrLf
+            Else
+                am.ClearSelection2 True
+                comps(ia).Select4 False, Nothing, False
+                asm.UnfixComponent
+                am.ClearSelection2 True
+                If MatePairA(am, asm, fe(3), fe(0), swMateCOINCIDENT, "REV " & rv(q, 0) & " axis/" & rv(q, 2)) Is Nothing Then okR = False
+                If MatePairA(am, asm, fe(3), fe(1), swMateCOINCIDENT, "REV " & rv(q, 0) & " axis/" & rv(q, 3)) Is Nothing Then okR = False
+                If MatePairA(am, asm, fe(4), fe(2), swMateCOINCIDENT, "REV " & rv(q, 0) & " PORT_output/" & rv(q, 4)) Is Nothing Then okR = False
+                If okR Then nRvOk = nRvOk + 1 Else FixComp am, asm, comps(ia)
+            End If
+        End If
+    Next q
+
     am.ClearSelection2 True
     am.EditRebuild3
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
     If Not SaveDoc(am, folder & aName & ".SLDASM") Then Exit Function
+    If nRv > 0 Then gSummary = "revolute joints (REV): " & nRvOk & " of " & nRv & vbCrLf & gSummary
     If nLk > 0 Then gSummary = "lock mates: " & nOk & " of " & nLk & vbCrLf & gSummary
     gSummary = "arm assembly " & aName & ": " & nC & " component(s)" & vbCrLf & gSummary
     BuildRobotAsm = True
@@ -2373,6 +2424,22 @@ Private Sub PlaceFrame(ByVal c As SldWorks.Component2, fr() As Double, ByVal k A
 End Sub
 
 ' Component of a part anywhere below a component (name contains partName)
+' v32: mate with the alignment chosen by SOLIDWORKS (closest) - for planes whose normals may point either way
+Private Function MatePairA(ByVal am As SldWorks.ModelDoc2, ByVal asm As SldWorks.AssemblyDoc, _
+                           ByVal a As SldWorks.Feature, ByVal b As SldWorks.Feature, _
+                           ByVal mateType As Long, ByVal errName As String) As Object
+    Dim errStat As Long
+    am.ClearSelection2 True
+    a.Select2 False, 1
+    b.Select2 True, 1
+    Set MatePairA = asm.AddMate3(mateType, swMateAlignCLOSEST, False, _
+                                 0, 0, 0, 0, 0, 0, 0, 0, False, errStat)
+    If MatePairA Is Nothing And errName <> "" Then
+        gLog = gLog & errName & " failed (status " & errStat & ")" & vbCrLf
+    End If
+    am.ClearSelection2 True
+End Function
+
 Private Function FindDeep(ByVal parent As SldWorks.Component2, ByVal partName As String) As SldWorks.Component2
     Dim ch As Variant, c As Variant, r As SldWorks.Component2
     ch = parent.GetChildren

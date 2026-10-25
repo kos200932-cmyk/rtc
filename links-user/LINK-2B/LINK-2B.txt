@@ -38,4 +38,7 @@ PRISM Y 11 50 RECT -120 -112 24 32
 CUT Y 11 50 CIRC -112 32 16
 PORTP j3_base Y 1 -1 role=on_j3_flange_D236 fit=214H7_ring_through bolts=24xM5_D224_from_below
 PORTP j2_out Z 14 -1 role=on_j2_output fit=160H7x14 bolts=9xM8_D142+6xM10_D110
+# planes through the J2 axis (macro v32 REV: the joint AXIS lies in both)
+PORTP j2_axA X 0 1 role=plane_through_j2_axis
+PORTP j2_axB Y 0 1 role=plane_through_j2_axis
 END

@@ -31,4 +31,7 @@ PRISM Z 1656 2600 RING -144 0 80 72   # tube D80 x 4 up into the cylinder
 CUT X -193 -25 CIRC 0 2617 94   # tube end flush with the bore D94 (J6 housing stays clear)
 PORTP j5_out Z 1644 -1 role=on_j5_output fit=112H7 bolts=16xM5_D100
 PORTP j6_base X -26 1 role=j6_seat fit=94H7 bolts=12xM4_D120 screws_from=reducer_side
+# planes through the J5 axis (macro v32 REV: the joint AXIS lies in both)
+PORTP j5_axA X -144 1 role=plane_through_j5_axis
+PORTP j5_axB Y 0 1 role=plane_through_j5_axis
 END
