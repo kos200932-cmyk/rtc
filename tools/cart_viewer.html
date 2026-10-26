@@ -1,0 +1,334 @@
+<meta charset="utf-8">
+<title>RTC-7 Cart Reach</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen instrument. 3D stage fills the window, a control column on the right
+   (bottom sheet on phones), the program timeline runs along the bottom of the stage. */
+:root {
+  --bg: #e6e9ec;         /* stage ground, cool steel-tinted grey */
+  --panel: #f8f9fa;
+  --line: #d3d8de;
+  --fg: #1b1f24;
+  --muted: #5d6670;
+  --accent: #d9631f;     /* tool / TCP orange, the colour of the gripper */
+  --ok: #2f8a5b; --warn: #c58a0b; --bad: #c2352b;
+  --track: #dfe3e8;
+  --floor: #c9cfd5; --grid: #aab2bb;
+  --f-ui: "Fira Sans Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181c; --panel: #1c2026; --line: #2d333b; --fg: #e6e9ed; --muted: #97a0aa;
+  --accent: #ee7a35; --ok: #4fb383; --warn: #e0a83a; --bad: #e5584c; --track: #2a3038;
+  --floor: #1d2127; --grid: #2f363f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15181c; --panel: #1c2026; --line: #2d333b; --fg: #e6e9ed; --muted: #97a0aa;
+  --accent: #ee7a35; --ok: #4fb383; --warn: #e0a83a; --bad: #e5584c; --track: #2a3038;
+  --floor: #1d2127; --grid: #2f363f; color-scheme: dark }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--f-ui); overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: 1fr 340px; }
+.stage { position: relative; min-width: 0; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+.side { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto;
+  padding-block: 16px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 18px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 8px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, select { font: 500 13px var(--f-ui); color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.joint { display: grid; grid-template-columns: 28px 1fr 62px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.joint b { font-weight: 600; }
+.joint output { font: 13px var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.tq { display: grid; grid-template-columns: 28px 1fr 92px; gap: 8px; align-items: center; margin-bottom: 7px; font-size: 13px; }
+.bar { position: relative; height: 10px; background: var(--track); border-radius: 2px; overflow: hidden; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); }
+.bar s { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--fg); left: 66.67%; }
+.tq output { font: 12px var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 12px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 13px; }
+.kv span:nth-child(odd) { color: var(--muted); }
+.kv span:nth-child(even) { font: 13px var(--f-num); font-variant-numeric: tabular-nums; }
+.hud { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: 14px; pointer-events: none; }
+.cap { font-size: 22px; font-weight: 600; text-wrap: balance; max-width: 30ch; }
+.cap small { display: block; font: 12px var(--f-num); color: var(--muted); font-weight: 400; margin-top: 2px; }
+.timeline { position: absolute; left: 16px; right: 16px; bottom: 14px; display: flex; gap: 10px; align-items: center; }
+.timeline input { flex: 1; }
+.timeline output { font: 12px var(--f-num); color: var(--muted); min-width: 92px; text-align: right; }
+#play { min-width: 44px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); border: 1px solid var(--line); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
+/* record mode (#record): clean frame for video, no controls */
+.rec .side, .rec .timeline { display: none; }
+.rec .app { grid-template-columns: 1fr; }
+.rec .hud { left: 40px; top: 32px; }
+.rec .cap { font-size: 34px; }
+.rec .cap small { font-size: 16px; }
+.brand { display: none; position: absolute; right: 40px; bottom: 30px; text-align: right; color: var(--muted); font-size: 15px; }
+.brand b { display: block; color: var(--fg); font-size: 22px; font-weight: 600; }
+.rec .brand { display: block; }
+.clean .hud, .clean .brand { display: none !important; }
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; }
+  .stage { height: 62vh; }
+  .side { border-left: 0; border-top: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .cap { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+.phase { font-size: 13px; padding: 8px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); }
+.phase.bad { border-color: var(--bad); color: var(--bad); }
+.chk { font: 12px var(--f-num); }
+.chk.ok { color: var(--ok); } .chk.bad { color: var(--bad); }
+.prog { display: flex; flex-direction: column; gap: 6px; }
+.prog button { text-align: left; }
+.tq { grid-template-columns: 34px 1fr 124px !important; }
+.tq output { white-space: nowrap; }
+.tq output.over { color: var(--bad); }
+.bar i.hi { background: var(--warn); } .bar i.over { background: var(--bad); }
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="gl" tabindex="0" aria-label="3D-модель RTC-7 на тележке"></canvas>
+    <div class="loading" id="loading">Загрузка модели…</div>
+    <div class="hud"><div class="cap" id="cap">RTC-7 на тележке<small id="capt">t = 0.0 с</small></div></div>
+    <div class="brand"><b>RTC-7</b>манипулятор на колёсной тележке · СЗУ</div>
+    <div class="timeline">
+      <button id="play" aria-pressed="false" title="Пуск / пауза">▶</button>
+      <input id="time" type="range" min="0" max="1000" step="1" value="0" aria-label="Время программы">
+      <output id="tout">0.0 / 0.0 с</output>
+    </div>
+  </div>
+  <aside class="side">
+    <div>
+      <h1>RTC-7 на тележке</h1>
+      <div class="sub">Сценарии работы: подъём груза с грунта, установка на посадочное место, обход поворотной панели. Позы — решение обратной задачи, касания проверены по моделям.</div>
+    </div>
+    <section>
+      <h2>Программа</h2>
+      <div class="prog" id="progs"></div>
+    </section>
+    <section>
+      <h2>Этап</h2>
+      <div class="phase" id="phase">–</div>
+      <div class="chk" id="chk" style="margin-top:6px">–</div>
+    </section>
+    <section>
+      <h2>Вид</h2>
+      <div class="row">
+        <button data-view="iso">Изометрия</button><button data-view="side">Сбоку</button>
+        <button data-view="rear">С торца</button><button data-view="top">Сверху</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="trail" aria-pressed="true">След TCP</button>
+        <select id="speed" aria-label="Скорость воспроизведения">
+          <option value="1">×1</option><option value="2">×2</option><option value="4" selected>×4</option><option value="8">×8</option>
+        </select>
+      </div>
+    </section>
+    <section>
+      <h2>Углы шарниров, °</h2>
+      <div class="kv" id="joints"></div>
+    </section>
+    <section>
+      <h2>Статический момент от веса</h2>
+      <div id="torques"></div>
+      <div class="note">Доля допускаемого: min(номинал редуктора, номинал двигателя × i × 0,8); черта — 100 %. J3, J5 — также опрокидывающий момент. Только сила тяжести; груз 8 кг учитывается, пока он в захвате.</div>
+    </section>
+    <section>
+      <h2>TCP — торец СЗУ</h2>
+      <div class="kv"><span>X</span><span id="tx">–</span><span>Y (вверх)</span><span id="ty">–</span><span>Z</span><span id="tz">–</span><span>Над грунтом</span><span id="th">–</span></div>
+      <div class="note" style="margin-top:6px">Система координат корпуса тележки: X вдоль (0 — передний торец), Y вверх, Z поперёк (+Z — борт робота). Грунт y = −597,5.</div>
+    </section>
+    <section>
+      <h2>Цвета</h2>
+      <div class="legend">
+        <span style="--c:#e0b93c">звенья 3–6</span><span style="--c:#c9bfae">звено 2</span><span style="--c:#d49a90">звено 1</span>
+        <span style="--c:#b8c2cc">шарниры</span><span style="--c:#2a5d9f">СЗУ</span><span style="--c:#c9a24a">груз 400</span>
+        <span style="--c:#3d6fae">панель</span><span style="--c:#9aa3a8">корпус</span>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const SCENE = /*SCENE_JSON*/null;
+(function () {
+  const rec = location.hash === "#record";
+  if (rec) document.documentElement.classList.add("rec");
+  const $ = (id) => document.getElementById(id);
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const canvas = $("gl");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: rec });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 1, 20, 60000);
+  const controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true;
+  const target = new THREE.Vector3(1500, 600, 300);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f96, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+  sun.position.set(4200, 7000, 4200); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -4500, right: 4500, top: 4500, bottom: -4500, near: 100, far: 20000 });
+  sun.target.position.set(1300, -600, 0); scene.add(sun.target);
+  sun.shadow.bias = -0.0006; sun.shadow.normalBias = 6; scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.35); fill.position.set(-3000, 2500, -2500); scene.add(fill);
+
+  const GY = SCENE.ground_y;
+  const floorMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12000, 10000), floorMat);
+  floor.rotation.x = -Math.PI / 2; floor.position.set(1300, GY, 0); floor.receiveShadow = true; scene.add(floor);
+  const grid = new THREE.GridHelper(10000, 20); grid.position.set(1300, GY + 1, 0); scene.add(grid);
+  function themeColors() {
+    floorMat.color.set(css("--floor"));
+    grid.material.color = new THREE.Color(css("--grid")); grid.material.transparent = true; grid.material.opacity = 0.5;
+    scene.background = new THREE.Color(css("--bg"));
+  }
+
+  function dec(b64, T) { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new T(u.buffer); }
+  function m4(a) { const m = new THREE.Matrix4(); m.set(...a.flat()); return m; }
+  const arm = [], meshes = {};
+  let panelMesh = null, boxMesh = null;
+  for (const M of SCENE.meshes) {
+    let g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(dec(M.pos, Float32Array), 3));
+    g.setIndex(new THREE.BufferAttribute(dec(M.idx, Uint32Array), 1));
+    g = g.toNonIndexed(); g.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color: M.color, roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide });
+    mat.color.convertSRGBToLinear();
+    const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.matrixAutoUpdate = false; scene.add(mesh);
+    if (M.kind === "arm") arm.push([mesh, M.nmov]);
+    else if (M.kind === "panel") panelMesh = mesh;
+    else if (M.kind === "box") boxMesh = mesh;
+    meshes[M.name] = mesh;
+  }
+  $("loading").hidden = true;
+
+  // kinematics: product of exponentials about the joint axes (hull frame, zero pose)
+  const AX = SCENE.axes.map(([o, d]) => [new THREE.Vector3(...o), new THREE.Vector3(...d).normalize()]);
+  function rotAbout(o, d, a) {
+    const R = new THREE.Matrix4().makeRotationAxis(d, a);
+    return new THREE.Matrix4().makeTranslation(o.x, o.y, o.z).multiply(R).multiply(new THREE.Matrix4().makeTranslation(-o.x, -o.y, -o.z));
+  }
+  function chain(q) { const C = [new THREE.Matrix4()]; for (let k = 0; k < 7; k++) C.push(C[k].clone().multiply(rotAbout(AX[k][0], AX[k][1], q[k]))); return C; }
+  const PV = new THREE.Vector3(...SCENE.panel_pivot);
+  const panelM = (az) => rotAbout(PV, new THREE.Vector3(0, 1, 0), az * Math.PI / 180);
+  const B = m4(SCENE.box_B), TCP0 = new THREE.Vector3(...SCENE.tcp0);
+
+  // trail
+  const trailN = 4000, trailPos = new Float32Array(trailN * 3); let trailLen = 0;
+  const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xd9631f })); trail.frustumCulled = false; scene.add(trail);
+  const tcpDot = new THREE.Mesh(new THREE.SphereGeometry(18, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd9631f })); scene.add(tcpDot);
+
+  // UI: programs, joints, torques
+  const P = SCENE.programs; let cur = 0, t = 0, playing = false, lastSeg = -1;
+  const progBox = $("progs");
+  P.forEach((p, i) => { const b = document.createElement("button"); b.textContent = p.name; b.setAttribute("aria-pressed", i === 0);
+    b.onclick = () => { cur = i; t = 0; trailLen = 0; lastSeg = -1; [...progBox.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i)); setup(); }; progBox.appendChild(b); });
+  const jt = $("joints"); const jOut = [];
+  for (let k = 0; k < 7; k++) { const a = document.createElement("span"); a.textContent = "J" + (k + 1); const b = document.createElement("span"); jt.append(a, b); jOut.push(b); }
+  const tqBox = $("torques"), tqRows = [];
+  for (const [lab] of SCENE.caps) {
+    const r = document.createElement("div"); r.className = "tq";
+    r.innerHTML = `<b>${lab}</b><div class="bar"><i></i><s style="left:${100 / 1.25}%"></s></div><output>–</output>`;
+    tqBox.appendChild(r); tqRows.push([r.querySelector("i"), r.querySelector("output")]);
+  }
+  const G = new THREE.Vector3(0, -9.81, 0);
+  function statics(C, held) {
+    const bodies = SCENE.bodies.map(([m, c, n]) => [m, new THREE.Vector3(...c).applyMatrix4(C[n]), n]);
+    if (held) bodies.push([SCENE.load_kg, new THREE.Vector3(0, 0, 200).applyMatrix4(C[7].clone().multiply(B)), 7]);
+    const tq = [], tilt = [];
+    for (let k = 1; k <= 6; k++) {
+      const o = AX[k - 1][0].clone().applyMatrix4(C[k - 1]);
+      const d = AX[k - 1][1].clone().transformDirection(C[k - 1]);
+      const m = new THREE.Vector3();
+      for (const [mass, c, n] of bodies) if (n >= k) m.add(c.clone().sub(o).cross(G.clone().multiplyScalar(mass)));
+      m.multiplyScalar(0.001); const a = m.dot(d); tq.push(a); tilt.push(m.clone().sub(d.clone().multiplyScalar(a)).length());
+    }
+    return [tq, tilt];
+  }
+
+  // program evaluation: quintic blend inside each segment
+  function segAt(p, tt) { let s = 0; for (let i = 0; i < p.segs.length; i++) { if (tt <= s + p.segs[i].T || i === p.segs.length - 1) return [i, Math.min(1, Math.max(0, (tt - s) / p.segs[i].T))]; s += p.segs[i].T; } }
+  const sq = (x) => x * x * x * (10 - 15 * x + 6 * x * x);
+  let seatM = null;
+  function setup() { const p = P[cur]; p.total = p.segs.reduce((a, s) => a + s.T, 0); $("time").max = 1000; seatM = null; }
+  function evalAt(tt) {
+    const p = P[cur]; const [i, u] = segAt(p, tt); const s = p.segs[i]; const w = sq(u);
+    const q = s.q0.map((v, k) => v + w * (s.q1[k] - v));
+    const az = s.az0 + w * (s.az1 - s.az0);
+    const C = chain(q);
+    for (const [mesh, n] of arm) mesh.matrix.copy(C[n]);
+    if (panelMesh) panelMesh.matrix.copy(panelM(az));
+    if (boxMesh) {
+      boxMesh.visible = s.box !== "none";
+      if (s.box === "held") boxMesh.matrix.copy(C[7].clone().multiply(B));
+      else if (s.box === "ground") boxMesh.matrix.copy(m4(SCENE.box_ground));
+      else if (s.box.startsWith("at:")) boxMesh.matrix.copy(m4(p.box_at[s.box.slice(3)]));
+    }
+    const tcp = TCP0.clone().applyMatrix4(C[7]);
+    tcpDot.position.copy(tcp);
+    if (i !== lastSeg && i === 0 && u === 0) trailLen = 0;
+    if ($("trail").getAttribute("aria-pressed") === "true" && trailLen < trailN) { trailPos.set([tcp.x, tcp.y, tcp.z], trailLen * 3); trailLen++; trailGeo.setDrawRange(0, trailLen); trailGeo.attributes.position.needsUpdate = true; }
+    lastSeg = i;
+    // readouts
+    q.forEach((v, k) => jOut[k].textContent = (v * 180 / Math.PI).toFixed(1));
+    $("tx").textContent = tcp.x.toFixed(0) + " мм"; $("ty").textContent = tcp.y.toFixed(0) + " мм"; $("tz").textContent = tcp.z.toFixed(0) + " мм";
+    $("th").textContent = (tcp.y - GY).toFixed(0) + " мм";
+    $("phase").textContent = s.label;
+    const [tq, tilt] = statics(C, s.box === "held");
+    SCENE.caps.forEach(([lab, k, cap, kind], r) => {
+      const v = kind === "tilt" ? tilt[k - 1] : Math.abs(tq[k - 1]); const f = v / cap;
+      const [bar, out] = tqRows[r]; bar.style.width = Math.min(100, f / 1.25 * 100) + "%";
+      bar.className = f > 1 ? "over" : (f > 0.9 ? "hi" : ""); out.textContent = `${v.toFixed(0)} Н·м · ${(f * 100).toFixed(0)} %`;
+      out.classList.toggle("over", f > 1);
+    });
+    const ck = p.checks[Math.min(p.checks.length - 1, Math.round(tt / p.dt))];
+    const c = $("chk"); c.textContent = ck ? "касание: " + ck : "касаний нет"; c.className = "chk " + (ck ? "bad" : "ok");
+    $("phase").classList.toggle("bad", !!ck);
+    $("capt").textContent = `${p.name} · t = ${tt.toFixed(1)} с`;
+    $("tout").textContent = `${tt.toFixed(1)} / ${p.total.toFixed(1)} с`;
+  }
+
+  // views
+  function view(v) {
+    const d = { iso: [5200, 4200, 5200], side: [1300, 1200, 8600], rear: [9200, 1800, 400], top: [1300, 9800, 1] }[v];
+    camera.position.set(d[0], d[1], d[2]); controls.target.copy(target); controls.update();
+  }
+  document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => view(b.dataset.view)));
+  function resize() { const r = canvas.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
+  window.addEventListener("resize", resize); resize(); view("iso");
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeColors); themeColors();
+
+  $("play").onclick = () => { playing = !playing; $("play").textContent = playing ? "❚❚" : "▶"; $("play").setAttribute("aria-pressed", playing); };
+  $("time").oninput = (e) => { t = e.target.value / 1000 * P[cur].total; trailLen = 0; };
+  $("trail").onclick = (e) => { const on = e.target.getAttribute("aria-pressed") !== "true"; e.target.setAttribute("aria-pressed", on); trail.visible = on; trailLen = 0; };
+  setup();
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (playing) { t += dt * parseFloat($("speed").value); if (t > P[cur].total) { t = 0; trailLen = 0; } $("time").value = Math.round(t / P[cur].total * 1000); }
+    evalAt(t); controls.update(); renderer.render(scene, camera);
+    if (!rec) requestAnimationFrame(loop);
+  }
+  if (rec) { window.renderAt = (i, tt) => { cur = i; setup(); evalAt(tt); controls.update(); renderer.render(scene, camera); }; }
+  else requestAnimationFrame(loop);
+})();
+</script>

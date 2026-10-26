@@ -356,10 +356,22 @@ def panel_grid(nu=7, nw=9):
     U = np.linspace(40, 1600, nu); W = np.linspace(-1290, 420, nw)
     return [(i, j, P_B0 + u * P_S + np.array([0, 0, w])) for i, u in enumerate(U) for j, w in enumerate(W)]
 
-def panel(out_json, az_list=None, nseed=14):
+def panel_surface(grid):
+    """The touch points: the first surface of the panel model along -normal above each grid point of the base plane
+    (solar cells / frame stand 20 mm proud of the sheet, the pivot bracket at the bottom middle)."""
+    import trimesh, link_build as lb
+    t = np.array(lb.triangles(cl.load_step(os.path.join(cl.CART_DIR, "PANEL.STEP")), 1.0))
+    m = trimesh.Trimesh(t.reshape(-1, 3), np.arange(len(t) * 3).reshape(-1, 3), process=False)
+    pts = np.array([p for i, j, p in grid]); o = pts + P_N * 400
+    loc, ri, _ = m.ray.intersects_location(o, np.tile(-P_N, (len(pts), 1)), multiple_hits=False)
+    out = pts.copy()
+    for L, r in zip(loc, ri): out[r] = L
+    return [(i, j, out[k]) for k, (i, j, _) in enumerate(grid)]
+
+def panel(out_json, az_list=None, nseed=10):
     arm = Arm(); sc = Scene(arm, box_at=None)
     az_list = az_list if az_list is not None else list(range(-180, 180, 15))
-    grid = panel_grid(); rng = np.random.default_rng(11)
+    grid = panel_surface(panel_grid()); rng = np.random.default_rng(11)
     seeds0 = [rng.uniform(-math.pi, math.pi, 7) * np.array([1, 0.8, 0.3, 1, 0.3, 1, 1]) for _ in range(nseed)]
     out = {"grid": [(i, j) for i, j, _ in grid], "az": {}}
     t0 = time.time()
@@ -420,6 +432,54 @@ def panel_png(json_path, png, show_az=None):
     plt.tight_layout(); plt.savefig(png, dpi=90)
     return best
 
+def panel_merge(paths, out_json):
+    D = {"az": {}, "q": {}}
+    for p in paths:
+        d = json.load(open(p)); D["grid"] = d["grid"]; D["az"].update(d["az"]); D["q"].update(d.get("q", {}))
+    json.dump(D, open(out_json, "w"), indent=0); return D
+
+def panel_cover(D):
+    """Greedy set of panel turns that together reach every reachable grid point."""
+    sets = {az: {k for k, v in a["res"].items() if v == "ok"} for az, a in D["az"].items()}
+    allp = set().union(*sets.values()); chosen = []; left = set(allp)
+    while left:
+        az = max(sets, key=lambda a: (len(sets[a] & left), -abs(float(a))))
+        if not sets[az] & left: break
+        chosen.append((az, sorted(sets[az] & left))); left -= sets[az]
+    return chosen, allp
+
+def panel_program(D, out_json, per_turn=4):
+    """Viewer program: panel turns of the greedy cover; at each turn the arm touches a few of the points it adds
+    (corners of their hull first): approach 120 mm along the normal -> touch -> back; then home."""
+    arm = Arm(geometry=False); chosen, allp = panel_cover(D)
+    grid = {f"{i},{j}": p for i, j, p in panel_surface(panel_grid())}
+    wps = [(np.zeros(7).tolist(), 0.0, "исходная поза, панель в нулевом положении")]
+    az_prev = 0.0
+    for az, pts in chosen:
+        a = float(az)
+        wps.append((np.zeros(7).tolist(), a, f"поворот панели на {a:+.0f}°"))
+        ij = np.array([list(map(int, k.split(","))) for k in pts])
+        pick = []
+        for f in (lambda r: r[0] + r[1], lambda r: r[0] - r[1], lambda r: -r[0] + r[1], lambda r: -r[0] - r[1]):
+            k = pts[int(np.argmax([f(r) for r in ij]))]
+            if k not in pick: pick.append(k)
+        for k in pick[:per_turn]:
+            q = np.array(D["q"][f"{az}:{k}"])
+            Mp = [M for n, f_, M, c in cl.cart_parts(panel_az=a) if n == "panel"][0]
+            n_out = Mp[:3, :3] @ P_N; p = (Mp @ np.r_[grid[k], 1])[:3] + 5.0 * n_out
+            qa, e, an = arm.ik(p + 120 * n_out, -n_out, q)
+            lab = f"точка панели {k} (ряд, столбец)"
+            wps += [(qa.tolist(), a, "подход к " + lab), (q.tolist(), a, "касание: " + lab), (qa.tolist(), a, "отвод от " + lab)]
+        wps.append((np.zeros(7).tolist(), a, "исходная поза"))
+        az_prev = a
+    wps.append((np.zeros(7).tolist(), 0.0, "панель в нулевое положение"))
+    P = {"name": "Панель: обход точек с поворотом", "wps": wps,
+         "cover": [(az, len(p)) for az, p in chosen], "reachable": len(allp), "total": len(D["grid"])}
+    json.dump(P, open(out_json, "w"), ensure_ascii=False, indent=0)
+    return P
+
 if __name__ == "__main__":
     if sys.argv[1:2] == ["scen"]: scen(sys.argv[2] if len(sys.argv) > 2 else "platform/CART/reach_scen.json")
-    if sys.argv[1:2] == ["panel"]: panel(sys.argv[2] if len(sys.argv) > 2 else "platform/CART/reach_panel.json")
+    if sys.argv[1:2] == ["panel"]:
+        azs = [int(v) for v in sys.argv[3].split(",")] if len(sys.argv) > 3 else None
+        panel(sys.argv[2] if len(sys.argv) > 2 else "platform/CART/reach_panel.json", azs)
