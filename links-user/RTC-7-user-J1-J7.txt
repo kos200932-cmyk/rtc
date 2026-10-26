@@ -24,6 +24,7 @@ COMP L5    links-v2/LINK-5/LINK-5.txt                           -143 27.31265 13
 COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2474 20.58203 103.47285      0 0.19509 0.98079          1 0 0 rigid
 COMP L6    links-v2/LINK-6/LINK-6.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid rebuild
 COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 42.04196 211.35923    1 0 0                      0 0.19509 0.98079 rigid
+COMP SZU   links-user/SZU/SZU.txt                               2622 42.04196 211.35923      1 0 0                      0 0.19509 0.98079 rigid
 
 # Degrees of freedom (macro v32): base plate, ОПУ and J1 fixed; every joint is a RIGID sub-assembly locked to the link
 # before it; YULA (+ link 1) and links 2..6 turn about the axes of J1..J6 (REV). Turn them by dragging the links.
@@ -41,4 +42,5 @@ REV L3    LINK-3-01_Weldment      PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     
 REV L4    LINK-4-01_Weldment      PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft
 REV L5    LINK-5-01_Weldment      PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft
 REV L6    LINK-6-01_Weldment      PORT_j6_axA  PORT_j6_axB  PORT_j6_out  J6     DMRD-KB25-03_OutputShaft
-# J7 (flange roll): nothing after it in this assembly
+REV SZU   SZU-01_Body             PORT_j7_axA  PORT_j7_axB  PORT_j7_out  J7     DMRD-KB17-03_OutputShaft
+# SZU (gripper, user 2026-10-27) turns with the J7 output shaft (flange roll); TCP = PORT_tcp of SZU-01_Body

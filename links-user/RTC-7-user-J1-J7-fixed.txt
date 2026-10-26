@@ -28,3 +28,4 @@ COMP L5    links-v2/LINK-5/LINK-5.txt                           -143 27.31265 13
 COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2474 20.58203 103.47285      0 0.19509 0.98079          1 0 0
 COMP L6    links-v2/LINK-6/LINK-6.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid
 COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 42.04196 211.35923    1 0 0                      0 0.19509 0.98079
+COMP SZU   links-user/SZU/SZU.txt                               2622 42.04196 211.35923      1 0 0                      0 0.19509 0.98079 rigid

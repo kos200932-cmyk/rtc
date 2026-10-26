@@ -1,0 +1,39 @@
+# SZU ("СЗУ") - the user's gripper on the J7 output shaft (STEP СЗУ.STEP from the cart archive, 2026-10-27, kept here
+# as SZU.STEP), recognised into a revolved BuildFromSpec part. Card frame = the STEP frame: X - the J7 axis, x = 0 - the
+# flange end face (towards J7), x = 150 - the working end = TCP (grasp point 150 mm from the J7 flange, user 2026-10-26).
+#   flange D80 x 0..22, pilot recess D62 x 10 deep (on the KB17 output shaft 62h7, its face x=56.5 on the recess bottom);
+#   20 x D3.5 on PCD54, step 18 deg from 0 deg, through the flange bottom x 10..22 - KB17 has 16 x M3 at 18/36/54/72 + 90k
+#   (all of them on this grid; screws M3 from the neck side); neck D40 x 22..37, cone 45 deg to D80 at x=57,
+#   body D80 x 57..145, chamfer 45 deg to D70 at x=150; socket: mouth cone 30 deg D51.6 -> D40 over x 150..140,
+#   bore D40 x 70..140 (takes the D60 pin of the load "Груз 400": its 30 deg tip cone seats in the mouth, the pin tip
+#   at x=137.4, the load face 67.4 mm beyond the TCP).
+# Material is not given in the STEP: steel 7850 kg/m3 assumed (516 cm3 -> 4.05 kg; the load model has 4 kg on the
+# flange besides the 8 kg payload) - TO CONFIRM.
+ASSEMBLY SZU
+DATA source=SZU.STEP concept=user tcp_x=150 mount=J7_output_62h7_16xM3_PCD54 material=steel_assumed
+
+PART SZU-01_Body
+MOTION fixed
+DENSITY 7850
+COLOR 150 150 165
+P 0     31
+P 0     40
+P 22    40
+P 22    20
+P 37    20
+P 57    40
+P 145   40
+P 150   35
+P 150   25.8
+P 140   20
+P 70    20
+P 70    0
+P 10    0
+P 10    31
+#      x     dir  n   pcd    d    depth  angle
+HOLES  10    1    20  54     3.5  12     0      # 20 x D3.5 x 12 = through the flange bottom (x 10..22), step 18 deg
+PORTP  j7_out  X 10  -1 role=on_j7_output fit=62H7 depth=10 bolts=16xM3_PCD54_of_20_holes
+PORTP  tcp     X 150  1 role=tcp grasp_point=150_from_J7_flange socket=cone30_D51.6_bore_D40
+PORTP  j7_axA  Y 0    1 role=plane_through_j7_axis
+PORTP  j7_axB  Z 0    1 role=plane_through_j7_axis
+END
