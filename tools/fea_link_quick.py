@@ -99,6 +99,8 @@ def main():
     if not os.path.isfile(job + ".frd"):
         raise SystemExit(r.stdout[-2000:] + r.stderr[-2000:])
     steps = fc.read_frd(job + ".frd")
+    if not steps:
+        raise SystemExit("ccx gave no results:\n" + r.stdout[-3000:] + r.stderr[-2000:])
     from scipy.spatial import cKDTree
     Xn = {int(t): X[i] for i, t in enumerate(tags)}
     tree = cKDTree(np.array([Xn[n] for n in fixed + load]))
