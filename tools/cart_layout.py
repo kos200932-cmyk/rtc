@@ -61,7 +61,7 @@ def box_pose(at):
 
 def box_top(at):
     """Top face of the cube (pin root) - the TCP when the load is gripped (user 2026-10-27)."""
-    M = box_pose(at); return M[:3, 3] + M[:3, 1] * -200.0
+    M = box_pose(at); return (M @ np.r_[0.0, -200.0, 200.0, 1.0])[:3]      # file: centre (0,0,200), pin face y=-200
 
 # ---------------------------------------------------------------- geometry
 def arm_parts():
