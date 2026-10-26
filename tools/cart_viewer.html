@@ -289,7 +289,7 @@ const SCENE = /*SCENE_JSON*/null;
     if ($("trail").getAttribute("aria-pressed") === "true" && trailLen < trailN) { trailPos.set([tcp.x, tcp.y, tcp.z], trailLen * 3); trailLen++; trailGeo.setDrawRange(0, trailLen); trailGeo.attributes.position.needsUpdate = true; }
     lastSeg = i;
     // readouts
-    q.forEach((v, k) => jOut[k].textContent = (v * 180 / Math.PI).toFixed(1));
+    q.forEach((v, k) => { const d = v * 180 / Math.PI; jOut[k].textContent = ((((d + 180) % 360) + 360) % 360 - 180).toFixed(1); });
     $("tx").textContent = tcp.x.toFixed(0) + " мм"; $("ty").textContent = tcp.y.toFixed(0) + " мм"; $("tz").textContent = tcp.z.toFixed(0) + " мм";
     $("th").textContent = (tcp.y - GY).toFixed(0) + " мм";
     $("phase").textContent = s.label;

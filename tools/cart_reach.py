@@ -421,14 +421,14 @@ def panel_png(json_path, png, show_az=None):
     ext = (-1290 - 107, 420 + 107, 40 - 130, 1600 + 130)
     for k, a in enumerate(show):
         ax[k].imshow(grid(a), origin="lower", cmap=cm, vmin=0, vmax=2, extent=ext, aspect="auto")
-        ax[k].set_title(f"turn {float(a):+.0f}°: {A[a]['ok']}/{nu*nw}")
+        ax[k].set_title(f"поворот {float(a):+.0f}°: {A[a]['ok']}/{nu*nw}")
     ax[-2].imshow(union, origin="lower", cmap=cm, vmin=0, vmax=2, extent=ext, aspect="auto")
-    ax[-2].set_title(f"union of all turns: {int((union==2).sum())}/{nu*nw}")
+    ax[-2].set_title(f"все повороты вместе: {int((union==2).sum())}/{nu*nw}")
     im = ax[-1].imshow(cnt, origin="lower", cmap="viridis", extent=ext, aspect="auto")
-    ax[-1].set_title("number of turns reaching"); fig.colorbar(im, ax=ax[-1], fraction=0.05)
+    ax[-1].set_title("число поворотов, с которых достаёт"); fig.colorbar(im, ax=ax[-1], fraction=0.05)
     for a_ in ax:
-        a_.set_xlabel("across the panel z, mm"); a_.set_ylabel("up the sheet, mm")
-    fig.suptitle("Panel front face: green - reached (no contacts), orange - reached with a contact, red - out of reach")
+        a_.set_xlabel("поперёк панели, мм"); a_.set_ylabel("вверх по листу, мм")
+    fig.suptitle("Лицевая сторона панели (вид от палубы): зелёный - достаёт без касаний, оранжевый - достаёт, но рука задевает тележку/панель, красный - не достаёт")
     plt.tight_layout(); plt.savefig(png, dpi=90)
     return best
 
@@ -448,31 +448,34 @@ def panel_cover(D):
         chosen.append((az, sorted(sets[az] & left))); left -= sets[az]
     return chosen, allp
 
-def panel_program(D, out_json, per_turn=4):
-    """Viewer program: panel turns of the greedy cover; at each turn the arm touches a few of the points it adds
-    (corners of their hull first): approach 120 mm along the normal -> touch -> back; then home."""
-    arm = Arm(geometry=False); chosen, allp = panel_cover(D)
+def panel_program(D, out_json, per_turn=3):
+    """Viewer program: the panel turns of the greedy cover; at each turn the arm touches a few of the points this turn
+    adds (corner points first) - home -> approach (80 mm along the normal) -> touch -> approach -> home; only points
+    whose whole sub-path is free of contacts are taken."""
+    arm = Arm(); sc = Scene(arm, box_at=None); chosen, allp = panel_cover(D)
     grid = {f"{i},{j}": p for i, j, p in panel_surface(panel_grid())}
-    wps = [(np.zeros(7).tolist(), 0.0, "исходная поза, панель в нулевом положении")]
-    az_prev = 0.0
+    z = np.zeros(7)
+    wps = [(z.tolist(), 0.0, "исходная поза, панель в нулевом положении")]
     for az, pts in chosen:
-        a = float(az)
-        wps.append((np.zeros(7).tolist(), a, f"поворот панели на {a:+.0f}°"))
-        ij = np.array([list(map(int, k.split(","))) for k in pts])
-        pick = []
-        for f in (lambda r: r[0] + r[1], lambda r: r[0] - r[1], lambda r: -r[0] + r[1], lambda r: -r[0] - r[1]):
-            k = pts[int(np.argmax([f(r) for r in ij]))]
-            if k not in pick: pick.append(k)
-        for k in pick[:per_turn]:
-            q = np.array(D["q"][f"{az}:{k}"])
-            Mp = [M for n, f_, M, c in cl.cart_parts(panel_az=a) if n == "panel"][0]
-            n_out = Mp[:3, :3] @ P_N; p = (Mp @ np.r_[grid[k], 1])[:3] + 5.0 * n_out
-            qa, e, an = arm.ik(p + 120 * n_out, -n_out, q)
+        a = float(az); sc.set_panel(a); Mp = sc.panel_M; n_out = Mp[:3, :3] @ P_N
+        wps.append((z.tolist(), a, f"поворот панели на {a:+.0f}°"))
+        ij = np.array([list(map(int, k.split(","))) for k in pts]); order = []
+        for f in (lambda r: r[0] + r[1], lambda r: r[0] - r[1], lambda r: -r[0] + r[1], lambda r: -r[0] - r[1], lambda r: r[0]):
+            for idx in np.argsort([-f(r) for r in ij]):
+                if pts[idx] not in order: order.append(pts[idx])
+        taken = 0
+        for k in order:
+            if taken >= per_turn: break
+            q = np.array(D["q"][f"{az}:{k}"]); p = (Mp @ np.r_[grid[k], 1])[:3] + 5.0 * n_out
+            qa, e, an = arm.ik(p + 80 * n_out, -n_out, q, reg=0.3)
+            if e > 1 or an > 0.5 or sc.pairs(qa, None): continue
+            if segment(sc, z, qa, None) or segment(sc, qa, q, None, n=10): continue
             lab = f"точка панели {k} (ряд, столбец)"
-            wps += [(qa.tolist(), a, "подход к " + lab), (q.tolist(), a, "касание: " + lab), (qa.tolist(), a, "отвод от " + lab)]
-        wps.append((np.zeros(7).tolist(), a, "исходная поза"))
-        az_prev = a
-    wps.append((np.zeros(7).tolist(), 0.0, "панель в нулевое положение"))
+            wps += [(qa.tolist(), a, "подход к: " + lab), (q.tolist(), a, "касание: " + lab),
+                    (qa.tolist(), a, "отвод от: " + lab), (z.tolist(), a, "исходная поза")]
+            taken += 1
+        print("turn", az, "points shown:", taken, "of", len(pts), flush=True)
+    wps.append((z.tolist(), 0.0, "панель в нулевое положение"))
     P = {"name": "Панель: обход точек с поворотом", "wps": wps,
          "cover": [(az, len(p)) for az, p in chosen], "reachable": len(allp), "total": len(D["grid"])}
     json.dump(P, open(out_json, "w"), ensure_ascii=False, indent=0)
