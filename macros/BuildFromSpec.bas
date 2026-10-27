@@ -66,7 +66,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v32 (2026-10-25)"
+Private Const MACRO_VERSION As String = "v33 (2026-10-27)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -783,8 +783,8 @@ BodyDone:
 
     ' --- axis of rotation and interface planes ---
     AddAxis m, planes, p.Name
-    For i = 0 To p.NPort - 1
-        AddPort m, planes(2), p, i
+    For i = 0 To p.NPort - 1      ' v33: PORTP lines of a revolved part (planes along Y / Z) - as in a prismatic part
+        If p.PortAxis(i) >= 0 Then AddPortP m, planes, p, i Else AddPort m, planes(2), p, i
     Next i
 
 Finish:

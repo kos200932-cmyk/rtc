@@ -53,7 +53,7 @@ if __name__=="__main__":
         t=l.split()
         if t[:1]==["COMP"] and (t[1][0]=="J" or t[1]=="OPU") and "rigid" not in t: l=l+" rigid"     # joints, ОПУ rigid (v32)
         t=l.split()
-        if t[:1]==["COMP"] and t[1] in ("YULA","L2","L3","L4","L5","L6") and "rebuild" not in t: l=l+" rebuild"   # PORT planes of the axes added
+        if t[:1]==["COMP"] and t[1] in ("YULA","L2","L3","L4","L5","L6","SZU") and "rebuild" not in t: l=l+" rebuild"   # PORT planes of the axes added
         out.append(l)
     txt="\n".join(out).replace("REBUILD no\n","REBUILD no      # yes - rebuild ALL models; COMP ... rebuild - only that one\n")
     open("links-user/RTC-7-user-J1-J7.txt","w",encoding="utf-8",newline="\r\n").write(txt)
