@@ -41,10 +41,20 @@ def capacity(arm, q, tcp):
         else: hi = mid
     return lo
 
-def radial_solutions(arm, y, radii, theta0=0.0, nseed=36):
-    """for every radius: [(capacity, q)] of distinct IK solutions with the TCP at (r, theta0) around J1, height y."""
+def radial_solutions(arm, y, radii, sc=None, box_rel=None, theta0=math.radians(45), nseed=40, keep=12):
+    """for every radius: [(capacity, q)] of distinct IK solutions with the TCP at (r, theta0) around J1, height y;
+    theta0 looks away from the cart (rear-outward), so with sc given only solutions free of self-contacts (arm / the
+    load in the gripper) are kept. Seeds: random + elbow-up / elbow-down families + the scenario poses."""
     rng = np.random.default_rng(5)
     seeds = [rng.uniform(-math.pi, math.pi, 7) * np.array([1, 0.9, 0.3, 1, 0.3, 1, 1]) for _ in range(nseed)]
+    for q2 in (-70, -40, -10, 20):
+        for q4 in (40, 80, 120, -40, -80, -120):
+            seeds.append(np.radians([0, q2, 0, q4, 0, -(q2 + q4) - 90 if q4 > 0 else -(q2 + q4) + 90, 0]))
+    try:
+        R = json.load(open(os.path.join(cl.ROOT, "platform/CART/reach_scen.json")))
+        seeds += [np.array(v) for k in ("q_lift", "q_far", "q_near") for v in R[k]]
+    except Exception:
+        pass
     out = {}; prev = []
     for r in radii:
         p = np.array([J1C[0] + r * math.cos(theta0), y, J1C[1] + r * math.sin(theta0)])
@@ -53,9 +63,10 @@ def radial_solutions(arm, y, radii, theta0=0.0, nseed=36):
             q, e, an = arm.ik(p, cr.DOWN, s)
             if e > 0.5 or an > 0.2: continue
             if any(np.abs(((q - x[1] + math.pi) % (2 * math.pi)) - math.pi).max() < 0.05 for x in sols): continue
+            if sc is not None and (sc.pairs(q, box_rel) or not ground_ok(arm, q)): continue
             sols.append((capacity(arm, q, arm.tcp(q)[0]), q))
-        sols.sort(key=lambda x: -x[0]); out[float(r)] = sols[:8]
-        prev = [x[1] for x in sols[:4]]
+        sols.sort(key=lambda x: -x[0]); out[float(r)] = sols[:keep]
+        prev = [x[1] for x in sols[:6]]
     return out
 
 def turn_q(q, dth):
@@ -81,7 +92,7 @@ def topview_map(arm, sc, sols, box_rel, step=60.0):
             if r > rmax + 1: continue
             k = int(np.argmin(np.abs(Ra - r)))
             if abs(Ra[k] - r) > step or not sols[R[k]]: continue
-            th = math.atan2(z - J1C[1], x - J1C[0])
+            th = math.atan2(z - J1C[1], x - J1C[0]) - math.radians(45)
             res = -1.0
             for c, q in sols[R[k]]:
                 qq = turn_q(q, -th)          # J1 turns about +Y: the hull angle (x -> z) goes the other way
@@ -170,7 +181,7 @@ def main(out_dir):
     radii = np.arange(0, 2801, 25.0)
     out = {"limit": LIMIT, "pay_com": PAY_COM, "r_any": r_any, "levels": {}}; curves = {}
     for lev, (title, y) in LEVELS.items():
-        sols = radial_solutions(arm, y, radii)
+        sols = radial_solutions(arm, y, radii, sc, box_rel)
         R = [r for r in sols if sols[r]]; C = [sols[r][0][0] for r in R]; curves[lev] = (R, C)
         print(lev, "max radius", max(R), "capacity at R1000/1500/2000:",
               [round(sols[r][0][0], 1) if sols.get(r) else None for r in (1000.0, 1500.0, 2000.0)], flush=True)
@@ -187,7 +198,7 @@ def one_level(out_dir, lev):
     arm = cr.Arm(); sc = cr.Scene(arm, box_at=None)
     box_rel = np.array(json.load(open(os.path.join(cl.ROOT, "platform/CART/reach_scen.json")))["box_rel"])
     D = json.load(open(os.path.join(out_dir, "payload_map.json"), encoding="utf-8"))
-    title, y = LEVELS[lev]; sols = radial_solutions(arm, y, np.arange(0, 2801, 25.0))
+    title, y = LEVELS[lev]; sols = radial_solutions(arm, y, np.arange(0, 2801, 25.0), sc, box_rel)
     R = [r for r in sols if sols[r]]; xs, zs, cap = topview_map(arm, sc, sols, box_rel)
     D["levels"][lev] = {"title": title, "y": y, "radius": R, "capacity": [round(sols[r][0][0], 2) for r in R],
                         "x": xs.tolist(), "z": zs.tolist(), "cap": np.where(np.isnan(cap), None, np.round(cap, 1)).tolist()}
