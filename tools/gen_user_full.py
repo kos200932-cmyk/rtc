@@ -11,7 +11,7 @@ for ln in open(V2,encoding="utf-8"):
     if t[:1]==["LOCK"]: locks.append(t)
 M=g.J3@np.linalg.inv(comps["J3"][1])
 # user 2026-10-27: J4 seat 40 mm closer to the link-3 axis (LINK-3U), J4..J7, links 4-6 and SZU move with it (+X of v2)
-SHIFT_J4=40.0
+SHIFT_J4=57.0   # 40 + 17 (user 2026-10-27)
 comps_v2=dict(comps)
 _S=np.eye(4); _S[0,3]=SHIFT_J4
 for _n in ("J4","L4","J5","L5","J6","L6","J7"):
