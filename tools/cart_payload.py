@@ -25,9 +25,9 @@ BIN_LAB = ["< 4 кг", "4–8 кг", "8–12 кг", "12–16 кг", "> 16 кг"]
 BIN_COL = ["#d9534f", "#f0ad4e", "#e8d44d", "#8cc56b", "#3a9b5c"]
 J1C = np.array([cl.FLANGE_C[0], cl.FLANGE_C[1]])           # flange / J1 axis, (x, z)
 
-def capacity(arm, q, Mt):
-    """largest payload, kg (0..40), for the pose q; Mt - the TCP frame in the hull (payload COM below the TCP)."""
-    com = Mt[:3, 3] + np.array([0, -PAY_COM, 0])
+def capacity(arm, q, tcp):
+    """largest payload, kg (0..40), for the pose q; tcp - the TCP point in the hull (payload COM below it)."""
+    com = np.asarray(tcp, float) + np.array([0, -PAY_COM, 0])
     def worst(m):
         cr.LOAD_KG = m
         tq, tilt, r = cr.ratio(arm, q, com)
@@ -53,8 +53,7 @@ def radial_solutions(arm, y, radii, theta0=0.0, nseed=36):
             q, e, an = arm.ik(p, cr.DOWN, s)
             if e > 0.5 or an > 0.2: continue
             if any(np.abs(((q - x[1] + math.pi) % (2 * math.pi)) - math.pi).max() < 0.05 for x in sols): continue
-            Mt = arm.tcp(q)[2]
-            sols.append((capacity(arm, q, Mt), q))
+            sols.append((capacity(arm, q, arm.tcp(q)[0]), q))
         sols.sort(key=lambda x: -x[0]); out[float(r)] = sols[:8]
         prev = [x[1] for x in sols[:4]]
     return out
