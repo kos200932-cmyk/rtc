@@ -153,6 +153,7 @@ def draw(level, title, xs, zs, cap, sols, png, r_any):
                  f"СЗУ вертикально вниз, центр масс груза в {PAY_COM:.0f} мм под TCP, СЗУ 4 кг учтён; все шарниры ≤ {LIMIT*100:.0f} % допускаемого (статика)")
     h = [Patch(color=c, alpha=0.75, label=l) for c, l in zip(BIN_COL, BIN_LAB)]
     h += [Patch(color="#8f8fa8", alpha=0.55, label="достаёт, но рука или груз задевает тележку / грунт"),
+          Patch(facecolor="white", edgecolor="#999", label="без цвета — не достаёт" + (" / под корпусом" if level == "ground" else "")),
           plt.Line2D([], [], color="#1f4e8c", lw=2, label=f"граница досягаемости на этой высоте, R{rmax:.0f}"),
           plt.Line2D([], [], color="#7b2d8e", lw=1.6, ls="-.", label=f"предельный вылет TCP (любая ориентация), R{r_any:.0f}"),
           plt.Line2D([], [], color="#333", lw=0.8, ls="--", label="окружности от оси J1 через 500 мм")]
