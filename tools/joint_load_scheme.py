@@ -26,7 +26,7 @@ import robot_statics as st  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OK, WARN, BAD, INK, MUTE, TRACK = "#2e8b57", "#e0a100", "#c62828", "#1b2026", "#5d6670", "#e6e9ed"
 SIZE_RU = {"SHM-60": "ШМ-60", "SHM-150": "ШМ-150", "SHM-500": "ШМ-500", "SHM-1000": "ШМ-1000", "SHM-150m": "ШМ-150м",
-           "SHM-KB25": "ШМ-KB25", "SHM-KB25m": "ШМ-KB25м", "SHM-KB32": "ШМ-KB32", "SHM-KB45": "ШМ-KB45", "SHM-KB50": "ШМ-KB50"}
+           "SHM-KB25": "ШМ-KB25", "SHM-KB25m": "ШМ-KB25м", "SHM-KB32": "ШМ-KB32", "SHM-KB45": "ШМ-KB45", "SHM-KB50": "ШМ-KB50", "SHM-KB50F": "ШМ-KB50F", "SHM-KB17": "ШМ-KB17"}
 
 
 def rated(lay):
@@ -199,7 +199,10 @@ def main():
         cs = "V"
     fig.text(0.012, 0.975, a.title or "RTC-7: нагрузки шарниров и возможности редукторов в номинальном режиме", fontsize=17,
              fontweight="bold", color=INK, va="top")
-    if sel:
+    if sel and "sub1" in sel:                                   # texts given by the loads file (tools/user_loads.py)
+        fig.text(0.012, 0.948, sel["sub1"], fontsize=9.5, color=MUTE, va="top")
+        fig.text(0.012, 0.930, sel["sub2"], fontsize=9.5, color=INK, va="top")
+    elif sel:
         zone = f"груз не дальше {sel['reach']:.0f} мм от оси J1" if sel["reach"] else "вся зона (все позы в диапазонах шарниров)"
         g = lambda v: f"{v:g}".replace(".", ",")
         fig.text(0.012, 0.948, f"Груз {g(sel['payload'])} кг + интерфейс {g(sel['interface'])} кг; все шарниры ±{g(sel['speed'])} рад/с, "
