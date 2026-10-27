@@ -66,7 +66,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v33 (2026-10-27)"
+Private Const MACRO_VERSION As String = "v34 (2026-10-27)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -1976,6 +1976,7 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
     ' sub-assemblies first (the LINK targets are inside them), then the other entries
     Dim eComp(0 To 31) As SldWorks.Component2, co As Object, pass As Long, tgt As String, jj As Long
     Dim dc As SldWorks.Component2, child As SldWorks.Component2, target As String, j As Long
+    Dim cpL(0 To 2) As SldWorks.Feature, okL As Boolean
     For pass = 0 To 1
         For k = 0 To nE - 1
             If eIsAsm(k) = (pass = 0) Then
@@ -2003,6 +2004,13 @@ Private Function BuildJoint(ByVal jointPath As String) As Boolean
                     If child Is Nothing Then
                         gLog = gLog & "LINK " & eName(k) & ": part '" & tgt & "' not found - fixed instead" & vbCrLf
                         FixComp am, asm, eComp(k)
+                    ElseIf eX(k) = 0 And Not FirstPlanes(eComp(k), 0) Is Nothing And GetRefPlanes(child.FirstFeature, cpL) Then
+                        ' v34: 3 coincident planes (closest alignment keeps a flip) instead of a lock mate - the lock of
+                        ' an imported rotor to the input shaft inside the flexible reducer failed in SOLIDWORKS
+                        For jj = 0 To 2
+                            If MatePairA(am, asm, cpL(jj), FirstPlanes(eComp(k), jj), swMateCOINCIDENT, _
+                                         "LINK " & eName(k) & ": plane mate " & (jj + 1)) Is Nothing Then okL = False
+                        Next jj
                     ElseIf MateLock(am, asm, child, eComp(k)) Is Nothing Then
                         gLog = gLog & "LINK " & eName(k) & ": lock mate failed - fixed instead" & vbCrLf
                         FixComp am, asm, eComp(k)
