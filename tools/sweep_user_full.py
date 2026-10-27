@@ -25,7 +25,7 @@ P+=[("LINK-1U",mv(lb.build_part(lb.parse("links-user/LINK-1U/LINK-1U.txt")[0][0]
     ("BASEPLATE",lb.build_part(lb.parse("links-user/BASEPLATE/BASEPLATE.txt")[0][0]),"B"),
     ("LINK-2B",mv(lb.build_part(lb.parse("links-user/LINK-2B/LINK-2B.txt")[0][0]),g.L2),"L2")]
 for n in ("L3","L4","L5","L6"):
-    P.append(("LINK-"+n[1],mv(lb.build_part(lb.parse(gf.comps[n][0])[0][0]),gf.M),n))
+    P.append(("LINK-"+n[1],mv(lb.build_part(lb.parse(gf.comps[n][0])[0][0]),gf.place(n)),n))
 _all=je.all_joints; kb17=dict(_all()["SHM-KB17"]); kb17["x_out"]=59.5
 je.all_joints=lambda: {**_all(),"SHM-KB50":_all()["SHM-KB50F"],"SHM-60":kb17}
 J2v2=gf.comps["J2"][1]; J1v2=gf.comps["J1"][1]
@@ -33,7 +33,7 @@ for nm,s,jn,kind in lb.envelope_solids("robot/RTC-7-layout-v2.txt",["J1","J2","J
     if jn=="base": continue
     if jn=="J1": Tn=g.frame([-33.5,0,0],[1,0,0],[0,-0.5,0.866025])@np.linalg.inv(J1v2)
     elif jn=="J2": Tn=g.J2@np.linalg.inv(J2v2)
-    else: Tn=gf.M
+    else: Tn=gf.place(jn)
     # moving part of a joint (output shaft) belongs to the next link
     grp=jn if kind!="rot" or "Output" not in nm else order[order.index(jn)+1]
     P.append((jn+" "+nm,mv(s,Tn),grp))

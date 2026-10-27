@@ -10,6 +10,16 @@ for ln in open(V2,encoding="utf-8"):
         comps[t[1]]=(t[2],g.frame([float(v) for v in t[3:6]],[float(v) for v in t[6:9]],[float(v) for v in t[9:12]]),"rigid" in t)
     if t[:1]==["LOCK"]: locks.append(t)
 M=g.J3@np.linalg.inv(comps["J3"][1])
+# user 2026-10-27: J4 seat 40 mm closer to the link-3 axis (LINK-3U), J4..J7, links 4-6 and SZU move with it (+X of v2)
+SHIFT_J4=40.0
+comps_v2=dict(comps)
+_S=np.eye(4); _S[0,3]=SHIFT_J4
+for _n in ("J4","L4","J5","L5","J6","L6","J7"):
+    comps[_n]=(comps[_n][0], _S@comps[_n][1], comps[_n][2])
+comps["L3"]=("links-user/LINK-3U/LINK-3U.txt", comps["L3"][1], comps["L3"][2])
+def place(n):
+    """v2-world coordinates of item n (its spec / layout-v2 envelope) -> the user's assembly frame"""
+    return M@comps[n][1]@np.linalg.inv(comps_v2[n][1])
 dist=["L3","J4","L4","J5","L5","J6","L6","J7"]
 # gripper SZU (СЗУ, user 2026-10-27) on the J7 output shaft: card x=10 (recess bottom, PORT_j7_out) on the KB17 output
 # face (joint x=56.5), card axes = the J7 frame; TCP = card x=150
@@ -40,7 +50,7 @@ if __name__=="__main__":
         "#   link  link part               plane A      plane B      port plane   joint  joint part (output shaft)",
         "REV YULA  YULA-01_Adapter         PORT_j1_axA  PORT_j1_axB  PORT_j1_out  J1     DMRD-KB25-03_OutputShaft",
         "REV L2    LINK-2B-01_Weldment     PORT_j2_axA  PORT_j2_axB  PORT_j2_out  J2     DMRD-80E-03_OutputShaft",
-        "REV L3    LINK-3-01_Weldment      PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft",
+        "REV L3    LINK-3U-01_Weldment     PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft",
         "REV L4    LINK-4-01_Weldment      PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft",
         "REV L5    LINK-5-01_Weldment      PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft",
         "REV L6    LINK-6-01_Weldment      PORT_j6_axA  PORT_j6_axB  PORT_j6_out  J6     DMRD-KB25-03_OutputShaft",
@@ -81,13 +91,13 @@ def preview(png):
          ("BASEPLATE",lb.build_part(lb.parse("links-user/BASEPLATE/BASEPLATE.txt")[0][0]),"base","B"),
          ("LINK-2B",mv(lb.build_part(lb.parse("links-user/LINK-2B/LINK-2B.txt")[0][0]),g.L2),"link2","L2")]
     for n in ("L3","L4","L5","L6"):
-        P.append(("LINK-"+n[1],mv(lb.build_part(lb.parse(comps[n][0])[0][0]),M),"link3",n))
+        P.append(("LINK-"+n[1],mv(lb.build_part(lb.parse(comps[n][0])[0][0]),place(n)),"link3",n))
     _all=je.all_joints; kb17=dict(_all()["SHM-KB17"]); kb17["x_out"]=59.5   # placed by the SHM-60 joint frame (base x=6.5)
     je.all_joints=lambda: {**_all(), "SHM-KB50": _all()["SHM-KB50F"], "SHM-60": kb17}
     J2v2=comps["J2"][1]
     for nm,s,jn,kind in lb.envelope_solids("robot/RTC-7-layout-v2.txt",["J2","J3","J4","J5","J6","J7"]):
         if jn=="base": continue
-        Tn=g.J2@np.linalg.inv(J2v2) if jn=="J2" else M
+        Tn=g.J2@np.linalg.inv(J2v2) if jn=="J2" else place(jn)
         P.append((nm,mv(s,Tn),kind,jn))
     order=["B","J1","L1","J2","L2","J3","L3","J4","L4","J5","L5","J6","L6","J7"]
     for i,a in enumerate(P):

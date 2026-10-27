@@ -16,15 +16,15 @@ COMP L1    links-user/LINK-1U/LINK-1U.txt                       171 16.5827 83.3
 COMP J2    joints/SHM-1000/SHM-1000.txt                         171 -1.9509 -9.80785         0 0.19509 0.98079          0 0.98079 -0.19509 rigid
 COMP L2    links-user/LINK-2B/LINK-2B.txt                       171 24.38629 122.59816       0 -0.98079 0.19509         0 0.19509 0.98079 rigid rebuild
 COMP J3    joints/SHM-KB50F/SHM-KB50F.txt                       123 53.64984 269.71595       1 0 0                      0 0.19509 0.98079 rigid rebuild
-COMP L3    links-v2/LINK-3/LINK-3.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid rebuild
-COMP J4    joints/SHM-KB45/SHM-KB45.txt                         1324 32.97026 165.75271      0 -0.19509 -0.98079        1 0 0 rigid rebuild
-COMP L4    links-v2/LINK-4/LINK-4.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid rebuild
-COMP J5    joints/SHM-KB32/SHM-KB32.txt                         1435.5 -0.78036 -3.92314     1 0 0                      0 0.19509 0.98079 rigid rebuild
-COMP L5    links-v2/LINK-5/LINK-5.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid rebuild
-COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2474 20.58203 103.47285      0 0.19509 0.98079          1 0 0 rigid rebuild
-COMP L6    links-v2/LINK-6/LINK-6.txt                           -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid rebuild
-COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 42.04196 211.35923    1 0 0                      0 0.19509 0.98079 rigid rebuild
-COMP SZU   links-user/SZU/SZU.txt                               2622 42.04196 211.35923      1 0 0                      0 0.19509 0.98079 rigid rebuild
+COMP L3    links-user/LINK-3U/LINK-3U.txt                       -143 27.31265 137.30994      0 0.19509 0.98079          1 0 0 rigid rebuild
+COMP J4    joints/SHM-KB45/SHM-KB45.txt                         1324 40.77388 204.98412      0 -0.19509 -0.98079        1 0 0 rigid rebuild
+COMP L4    links-v2/LINK-4/LINK-4.txt                           -143 35.11626 176.54135      0 0.19509 0.98079          1 0 0 rigid rebuild
+COMP J5    joints/SHM-KB32/SHM-KB32.txt                         1435.5 7.02325 35.30827      1 0 0                      0 0.19509 0.98079 rigid rebuild
+COMP L5    links-v2/LINK-5/LINK-5.txt                           -143 35.11626 176.54135      0 0.19509 0.98079          1 0 0 rigid rebuild
+COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2474 28.38564 142.70426      0 0.19509 0.98079          1 0 0 rigid rebuild
+COMP L6    links-v2/LINK-6/LINK-6.txt                           -143 35.11626 176.54135      0 0.19509 0.98079          1 0 0 rigid rebuild
+COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2575.5 49.84558 250.59064    1 0 0                      0 0.19509 0.98079 rigid rebuild
+COMP SZU   links-user/SZU/SZU.txt                               2622 49.84558 250.59064      1 0 0                      0 0.19509 0.98079 rigid rebuild
 
 # Degrees of freedom (macro v32): base plate, ОПУ and J1 fixed; every joint is a RIGID sub-assembly locked to the link
 # before it; YULA (+ link 1) and links 2..6 turn about the axes of J1..J6 (REV). Turn them by dragging the links.
@@ -38,7 +38,7 @@ LOCK J7   -                          L6   -
 #   link  link part               plane A      plane B      port plane   joint  joint part (output shaft)
 REV YULA  YULA-01_Adapter         PORT_j1_axA  PORT_j1_axB  PORT_j1_out  J1     DMRD-KB25-03_OutputShaft
 REV L2    LINK-2B-01_Weldment     PORT_j2_axA  PORT_j2_axB  PORT_j2_out  J2     DMRD-80E-03_OutputShaft
-REV L3    LINK-3-01_Weldment      PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft
+REV L3    LINK-3U-01_Weldment     PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft
 REV L4    LINK-4-01_Weldment      PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft
 REV L5    LINK-5-01_Weldment      PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft
 REV L6    LINK-6-01_Weldment      PORT_j6_axA  PORT_j6_axB  PORT_j6_out  J6     DMRD-KB25-03_OutputShaft
