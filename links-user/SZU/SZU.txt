@@ -7,14 +7,14 @@
 #   body D80 x 57..145, chamfer 45 deg to D70 at x=150; socket: mouth cone 30 deg D51.6 -> D40 over x 150..140,
 #   bore D40 x 70..140 (takes the D60 pin of the load "Груз 400": its 30 deg tip cone seats in the mouth, the pin tip
 #   at x=137.4, the load face 67.4 mm beyond the TCP).
-# Material is not given in the STEP: steel 7850 kg/m3 assumed (516 cm3 -> 4.05 kg; the load model has 4 kg on the
+# Mass 4 kg (user 2026-10-27; 516 cm3 of the model -> density set by MASS; the load model has 4 kg on the
 # flange besides the 8 kg payload) - TO CONFIRM.
 ASSEMBLY SZU
-DATA source=SZU.STEP concept=user tcp_x=150 mount=J7_output_62h7_16xM3_PCD54 material=steel_assumed
+DATA source=SZU.STEP concept=user tcp_x=150 mount=J7_output_62h7_16xM3_PCD54 mass=4kg_user
 
 PART SZU-01_Body
 MOTION fixed
-DENSITY 7850
+MASS 4.0   # kg, user 2026-10-27
 COLOR 150 150 165
 P 0     31
 P 0     40
