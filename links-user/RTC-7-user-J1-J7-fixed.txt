@@ -22,8 +22,8 @@ COMP L3    links-user/LINK-3U/LINK-3U.txt                       -143 27.31265 13
 COMP J4    joints/SHM-KB45/SHM-KB45.txt                         1324 44.09041 221.65747      0 -0.19509 -0.98079        1 0 0 rigid
 COMP L4    links-user/LINK-4U/LINK-4U.txt                       1412 -48.19715 142.13386     0 -0.19509 -0.98079        0 0.98079 -0.19509 rigid rebuild
 COMP J5    joints/SHM-KB32/SHM-KB32.txt                         1403 8.77906 44.13534        1 0 0                      0 0.19509 0.98079 rigid
-COMP L5    links-v2/LINK-5/LINK-5.txt                           -175.5 36.87207 185.36842    0 0.19509 0.98079          1 0 0 rigid
-COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2441.5 30.14145 151.53133    0 0.19509 0.98079          1 0 0 rigid
-COMP L6    links-v2/LINK-6/LINK-6.txt                           -175.5 36.87207 185.36842    0 0.19509 0.98079          1 0 0 rigid
-COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2543 51.60139 259.41771      1 0 0                      0 0.19509 0.98079 rigid
-COMP SZU   links-user/SZU/SZU.txt                               2589.5 51.60139 259.41771    1 0 0                      0 0.19509 0.98079 rigid
+COMP L5    links-user/LINK-5U/LINK-5U.txt                       -175.5 36.87207 185.36842    0 0.19509 0.98079          1 0 0 rigid rebuild
+COMP J6    joints/SHM-KB25/SHM-KB25.txt                         2441.5 10.63242 53.4528      0 0.19509 0.98079          1 0 0 rigid
+COMP L6    links-v2/LINK-6/LINK-6.txt                           -175.5 17.36304 87.28989     0 0.19509 0.98079          1 0 0 rigid
+COMP J7    joints/SHM-KB17/SHM-KB17.txt                         2543 32.09236 161.33918      1 0 0                      0 0.19509 0.98079 rigid
+COMP SZU   links-user/SZU/SZU.txt                               2589.5 32.09236 161.33918    1 0 0                      0 0.19509 0.98079 rigid

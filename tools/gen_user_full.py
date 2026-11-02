@@ -28,6 +28,12 @@ SHIFT_J5=np.array([-8.0,0.0,-32.5])
 _S5=np.eye(4); _S5[:3,3]=SHIFT_J5
 for _n in ("J5","L5","J6","L6","J7"):
     comps[_n]=(comps[_n][0], _S5@comps[_n][1], comps[_n][2])
+# user 2026-11-02: link 5 = LINK-5U - the J6 seat 100 mm closer to the J5 axis (v2 -X): J6, link 6, J7 and SZU with it
+comps["L5"]=("links-user/LINK-5U/LINK-5U.txt", comps["L5"][1], comps["L5"][2])
+SHIFT_J6=-100.0
+_S6=np.eye(4); _S6[0,3]=SHIFT_J6
+for _n in ("J6","L6","J7"):
+    comps[_n]=(comps[_n][0], _S6@comps[_n][1], comps[_n][2])
 def place(n):
     """v2-world coordinates of item n (its spec / layout-v2 envelope) -> the user's assembly frame"""
     return M@comps[n][1]@np.linalg.inv(comps_v2[n][1])
@@ -63,7 +69,7 @@ if __name__=="__main__":
         "REV L2    LINK-2B-01_Weldment     PORT_j2_axA  PORT_j2_axB  PORT_j2_out  J2     DMRD-80E-03_OutputShaft",
         "REV L3    LINK-3U-01_Weldment     PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft",
         "REV L4    LINK-4U-01_Weldment     PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft",
-        "REV L5    LINK-5-01_Weldment      PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft",
+        "REV L5    LINK-5U-01_Weldment     PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft",
         "REV L6    LINK-6-01_Weldment      PORT_j6_axA  PORT_j6_axB  PORT_j6_out  J6     DMRD-KB25-03_OutputShaft",
         "REV SZU   SZU-01_Body             PORT_j7_axA  PORT_j7_axB  PORT_j7_out  J7     DMRD-KB17-03_OutputShaft",
         "# SZU (gripper, user 2026-10-27) turns with the J7 output shaft (flange roll); TCP = PORT_tcp of SZU-01_Body"]
