@@ -41,3 +41,5 @@ Windows in the gussets: triangle offset 15 mm from the plates and the diagonal e
 All n >= 13 vs 835 MPa. The lighter link also unloads links 1-3 and the ОПУ: -2.5 kg at ~1.4 m = -34 N*m (-3.7 %) ->
 about -0.3 mm at the TCP, so V2r / V4r give a net TCP change of about -0.1 mm (10.6 -> ~10.5 mm).
 With plate J5 8 mm the M5 holes are 8 deep (through); plate J4 8 leaves 5 mm under the M8 heads (recess 3) -> V4r keeps 7.
+
+ACCEPTED (user 2026-11-02): V4r -> links-user/LINK-4U/LINK-4U.txt (2.74 kg), loads robot/RTC-7-loads-user.md recomputed.

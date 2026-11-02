@@ -5,12 +5,14 @@
 #             J4 axis = X line through y=88, z=75, the J4 output points to +X (the joint is at x<0);
 #   plate J5  y 0..12  (x 0..170, z 0..150): bore D140, 12 x M5 x 10 on D154 for the SHM-KB32 flange (screws from the
 #             reducer side); J5 axis = Y line through x=85, z=75, the J5 output points to -Y, its motor inside the box;
-#   2 gussets 10 (z -10..0 and 150..160): triangles x,y 0..170 with the diagonal from (12,170) to (170,12).
+#   2 gussets 10 (z -10..0 and 150..160; V4r: 6, z -6..0 / 150..156): triangles x,y 0..170 with the diagonal from (12,170) to (170,12).
 #   The J4 and J5 axes cross at (85, 88, 75): 82 from the J4 output face, 88 from the J5 flange face.
 # Changes vs the STEP (assembly fit, 2026-11-02): the 16 holes D8.2 clocked 11.25 deg (first at 11.25 from +Y to +Z)
 #   so that they meet the 16-M8 of the KB45 output (ang 101.25) at the zero pose; in the STEP they start at 0 deg.
 # Open (to the user): the bore D140 does not centre the KB32 flange spigot D122h7 x 4 (122H7 would); holes D8.2 for M8
-#   are tight (D9 usual). Material 30ХГСА (user 2026-11-02), 4.87 kg.
+#   are tight (D9 usual). Material 30ХГСА (user 2026-11-02).
+# Lightened, variant V4r (user 2026-11-02, fea/link4u/summary.md): plate J4 12 -> 10, plate J5 12 -> 8 (M5 through),
+#   gussets 10 -> 6 with windows R10; outer faces x=0..3 / y=0 unchanged. 2.74 kg (was 4.87).
 ASSEMBLY LINK-4U
 DATA material=30KhGSA source=J4-J5_user.STEP concept=user-2026-11-02
 
@@ -18,19 +20,22 @@ PART LINK-4U-01_Weldment
 MOTION fixed
 DENSITY 7850
 COLOR 200 150 145
-PRISM Y 0 12 RECT 0 170 0 150                        # plate J5
-PRISM X 0 12 RECT 12 170 0 150                       # plate J4
-PRISM Z -10 0 POLY 0 0 170 0 170 12 12 170 0 170     # gusset
-PRISM Z 150 160 POLY 0 0 170 0 170 12 12 170 0 170   # gusset
+PRISM Y 0 8 RECT 0 170 0 150                         # plate J5 (8, V4r)
+PRISM X 0 10 RECT 8 170 0 150                        # plate J4 (10, V4r)
+PRISM Z -6 0 POLY 0 0 170 0 170 12 12 170 0 170      # gusset 6 (V4r)
+PRISM Z 150 156 POLY 0 0 170 0 170 12 12 170 0 170   # gusset 6 (V4r)
+# windows in the gussets (V4r): 15 from the plates and the diagonal edge, corners R10
+CUT Z -7 0.01 RPOLY 25 25 10 135.8 25 10 25 135.8 10
+CUT Z 149.99 157 RPOLY 25 25 10 135.8 25 10 25 135.8 10
 # ---- J4 output (KB45: D158h7 x 13 outside the housing, 16-M8 on D140)
 CUT X -1 3 CIRC 88 75 158                            # recess D158H7 x 3
-CUT X 2 13 CIRC 88 75 80                             # bore D80
-CUT X 2 13 PATTERN 88 75 16 140 8.2 11.25            # 16 x D8.2 -> 16-M8 of the output
+CUT X 2 11 CIRC 88 75 80                             # bore D80
+CUT X 2 11 PATTERN 88 75 16 140 8.2 11.25            # 16 x D8.2 -> 16-M8 of the output
 # ---- J5 flange (SHM-KB32: D172, spigot D122h7 x 4, 12 x M5 DIN912 on D154 from the reducer side)
-CUT Y -1 13 CIRC 85 75 140                           # bore D140 (motor and spigot of J5)
-TAP Y 0 10 85 75 12 154 M5 15                        # 12-M5 x 10
+CUT Y -1 9 CIRC 85 75 140                           # bore D140 (motor and spigot of J5)
+TAP Y 0 8 85 75 12 154 M5 15                         # 12-M5 through (plate 8)
 PORTP j4_out X 3 -1 role=on_j4_output fit=158H7 bolts=16xM8_D140
-PORTP j5_base Y 0 -1 role=j5_seat bore=140 bolts=12xM5_D154 screws_from=reducer_side
+PORTP j5_base Y 0 -1 role=j5_seat bore=140 bolts=12xM5x8_D154 screws_from=reducer_side
 # planes through the J4 axis (macro v32 REV: the joint AXIS lies in both)
 PORTP j4_axA Y 88 1 role=plane_through_j4_axis
 PORTP j4_axB Z 75 1 role=plane_through_j4_axis
