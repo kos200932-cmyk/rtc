@@ -10,14 +10,14 @@
 # Changes vs the STEP (assembly fit, 2026-11-02): the 16 holes D8.2 clocked 11.25 deg (first at 11.25 from +Y to +Z)
 #   so that they meet the 16-M8 of the KB45 output (ang 101.25) at the zero pose; in the STEP they start at 0 deg.
 # Open (to the user): the bore D140 does not centre the KB32 flange spigot D122h7 x 4 (122H7 would); holes D8.2 for M8
-#   are tight (D9 usual). Material ASSUMED AlMg as links 3-6 (1.68 kg; 4.9 kg in steel).
+#   are tight (D9 usual). Material 30ХГСА (user 2026-11-02), 4.87 kg.
 ASSEMBLY LINK-4U
-DATA material=AlMg-assumed source=J4-J5_user.STEP concept=user-2026-11-02
+DATA material=30KhGSA source=J4-J5_user.STEP concept=user-2026-11-02
 
 PART LINK-4U-01_Weldment
 MOTION fixed
-DENSITY 2700
-COLOR 205 120 120
+DENSITY 7850
+COLOR 200 150 145
 PRISM Y 0 12 RECT 0 170 0 150                        # plate J5
 PRISM X 0 12 RECT 12 170 0 150                       # plate J4
 PRISM Z -10 0 POLY 0 0 170 0 170 12 12 170 0 170     # gusset
