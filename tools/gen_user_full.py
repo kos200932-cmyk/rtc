@@ -17,6 +17,17 @@ _S=np.eye(4); _S[0,3]=SHIFT_J4
 for _n in ("J4","L4","J5","L5","J6","L6","J7"):
     comps[_n]=(comps[_n][0], _S@comps[_n][1], comps[_n][2])
 comps["L3"]=("links-user/LINK-3U/LINK-3U.txt", comps["L3"][1], comps["L3"][2])
+# user 2026-11-02: link 4 = LINK-4U (his box "Звено J4 J5"), card in his part frame: J4 axis = X line y=88 z=75, output face
+# x=3 (the output to +X); J5 axis = Y line x=85 z=75, J5 flange face y=0, J5 output to -Y. In v2 world: J4 output face
+# x=-70 (output -X), J5 output +Z -> part X = -X, part Y = -Z, part Z = -Y; origin (3,88,75) -> (-70,0,1467)
+L4U_FILE="links-user/LINK-4U/LINK-4U.txt"
+T_L4U=g.frame([-67,75,1555],[-1,0,0],[0,-1,0])
+comps["L4"]=(L4U_FILE, _S@T_L4U, True); comps_v2["L4"]=(L4U_FILE, np.eye(4), True)   # place("L4") = M @ _S @ T_L4U
+# J5 seat of LINK-4U: J5 axis x=-85+3-70=-152 (v2 -144), flange face z=1467+88=1555 (v2 1587.5) -> J5..J7, links 5-6, SZU
+SHIFT_J5=np.array([-8.0,0.0,-32.5])
+_S5=np.eye(4); _S5[:3,3]=SHIFT_J5
+for _n in ("J5","L5","J6","L6","J7"):
+    comps[_n]=(comps[_n][0], _S5@comps[_n][1], comps[_n][2])
 def place(n):
     """v2-world coordinates of item n (its spec / layout-v2 envelope) -> the user's assembly frame"""
     return M@comps[n][1]@np.linalg.inv(comps_v2[n][1])
@@ -51,7 +62,7 @@ if __name__=="__main__":
         "REV YULA  YULA-01_Adapter         PORT_j1_axA  PORT_j1_axB  PORT_j1_out  J1     DMRD-KB25-03_OutputShaft",
         "REV L2    LINK-2B-01_Weldment     PORT_j2_axA  PORT_j2_axB  PORT_j2_out  J2     DMRD-80E-03_OutputShaft",
         "REV L3    LINK-3U-01_Weldment     PORT_j3_axA  PORT_j3_axB  PORT_j3_out  J3     DMRD-KB50-03_OutputShaft",
-        "REV L4    LINK-4-01_Weldment      PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft",
+        "REV L4    LINK-4U-01_Weldment     PORT_j4_axA  PORT_j4_axB  PORT_j4_out  J4     DMRD-KB45-03_OutputShaft",
         "REV L5    LINK-5-01_Weldment      PORT_j5_axA  PORT_j5_axB  PORT_j5_out  J5     DMRD-KB32-03_OutputShaft",
         "REV L6    LINK-6-01_Weldment      PORT_j6_axA  PORT_j6_axB  PORT_j6_out  J6     DMRD-KB25-03_OutputShaft",
         "REV SZU   SZU-01_Body             PORT_j7_axA  PORT_j7_axB  PORT_j7_out  J7     DMRD-KB17-03_OutputShaft",

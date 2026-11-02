@@ -7,9 +7,9 @@ AXIS  J1  SHM-KB25  0.0 0.0 -33.5   0 0 1   motor=-Z output=+Z face=0.0,0.0,26.0
 AXIS  J2  SHM-1000  -18.0 -0.0 171.0   1 0 0   motor=-X output=+X face=139.0,-0.0,171.0
 AXIS  J3  SHM-KB50F 275.0 -0.0 123.0   0 0 1   motor=-Z output=+Z face=275.0,-0.0,241.0
 AXIS  J4  SHM-KB45  226.0 -0.0 1324.0   -1 -0 0   motor=+X output=-X face=127.0,-0.0,1324.0
-AXIS  J5  SHM-KB32  53.0 -0.0 1435.5   0 0 1   motor=-Z output=+Z face=53.0,-0.0,1501.0
-AXIS  J6  SHM-KB25  162.5 -0.0 2474.0   1 0 0   motor=-X output=+X face=222.0,-0.0,2474.0
-AXIS  J7  SHM-KB17  272.5 -0.0 2575.5   0 0 1   motor=-Z output=+Z face=272.5,-0.0,2632.0
+AXIS  J5  SHM-KB32  45.0 -0.0 1403.0   0 0 1   motor=-Z output=+Z face=45.0,-0.0,1468.5
+AXIS  J6  SHM-KB25  154.5 -0.0 2441.5   1 0 0   motor=-X output=+X face=214.0,-0.0,2441.5
+AXIS  J7  SHM-KB17  264.5 -0.0 2543.0   0 0 1   motor=-Z output=+Z face=264.5,-0.0,2599.5
 # Tool flange = output face of SHM-KB17 (the SZU gripper is not on the scheme, TCP 150 mm beyond).
-FLANGE 272.5 -0.0 2632.0   0 0 1
+FLANGE 264.5 -0.0 2599.5   0 0 1
 END
