@@ -13,7 +13,7 @@ COMP OPU    components/ISKRA/RU178G/RU178G-UU-CC0-P5.txt         0 0 0          
 COMP J1     joints/SHM-KB25/SHM-KB25.txt                         -33.5 0 0                      1 0 0                   0 -0.5 0.866025
 COMP YULA   links-user/YULA/YULA.txt                             0 0 0                          1 0 0                   0 0 1   rigid
 COMP L1     links-user/LINK-1U/LINK-1U.txt                       171 16.5827 83.3667            1 0 0                   0 0.19509 0.980785   rigid
-COMP J2     joints/SHM-1000/SHM-1000.txt                         171 -1.95090 -9.80785          0 0.19509 0.980785      -1 0 0
+COMP J2     joints/SHM-1000/SHM-1000.txt                         171 -3.51163 -17.65414         0 0.19509 0.980785      -1 0 0
 
 # Degrees of freedom: base plate, ОПУ outer ring and J1 housing fixed (in the real arm J1 is held only against turning); the
 # adapter YULA is locked to the J1 output shaft, the ОПУ inner ring and link 1 to YULA, the J2 housing to link 1.

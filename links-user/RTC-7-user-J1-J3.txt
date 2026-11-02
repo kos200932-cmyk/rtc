@@ -15,7 +15,7 @@ COMP OPU    components/ISKRA/RU178G/RU178G-UU-CC0-P5.txt         0 0 0          
 COMP J1     joints/SHM-KB25/SHM-KB25.txt                         -33.5 0 0                      1 0 0                   0 -0.5 0.866025
 COMP YULA   links-user/YULA/YULA.txt                             0 0 0                          1 0 0                   0 0 1   rigid
 COMP L1     links-user/LINK-1U/LINK-1U.txt                       171 16.5827 83.3667            1 0 0                   0 0.19509 0.980785   rigid
-COMP J2     joints/SHM-1000/SHM-1000.txt                         171 -1.95090 -9.80785          0 0.19509 0.980785      1 0 0
+COMP J2     joints/SHM-1000/SHM-1000.txt                         171 -3.51163 -17.65414         0 0.19509 0.980785      1 0 0
 # L2: link frame = J2 output face centre shifted 137 down along the J1 axis (link X = J2 axis outward, link Z = J1 axis up)
 COMP L2     links-user/LINK-2U/LINK-2U.txt                       34 27.11765 136.32915          0 0.19509 0.980785      1 0 0   rigid
 COMP J3     joints/SHM-KB50/SHM-KB50.txt                         355 0 0                        1 0 0                   0 0.19509 0.980785

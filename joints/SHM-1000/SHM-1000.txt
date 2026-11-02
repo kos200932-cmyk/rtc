@@ -14,8 +14,8 @@ PARTS  SHM-1000-parts.txt                    # adapter plate, coupling and key, 
 PLACE  motor  -2                             # AK80-9 output face (card x=0) at x=-2, output towards +X
 LINK   SHM-1000-02_Coupling  DMRD-80E-02_InputShaft   # the coupling turns with the reducer input shaft
 LINK   SHM-1000-03_Key       DMRD-80E-02_InputShaft   # the key too
-DESIGN adapter_plate   # AK80-9 front face (D98, 8xM3 on D85) -> reducer.motor_side (recess D110H7 x 6.5, 4xM8 on D145 in the 130 square)
-DESIGN coupling        # AK80-9 output (spigot D48, 6xM4 on D28, 2 dowels D3) -> reducer.input (bore D22H7 x 41, key 8, 19 below the face)
+DESIGN adapter_plate   # AK80-9 front face (D98, 8xM3 on D85) -> reducer.motor_side (recess D110H7 x 8, 4xM8 on D145 in the 130 square)
+DESIGN coupling        # AK80-9 output (spigot D48, 6xM4 on D28, 2 dowels D3) -> reducer.input (bore D22H7 x 47, key 8, 13 below the face; DMRD-80E drawing 2026-03-25)
 JOIN reducer.motor_side     adapter_plate.reducer
 JOIN motor.base             adapter_plate.motor
 JOIN motor.output           coupling.motor

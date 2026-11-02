@@ -1,4 +1,5 @@
-# DMRD-80E - reducer model from the catalog drawing (DMRD-80E.jpg)
+# DMRD-80E - reducer model from the catalog drawing DMRD-80E.jpg (revision 2026-03-25; the previous drawing of
+# 2025-04-18 is kept as DMRD-80E_2025-04-18.jpg). Card updated 2026-11-02.
 # Three parts: housing (fixed, solid - no internals), input shaft with bore D22H7 and key slot,
 # output shaft D160h7 (both shafts rotate about X).
 # X - along the axis from the left (input, square flange) face, mm; Y - radius, mm.
@@ -6,16 +7,19 @@
 # LEFT (input) end, the view on the LEFT shows the RIGHT (output) end.
 # Angles in this file: 0 = +Z, 90 = +Y (up). Seen from the input end they are the drawing angles
 # (counter-clockwise from the right), seen from the output end they are mirrored: a = 180 - drawing.
-# Axial stack: 23 (square flange) + 57 + 63 = 143 (housing reaches 132) + 6 = 149 (output face).
-#   x 0..23     square flange 130x130, turned D165 then milled (corners stay round on D165)
-#   x 23..44    boss D110 (not dimensioned, measured)
-#   x 44..54    pilot D190h7, 10
-#   x 54..95    flange D222, 41 (26 + 15), 16 holes D9 on D206
-#   x 95..105   pilot D190h7, 10 (dimension "10" next to the flange; D189 taken for the rest)
-#   x 105..132  D189
-#   x 132..149  output shaft: D160h7 132..143, D159 143..149 (end plate 6); 10 inside the housing
+# Axial stack (2026-03-25): 88 + 63 = 151 (end of the D160 band) + 6 = 157 overall (was 149).
+#   x 0..16     square flange 130x130 (corners chamfered; modelled as D165 milled to the square), thickness measured
+#   x 16..30    boss D124 (measured), x 30..41 bearing cap D92 (measured), x 41..56 ribs - modelled as a cone r 46 -> 75
+#   x 56..63    pilot D190 0/-0.046, 7
+#   x 63..103   flange D222, 40 (25 + 15), 16 holes D9 on D206 (the drawing no longer dimensions them - as before)
+#   x 103..113  pilot D190 0/-0.046, 10  (LINK-1U sits on this side: flange face x=103 on the plate, pilot in its bore)
+#   x 113..140  D189
+#   x 140..157  output shaft: D160 0/-0.04 140..151 ("11"), D159 151..157 (end plate 6); 10 inside the housing
+# Changes vs 2025-04-18: everything from the flange on moved +8 (output face 149 -> 157, flange faces 54/95 -> 63/103),
+#   flange 41 -> 40, input-side pilot 10 -> 7, square flange 23 -> 16, recess D110 6.5 -> 8, input bore from 13 (was 19),
+#   jack screws 2-M8 at 11.25 deg (was 11 deg 25'), new oil fill ports 2-G1/8 depth 28 on D172 at 22.5 deg.
+#   Output face, catalog table and the output-face holes (9-M8 depth 13 + 6-M10 depth 15, labelled "机座" = housing/base) unchanged.
 # PORT lines: interfaces -> plane PORT_<name> + custom property PORT_<name> in the part.
-
 COMPONENT DMRD-80E
 TYPE reducer
 # Catalog: torques N*m (rated / start-stop / momentary max), tilting moment N*m (allowable / momentary max),
@@ -32,74 +36,78 @@ ASSEMBLY DMRD-80E
 # ---- 01: housing (solid; fixed) ------------------------------------------------
 PART DMRD-80E-01_Housing
 MOTION fixed
-P 0     55       # recess D110H7 for the motor, 6.5 deep (depth measured, not dimensioned)
+P 0     55       # recess D110 +0.022 for the motor, 8 deep
 P 0     82.5     # D165 - turned blank of the square flange
-P 23    82.5
-P 23    55       # boss D110 (measured)
-P 44    55
-P 44    95       # pilot D190h7, 10 long
-P 54    95
-P 54    111      # flange D222, 41 long
-P 95    111
-P 95    95       # pilot D190h7, 10 long
-P 105   95
-P 105   94.5     # D189
-P 132   94.5
-P 132   80       # pocket D160 x 10 for the output shaft
-P 122   80
-P 122   0        # solid - no internals
-P 76    0
-P 76    20       # bore D40 for the input shaft (shaft D40 measured)
-P 19    20
-P 19    32       # cavity D64 in front of the input shaft (measured)
-P 6.5   32
-P 6.5   55
+P 16    82.5
+P 16    62       # boss D124 (measured)
+P 30    62
+P 30    46       # bearing cap D92 (measured)
+P 41    46
+P 56    75       # ribs between the cap and the pilot - envelope cone (measured)
+P 56    95       # pilot D190 0/-0.046, 7 long
+P 63    95
+P 63    111      # flange D222, 40 long
+P 103   111
+P 103   95       # pilot D190 0/-0.046, 10 long
+P 113   95
+P 113   94.5     # D189
+P 140   94.5
+P 140   80       # pocket D160 x 10 for the output shaft
+P 130   80
+P 130   0        # solid - no internals
+P 70    0
+P 70    20       # bore D40 for the input shaft (shaft D40 measured)
+P 30    20
+P 30    32       # cavity D64 in front of the input shaft (measured)
+P 8     32
+P 8     55
 #      x0    x1   across  n   angle
-FLATS  0     23   130     4   0           # square 130x130 milled on the D165 flange
+FLATS  0     16   130     4   0           # square 130x130 milled on the D165 flange
 #       x     dir  n   pcd    size depth  angle  drillDepth
-THREAD  0     1    4   145    M8   23     45     23.5   # 4-M8 through the square flange, on D145 at 45 deg
+THREAD  0     1    4   145    M8   16     45     16.5   # 4-M8 through the square flange, on D145 at 45 deg (motor mounting)
 #      x     dir  n   pcd    d    depth  angle
-HOLES  54    1    16  206    9    0      90             # 16-D9 through the D222 flange
-THREAD  54    1    2   206    M8   41     11.42  41.5   # 2-M8 through the D222 flange at 11 deg 25' (jack screws)
-HOLES  54    1    2   206    8.4  10     78.75          # 2 grease fill/drain ports Rc1/8 (tap drill 8.4, depth ASSUMED 10)
+HOLES  63    1    16  206    9    0      90             # 16-D9 through the D222 flange
+THREAD  63    1    2   206    M8   40     168.75 40.5   # 2-M8 through the D222 flange, 11.25 deg above the left horizontal (input view)
+HOLES  63    1    2   206    8.4  40     78.75          # 2 holes in the bosses at 11.25 deg from the vertical (Rc1/8 grease ports on the old drawing; ASSUMED through 8.4)
+HOLES  56    1    2   172    8.8  28     22.5           # oil fill 2-G1/8-28 on D172 at 22.5 deg (tap drill 8.8), in the pilot face
 #     name        x    dir  parameters
-PORT  motor_side  0    -1   role=stator_mount fit=110H7 fit_depth=6.5 square=130 bolts=4xM8 pcd=145 ang=45 mate=motor_adapter
-PORT  base        54   -1   role=fixed fit=190h7 fit_x=44..54 holes=16xD9 pcd=206 ang=90 mate=prev_link   # housing -> previous link (motor side, as on KB)
+PORT  motor_side  0    -1   role=stator_mount fit=110H7 fit_depth=8 square=130 bolts=4xM8 pcd=145 ang=45 mate=motor_adapter
+PORT  base        63   -1   role=fixed fit=190h7 fit_x=56..63 holes=16xD9 pcd=206 ang=90 mate=prev_link   # input side of the flange (v1/v2 LINK-1)
+PORT  base_out    103  1    role=fixed fit=190h7 fit_x=103..113 holes=16xD9 pcd=206 ang=90 mate=prev_link  # output side of the flange (LINK-1U)
 END
 
 # ---- 02: input shaft, bore D22H7 with key slot 8 (rotates) -------------------------------
 PART DMRD-80E-02_InputShaft
 MOTION rotate
-P 19    11       # bore D22H7 from x=19 to x=60 (dimensions 19 and 60 from the left face)
-P 19    20       # outer D40 (measured; internals beyond x=76 not modelled)
-P 76    20
-P 76    0
+P 13    11       # bore D22 +0.020/+0.007 from x=13 to x=60 (dimensions 13 and 60 from the left face)
+P 13    20       # outer D40 (measured; internals beyond x=70 not modelled)
+P 70    20
+P 70    0
 P 60    0
 P 60    11
 #       x     dir  length  width  bottom  angle
-KEYWAY  19    1    41      8      14.3    90      # key slot 8 wide, 25.3 over the bore (14.3 from the axis), at the top
-PORT  input  19   -1   role=input fit=22H7 bore_depth=41 key=8 keyway=25.3 ang=90 mate=motor_output
+KEYWAY  13    1    47      8      14.3    90      # key slot 8 wide, 25.3 over the bore (14.3 from the axis), at the top
+PORT  input  13   -1   role=input fit=22H7 bore_depth=47 key=8 keyway=25.3 ang=90 mate=motor_output
 END
 
 # ---- 03: output shaft D160h7 (rotates; 17 outside + 10 inside the housing) ---------------
 PART DMRD-80E-03_OutputShaft
 MOTION rotate
-P 122   0
-P 122   80
-P 143   80       # D160h7 fit, 132..143 outside the housing
-P 143   79.5
-P 149   79.5     # end plate D159, 6
-P 149   0
+P 130   0
+P 130   80
+P 151   80       # D160 0/-0.04 fit, 140..151 outside the housing
+P 151   79.5
+P 157   79.5     # end plate D159, 6
+P 157   0
 # Output face (left view of the drawing, angles mirrored). Three groups of 4 on D142 and 2 on D110, 120 deg apart.
-# The callout says 12-M8, but in every group one of the four positions on D142 carries an Rc1/8 plug:
-# modelled as drawn - 9 x M8 + 3 x Rc1/8.
+# 2026-03-25 callout: 9-M8 depth 13 + 6-M10 depth 15 ("机座"); the 4th position of each group on D142 is an Rc1/8 plug.
 #       x     dir  n   pcd    size depth  angle
-THREAD  149   -1   3   142    M8   13     69      # 12-M8 depth 13 (group positions 69 / 81 / 99)
-THREAD  149   -1   3   142    M8   13     81
-THREAD  149   -1   3   142    M8   13     99
-THREAD  149   -1   3   110    M10  15     80      # 6-M10 depth 15 (group positions 80 / 100)
-THREAD  149   -1   3   110    M10  15     100
+THREAD  157   -1   3   142    M8   13     69      # 9-M8 depth 13 (group positions 69 / 81 / 99)
+THREAD  157   -1   3   142    M8   13     81
+THREAD  157   -1   3   142    M8   13     99
+THREAD  157   -1   3   110    M10  15     80      # 6-M10 depth 15 (group positions 80 / 100)
+THREAD  157   -1   3   110    M10  15     100
 #      x     dir  n   pcd    d    depth  angle
-HOLES  149   -1   3   142    8.4  10     111      # 3 x Rc1/8 plugs (tap drill 8.4, depth ASSUMED 10)
-PORT  output 149  1    role=output fit=160h7 fit_x=132..143 bolts=9xM8_D142+6xM10_D110 mate=next_link
+HOLES  157   -1   3   142    8.4  10     111      # 3 x Rc1/8 plugs (tap drill 8.4, depth ASSUMED 10)
+PORT  output 157  1    role=output fit=160h7 fit_x=140..151 bolts=9xM8_D142+6xM10_D110 mate=next_link
 END

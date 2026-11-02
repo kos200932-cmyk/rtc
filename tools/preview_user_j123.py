@@ -6,7 +6,7 @@ from OCP.BRepAlgoAPI import BRepAlgoAPI_Common
 from OCP.gp import gp_Trsf
 pv.global_theme.allow_empty_mesh=True
 XJ2=np.array([0,0.195090322015843,0.980785280403287]); ZR=np.array([1.0,0,0]); YR=np.cross(ZR,XJ2)
-face=np.array([171,-1.95090322015508,-9.80785280403365])+149*XJ2
+face=np.array([171,-1.95090322015508,-9.80785280403365])+149*XJ2   # = J2 output face (unchanged by the 80E drawing 2026-03-25: origin -8, output x 157)
 O=face-137*ZR
 def T_robot():
     t=gp_Trsf(); R=np.c_[XJ2,YR,ZR]; t.SetValues(*[float(v) for v in np.c_[R,O].ravel()]); return t

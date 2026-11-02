@@ -40,7 +40,7 @@ P1 = {
 }
 KB32_OUT = {"fit": 112.0, "pcd": 100.0, "n": 16, "hole": 5.5, "ang": 101.25}
 J2_BASE = {"pilot": 190.0, "pcd": 206.0, "n": 16, "size": "M8", "ang_joint": 90.0}
-# DMRD-80E output (J2): D160h7 (joint x 132..143), end plate D159 to the face; 9 x M8 on D142 in 3 groups
+# DMRD-80E output (J2): D160h7 (joint x 140..151 since the drawing 2026-03-25, was 132..143), end plate D159 to the face; 9 x M8 on D142 in 3 groups
 # (69/81/99 deg + 120k), 6 x M10 on D110 (80/100 + 120k), 3 x Rc1/8 plugs on D142 at 111 + 120k (joint angles)
 J2_OUT = {"fit": 160.0, "fit_len": 11.0, "m8": (142.0, (69.0, 81.0, 99.0)), "m10": (110.0, (80.0, 100.0)),
           "plug": (142.0, 111.0)}

@@ -5,7 +5,10 @@ import numpy as np, link_build as lb
 def frame(o, x, z):
     x=np.array(x,float); z=np.array(z,float); y=np.cross(z,x); T=np.eye(4); T[:3,:3]=np.c_[x,y,z]; T[:3,3]=o; return T
 XJ2=np.array([0,0.195090322015843,0.980785280403287]); UP=np.array([1.,0,0])
-J2o=np.array([171,-1.95090322015508,-9.80785280403365]); face=J2o+149*XJ2
+# DMRD-80E drawing 2026-03-25: output face x=157 (was 149), the flange face on link 1 x=103 (was 95) -> the joint origin
+# moves 8 mm back along the J2 axis, the output face (link 2 and the rest of the arm) stays where it was
+X80E_OUT=157.0; X80E_SEAT=103.0
+J2o=np.array([171,-1.95090322015508,-9.80785280403365])-(X80E_SEAT-95.0)*XJ2; face=J2o+X80E_OUT*XJ2
 L2=frame(face-14*XJ2, np.cross(UP,XJ2), XJ2)                 # user's part frame of LINK-2B
 J2=frame(J2o, XJ2, np.cross(XJ2,UP))                          # Y_j (card 90, centre of the output hole groups) = up
 J3=L2@frame([0,-48,150],[0,1,0],[0,0,1])                      # flange D236 top (x=49) on the plate bottom y=1
@@ -75,7 +78,7 @@ LOCK J4   DMRD-KB45-01_Housing       L3   LINK-3-01_Weldment
     parts.append(("LINK-1U",mv(lb.build_part(lb.parse("links-user/LINK-1U/LINK-1U.txt")[0][0]),T1),"link1"))
     parts.append(("YULA",lb.build_part(lb.parse("links-user/YULA/YULA.txt")[0][0]),"yula"))
     parts.append(("BASEPLATE",lb.build_part(lb.parse("links-user/BASEPLATE/BASEPLATE.txt")[0][0]),"base"))
-    J2v2=frame([-149,0,137],[1,0,0],[0,0,1])
+    J2v2=frame([-157,0,137],[1,0,0],[0,0,1])   # v2 J2 origin: output face x=0 - 157 (80E drawing 2026-03-25)
     import joint_envelope as je
     _all=je.all_joints; je.all_joints=lambda: {**_all(), "SHM-KB50": _all()["SHM-KB50F"]}
     for nm,s,jn,kind in lb.envelope_solids("robot/RTC-7-layout-v2.txt",["J2","J3","J4"]):
