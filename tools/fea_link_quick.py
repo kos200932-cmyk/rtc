@@ -56,6 +56,8 @@ def main():
     ap.add_argument("--case", action="append", required=True)
     ap.add_argument("--E", type=float, default=71000.0)
     ap.add_argument("--name", default="link")
+    ap.add_argument("--grav", help="gravity direction gx,gy,gz in the part frame (unit; 9810 mm/s^2): self-weight of the link")
+    ap.add_argument("--rho", type=float, default=7850.0, help="density kg/m3 for --grav")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     step = os.path.join(a.out, a.name + ".step")
@@ -82,7 +84,7 @@ def main():
         L.append(f"*NSET,NSET={nm}")
         L += [",".join(str(n) for n in ids[j:j + 12]) for j in range(0, len(ids), 12)]
     L += ["*NSET,NSET=NREF", f"{rp},{rot}",
-          "*MATERIAL,NAME=AL", "*ELASTIC", f"{a.E},0.33", "*SOLID SECTION,ELSET=EALL,MATERIAL=AL",
+          "*MATERIAL,NAME=AL", "*ELASTIC", f"{a.E},0.33"] + ([ "*DENSITY", f"{a.rho * 1e-12:.4e}"] if a.grav else []) + [ "*SOLID SECTION,ELSET=EALL,MATERIAL=AL",
           f"*RIGID BODY,NSET=NLOAD,REF NODE={rp},ROT NODE={rot}", "*BOUNDARY", "NFIXED,1,3,0.0"]
     names = []
     for cs in a.case:
@@ -90,9 +92,10 @@ def main():
         v = [float(t) for t in v.split(",")]
         names.append(nm)
         L += ["*STEP", "*STATIC", "*CLOAD,OP=NEW"]
+        gl = ["*DLOAD", "EALL,GRAV,9810.," + a.grav] if a.grav else []
         for k in range(3):
             L += [f"{rp},{k + 1},{v[k]}", f"{rot},{k + 1},{v[3 + k]}"]
-        L += ["*NODE FILE", "U", "*EL FILE", "S", "*NODE PRINT,NSET=NREF", "U", "*END STEP"]
+        L += gl + ["*NODE FILE", "U", "*EL FILE", "S", "*NODE PRINT,NSET=NREF", "U", "*END STEP"]
     job = os.path.join(a.out, a.name)
     open(job + ".inp", "w").write("\n".join(L) + "\n")
     r = subprocess.run(["ccx", "-i", a.name], cwd=a.out, capture_output=True, text=True, env=dict(os.environ, OMP_NUM_THREADS="4"))
