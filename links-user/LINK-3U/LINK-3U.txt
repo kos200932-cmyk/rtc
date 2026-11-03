@@ -1,3 +1,5 @@
+# 2026-11-03 (user: folding J4 = 180 with the wrist beside link 1 / J2): link 3 LONGER by 90 - the J4 seat (axis) at
+#   z=1557 (was 1467), tube up to z=1510; link 5 shorter by 90 (LINK-5U), so the zero-pose J6..TCP stay where they were.
 # LINK-3U (user 2026-10-27): LINK-3 of v2 with the J4 seat 57 mm closer to the link (J3) axis (40 + 17): seat face x=67
 #   (was 10; 68 mm from the J3 axis), cylinder D220 / D168H7 x 67..203, 18 x M6 x 8 only (land x 67..75 - the tube D120
 #   starts at x=75; thread inserts recommended), no undercut; the cable bend at the J4 rear is ignored (user).
@@ -25,13 +27,13 @@ CUT Z 383 400 CIRC 135 0 80   # cable + the clamp flange of the J3 input shaft (
 CUT Z 383 400 PATTERN 135 0 16 154 9 270   # 16 x D9 -> 16-M8 of the output, DIN912 heads on top (r 70..84, outside the tube)
 # ---- tube D120 x 5 on the J3 axis, through the wall of the J4 seat cylinder (flush with the bore D168)
 # ---- J4 seat cylinder on the J4 axis (world X), centre y=0 z=1467
-PRISM X 67 203 RING 0 1467 220 168
-TAP X 67 75 0 1467 18 202 M6 190   # 18-M6 x 8 (land 8: the tube D120 starts at x=75; inserts recommended): J4 flange, screws from the reducer side
+PRISM X 67 203 RING 0 1557 220 168
+TAP X 67 75 0 1557 18 202 M6 190   # 18-M6 x 8 (land 8: the tube D120 starts at x=75; inserts recommended): J4 flange, screws from the reducer side
 # tube D120x5 into the J4 cylinder (no flat, 2026-10-22): hole D120H7 through the wall, the tube goes in through
 # the whole wall and is trimmed flush with the bore D168 (saddle end), welded round on the outside of the cylinder
-CUT Z 1340 1420 CIRC 135 0 120   # hole D120H7 through the bottom wall of the cylinder
-PRISM Z 399 1420 RING 135 0 120 110   # tube D120 x 5 up into the cylinder
-CUT X 66 204 CIRC 0 1467 168   # tube end flush with the bore D168 (J4 housing stays clear)
+CUT Z 1430 1510 CIRC 135 0 120   # hole D120H7 through the bottom wall of the cylinder
+PRISM Z 399 1510 RING 135 0 120 110   # tube D120 x 5 up into the cylinder
+CUT X 66 204 CIRC 0 1557 168   # tube end flush with the bore D168 (J4 housing stays clear)
 PORTP j3_out Z 384 -1 role=on_j3_output fit=172H7 bolts=16xM8_D154
 PORTP j4_base X 67 -1 role=j4_seat fit=168H7 bolts=18xM6_D202 screws_from=reducer_side
 # planes through the J3 axis (macro v32 REV: the joint AXIS lies in both)

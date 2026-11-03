@@ -1,3 +1,5 @@
+# 2026-11-03 (user: folding J4 = 180): link 5 SHORTER by 90 - J6 axis at card z=2527 (was 2617), tube up to z=2510;
+#   the card is placed 90 higher with J4 (link 3 +90), so in the arm J6 stays where it was. J4 -> J6 axes 1028 (was 1118).
 # LINK-5U (user 2026-11-03): LINK-5 of v2 with the J6 seat 68 mm closer to the J5 axis - J6 flange face 50 mm from the
 # link-5 tube axis (x=-94; v2 x=-26, 118 mm). (2026-11-02 variant -100 / 18 mm replaced: the tube then stuck out under
 # the J6 flange.) Coordinates: the v2 world frame of LINK-5 (zero pose, robot/RTC-7-v2-J1-J7.txt), mm - placed in the
@@ -23,13 +25,13 @@ CUT Z 1643 1657 CIRC -144 0 52   # cable + the clamp flange of the J5 input shaf
 CUT Z 1643 1657 PATTERN -144 0 16 100 5.5 258.75   # 16 x D5.5 -> 16-M5 of the output, heads on top (outside the tube)
 # ---- tube D80 x 4 on the J5 axis, through the wall of the J6 seat cylinder (flush with the bore D94)
 # ---- J6 seat cylinder on the J6 axis (world X), centre y=0 z=2617
-PRISM X -190 -94 RING 0 2617 136 94   # head x -190..-94 (user 2026-11-03: left part with the undercut removed)
-TAP X -108 -94 0 2617 12 120 M4 345   # 12-M4 x 8 (drill 10): J6 flange, screws from the reducer side
+PRISM X -190 -94 RING 0 2527 136 94   # head x -190..-94 (user 2026-11-03: left part with the undercut removed)
+TAP X -108 -94 0 2527 12 120 M4 345   # 12-M4 x 8 (drill 10): J6 flange, screws from the reducer side
 # tube D80x4 into the J6 cylinder (no flat, 2026-10-22): hole D80H7 through the wall, the tube goes in through
 # the whole wall and is trimmed flush with the bore D94 (saddle end), welded round on the outside of the cylinder
-CUT Z 2530 2600 CIRC -144 0 80   # hole D80H7 through the bottom wall of the cylinder
-PRISM Z 1656 2600 RING -144 0 80 72   # tube D80 x 4 up into the cylinder
-CUT X -191 -93 CIRC 0 2617 94   # tube end flush with the bore D94 (J6 housing stays clear)
+CUT Z 2440 2510 CIRC -144 0 80   # hole D80H7 through the bottom wall of the cylinder
+PRISM Z 1656 2510 RING -144 0 80 72   # tube D80 x 4 up into the cylinder
+CUT X -191 -93 CIRC 0 2527 94   # tube end flush with the bore D94 (J6 housing stays clear)
 PORTP j5_out Z 1644 -1 role=on_j5_output fit=112H7 bolts=16xM5_D100
 PORTP j6_base X -94 1 role=j6_seat fit=94H7 bolts=12xM4_D120 screws_from=reducer_side
 # planes through the J5 axis (macro v32 REV: the joint AXIS lies in both)

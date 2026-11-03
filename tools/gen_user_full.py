@@ -34,6 +34,12 @@ SHIFT_J6=-68.0
 _S6=np.eye(4); _S6[0,3]=SHIFT_J6
 for _n in ("J6","L6","J7"):
     comps[_n]=(comps[_n][0], _S6@comps[_n][1], comps[_n][2])
+# user 2026-11-03: folding (J2 90, J4 180, J5 180) with the wrist beside link 1 / J2 - link 3 +90 (J4 seat up, LINK-3U),
+# link 5 -90 (LINK-5U): J4, L4, J5, L5 +90 along the v2 Z, the wrist (J6, L6, J7, SZU) stays
+L3_PLUS=90.0
+_S3=np.eye(4); _S3[2,3]=L3_PLUS
+for _n in ("J4","L4","J5","L5"):
+    comps[_n]=(comps[_n][0], _S3@comps[_n][1], comps[_n][2])
 def place(n):
     """v2-world coordinates of item n (its spec / layout-v2 envelope) -> the user's assembly frame"""
     return M@comps[n][1]@np.linalg.inv(comps_v2[n][1])
