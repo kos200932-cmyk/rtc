@@ -93,5 +93,84 @@ def main():
     open(os.path.join(a.out, "summary.md"), "w", encoding="utf-8").write("\n".join(L) + "\n")
 
 
+
+# ---- compliance of every link (linear: 6 unit loads at the seat centre + self-weight along the 3 card axes) ----------
+UNIT = ["Fx:1000,0,0,0,0,0,0,0,0", "Fy:0,1000,0,0,0,0,0,0,0", "Fz:0,0,1000,0,0,0,0,0,0",
+        "Mx:0,0,0,1e6,0,0,0,0,0", "My:0,0,0,0,1e6,0,0,0,0", "Mz:0,0,0,0,0,1e6,0,0,0",
+        "gx:0,0,0,0,0,0,1,0,0", "gy:0,0,0,0,0,0,0,1,0", "gz:0,0,0,0,0,0,0,0,1"]
+
+
+def compliance(out, links=None):
+    """{grp: (C 6x6 [u mm; th rad] per [F N; M N*mm], Gw 6x3 per unit gravity direction)} -> out/compliance.json"""
+    import json
+    res = {}
+    for grp, card, E, rho, h, fsel, lsel, cc in LINKS:
+        if links and grp not in links:
+            continue
+        cmd = [sys.executable, os.path.join(ROOT, "tools", "fea_link_quick.py"), os.path.join(ROOT, card), "--out",
+               os.path.join(out, grp), "--h", str(h), "--E", str(E), "--name", grp, "--fixed", fsel, "--load", lsel,
+               "--center=" + ",".join(str(v) for v in cc), "--rho", str(rho)] + sum((["--case", c] for c in UNIT), [])
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
+        vals = {}
+        for l in r.stdout.splitlines():
+            t = l.split()
+            if t and t[0] in [c.split(":")[0] for c in UNIT]:
+                nums = [float(v) for v in re.findall(r"-?\d+\.\d+", l)]
+                vals[t[0]] = np.r_[nums[0:3], np.array(nums[3:6]) * 1e-3]
+        if len(vals) != 9:
+            print(grp, "FAILED", r.stdout[-1500:], r.stderr[-800:]); continue
+        C = np.c_[[vals[k] / 1000.0 for k in ("Fx", "Fy", "Fz")] + [vals[k] / 1e6 for k in ("Mx", "My", "Mz")]].T
+        Gw = np.c_[[vals[k] for k in ("gx", "gy", "gz")]].T
+        res[grp] = (C.tolist(), Gw.tolist())
+        print(grp, "compliance ok", flush=True)
+    old = json.load(open(os.path.join(out, "compliance.json"))) if os.path.isfile(os.path.join(out, "compliance.json")) else {}
+    old.update(res)
+    json.dump(old, open(os.path.join(out, "compliance.json"), "w"), indent=1)
+    return old
+
+
+class Arm:
+    """fast TCP deflection for any pose from the link compliances (compliance.json)"""
+    def __init__(self, out, payload=8.0, pay_off=200.0):
+        import json
+        argv = sys.argv; sys.argv = [argv[0]]
+        import cart_reach as cr, gen_user_full as gf, gen_user_l123 as g
+        sys.argv = argv
+        self.cr = cr; self.arm = cr.Arm(geometry=True); self.payload = payload; self.pay_off = pay_off
+        self.comp = {k: (np.array(v[0]), np.array(v[1])) for k, v in json.load(open(os.path.join(out, "compliance.json"))).items()}
+        self.place = {"L1": g.frame([171, 16.5826773713467, 83.3667488342793], [1, 0, 0], [0, 0.195090322015843, 0.980785280403287]),
+                      "L2": g.L2}
+        for n in ("L3", "L4", "L5"):
+            self.place[n] = gf.place(n)
+
+    def tcp(self, q_deg):
+        _, cum = self.arm.fk(np.radians(q_deg))
+        return (cum[7] @ np.r_[self.arm.tcp0, 1])[:3], cum[7][:3, :3] @ self.arm.app0
+
+    def deflection(self, q_deg, parts=False, pay_off=None):
+        cr, arm = self.cr, self.arm
+        po = self.pay_off if pay_off is None else pay_off
+        _, cum = arm.fk(np.radians(q_deg))
+        G = np.array([-9.81, 0, 0])
+        bodies = [(gr, cr.MASS[gr], (cum[cr.NMOV[gr]] @ np.r_[arm.com[gr], 1])[:3]) for gr in cr.MASS]
+        bodies.append(("PAY", self.payload, (cum[7] @ np.r_[arm.tcp0 + po * arm.app0, 1])[:3]))
+        tcp = (cum[7] @ np.r_[arm.tcp0, 1])[:3]
+        order = cr.ORDER + ["PAY"]; out = {}; tot = np.zeros(3)
+        for grp, card, E, rho, h, fsel, lsel, cc in LINKS:
+            C, Gw = self.comp[grp]
+            W = cum[cr.NMOV[grp]] @ self.place[grp]; R = W[:3, :3]; c = (W @ np.r_[cc, 1])[:3]
+            down = [b for b in bodies if order.index(b[0]) > order.index(grp)]
+            F = sum(m * G for _, m, _ in down); M = sum(np.cross(p - c, m * G) for _, m, p in down)
+            x = C @ np.r_[R.T @ F, R.T @ M] + Gw @ (R.T @ np.array([-1.0, 0, 0]))
+            d = R @ x[:3] + np.cross(R @ x[3:], tcp - c); out[grp] = d; tot = tot + d
+        on = [b for b in bodies if order.index(b[0]) >= order.index("L1")]
+        Mo = sum(np.cross(p, m * G) for _, m, p in on) / 1e3
+        do = np.cross(Mo / K_OPU, tcp); out["OPU"] = do; tot = tot + do
+        return (tot, out) if parts else tot
+
+
 if __name__ == "__main__":
-    main()
+    if "--compliance" in sys.argv:
+        sys.argv.remove("--compliance"); compliance(os.path.join(ROOT, "fea", "stiffness"))
+    else:
+        main()

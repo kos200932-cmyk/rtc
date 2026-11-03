@@ -84,7 +84,7 @@ def main():
         L.append(f"*NSET,NSET={nm}")
         L += [",".join(str(n) for n in ids[j:j + 12]) for j in range(0, len(ids), 12)]
     L += ["*NSET,NSET=NREF", f"{rp},{rot}",
-          "*MATERIAL,NAME=AL", "*ELASTIC", f"{a.E},0.33"] + ([ "*DENSITY", f"{a.rho * 1e-12:.4e}"] if a.grav else []) + [ "*SOLID SECTION,ELSET=EALL,MATERIAL=AL",
+          "*MATERIAL,NAME=AL", "*ELASTIC", f"{a.E},0.33"] + ([ "*DENSITY", f"{a.rho * 1e-12:.4e}"] if (a.grav or any(len(c.rsplit(":", 1)[1].split(",")) == 9 for c in a.case)) else []) + [ "*SOLID SECTION,ELSET=EALL,MATERIAL=AL",
           f"*RIGID BODY,NSET=NLOAD,REF NODE={rp},ROT NODE={rot}", "*BOUNDARY", "NFIXED,1,3,0.0"]
     names = []
     for cs in a.case:
@@ -93,6 +93,8 @@ def main():
         names.append(nm)
         L += ["*STEP", "*STATIC", "*CLOAD,OP=NEW"]
         gl = ["*DLOAD", "EALL,GRAV,9810.," + a.grav] if a.grav else []
+        if len(v) == 9:                       # per-case self-weight: Fx..Mz, gx, gy, gz (unit direction, 0,0,0 = none)
+            gl = ["*DLOAD,OP=NEW", f"EALL,GRAV,9810.,{v[6]},{v[7]},{v[8]}" if any(v[6:9]) else "EALL,GRAV,0.,1.,0.,0."]
         for k in range(3):
             L += [f"{rp},{k + 1},{v[k]}", f"{rot},{k + 1},{v[3 + k]}"]
         L += gl + ["*NODE FILE", "U", "*EL FILE", "S", "*NODE PRINT,NSET=NREF", "U", "*END STEP"]
