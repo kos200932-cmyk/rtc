@@ -28,9 +28,9 @@ SHIFT_J5=np.array([-8.0,0.0,-32.5])
 _S5=np.eye(4); _S5[:3,3]=SHIFT_J5
 for _n in ("J5","L5","J6","L6","J7"):
     comps[_n]=(comps[_n][0], _S5@comps[_n][1], comps[_n][2])
-# user 2026-11-02: link 5 = LINK-5U - the J6 seat 100 mm closer to the J5 axis (v2 -X): J6, link 6, J7 and SZU with it
+# user 2026-11-03: link 5 = LINK-5U - J6 seat face 50 mm from the J5 axis (68 closer, v2 -X; 02.11: -100): J6, L6, J7, SZU with it
 comps["L5"]=("links-user/LINK-5U/LINK-5U.txt", comps["L5"][1], comps["L5"][2])
-SHIFT_J6=-100.0
+SHIFT_J6=-68.0
 _S6=np.eye(4); _S6[0,3]=SHIFT_J6
 for _n in ("J6","L6","J7"):
     comps[_n]=(comps[_n][0], _S6@comps[_n][1], comps[_n][2])
