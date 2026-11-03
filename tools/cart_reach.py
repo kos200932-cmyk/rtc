@@ -17,7 +17,7 @@ NMOV = {"B": 0, "J1": 0, "L1": 1, "J2": 1, "L2": 2, "J3": 2, "L3": 3, "J4": 3, "
         "L6": 6, "J7": 6, "F": 7}
 # masses, kg (STATUS_2026-10-26.md; joints - load model estimates; SZU 4 kg - user 2026-10-27)
 MASS = {"L1": 1.39 + 5.73, "J2": 25.1, "L2": 7.25, "J3": 20.0, "L3": 13.0, "J4": 15.0, "L4": 2.74, "J5": 6.0,
-        "L5": 5.61, "J6": 3.5, "L6": 1.41, "J7": 1.8, "F": 4.0}
+        "L5": 4.54, "J6": 3.5, "L6": 1.41, "J7": 1.8, "F": 4.0}
 LOAD_KG = 8.0
 # allowed torque about the axis = min(reducer rated, motor rated x ratio x 0.8), N·m (robot/RTC-7-loads-v2.md)
 CAP = {1: (62, 0.94 * 79 * 0.8), 2: (1400, 9.0 * 153 * 0.8), 3: (415, 5.5 * 99 * 0.8), 4: (375, 5.5 * 79 * 0.8),
