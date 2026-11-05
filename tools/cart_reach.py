@@ -19,9 +19,10 @@ NMOV = {"B": 0, "J1": 0, "L1": 1, "J2": 1, "L2": 2, "J3": 2, "L3": 3, "J4": 3, "
 MASS = {"L1": 1.39 + 5.73, "J2": 25.1, "L2": 7.25, "J3": 20.0, "L3": 11.42, "J4": 15.0, "L4": 2.74, "J5": 6.0,
         "L5": 4.31, "J6": 3.5, "L6": 1.41, "J7": 1.8, "F": 4.0}
 LOAD_KG = 8.0
-# allowed torque about the axis = min(reducer rated, motor rated x ratio x 0.8), N·m (robot/RTC-7-loads-v2.md)
-CAP = {1: (62, 0.94 * 79 * 0.8), 2: (1400, 9.0 * 153 * 0.8), 3: (415, 5.5 * 99 * 0.8), 4: (375, 5.5 * 79 * 0.8),
-       5: (103, 0.94 * 79 * 0.8), 6: (62, 0.94 * 49 * 0.8)}
+# allowed torque about the axis = min(reducer rated, motor rated x ratio x 0.8), N·m (robot/RTC-7-loads-user.md)
+# ratios J3..J6 = 99 since 2026-11-03 (tools/user_loads.py)
+CAP = {1: (62, 0.94 * 79 * 0.8), 2: (1400, 9.0 * 153 * 0.8), 3: (415, 5.5 * 99 * 0.8), 4: (375, 5.5 * 99 * 0.8),
+       5: (103, 0.94 * 99 * 0.8), 6: (62, 0.94 * 99 * 0.8)}
 TILT = {3: 1032, 5: 336}          # allowed tilting moment of KB50 (J3) and KB32 (J5), N·m
 G = 9.81
 
