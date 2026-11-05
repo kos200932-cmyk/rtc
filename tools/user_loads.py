@@ -73,11 +73,27 @@ def main():
     ap.add_argument("--speed", type=float, default=0.2)
     ap.add_argument("--accel", type=float, default=0.1)
     ap.add_argument("--eta", type=float, default=0.8)
+    ap.add_argument("--pay-r", type=float, default=0.0, help="payload only while the TCP is within this horizontal radius "
+                    "from the J1 axis, mm (0 = everywhere); beyond it the arm moves with the SZU only")
+    ap.add_argument("--variant", help="JSON: {\"JMASS\": [...], \"lineup\": {\"J3\": [reducer, motor, motor_T, ratio]}, \"RED\": {...}}")
+    ap.add_argument("--tag", default="", help="suffix of the output files (robot/RTC-7-loads-user<tag>.md/.json); "
+                    "a tag also skips the layout file")
     a = ap.parse_args()
     import cart_reach as cr
+    global JMASS, LINEUP
+    if a.variant:
+        v = json.load(open(a.variant, encoding="utf-8"))
+        JMASS = v.get("JMASS", JMASS)
+        for k, (red, mo, mT, i) in v.get("lineup", {}).items():
+            kk = int(k[1]) - 1; L = list(LINEUP[kk]); L[1], L[2], L[3], L[5] = red, mo, mT, i; LINEUP[kk] = tuple(L)
+        RED.update({k: tuple(x) for k, x in v.get("RED", {}).items()})
+        for gname, mv_ in zip(["J1", "J2", "J3", "J4", "J5", "J6", "J7"], JMASS):
+            if gname in cr.MASS: cr.MASS[gname] = mv_
+        cr.MASS.update(v.get("MASS", {}))
     arm = cr.Arm(geometry=True)
     ax, g = frames()
-    write_layout(os.path.join(ROOT, "robot", "RTC-7-layout-user.txt"), ax, g, ax[6][0] + ax[6][1] * 56.5)
+    if not a.tag:
+        write_layout(os.path.join(ROOT, "robot", "RTC-7-layout-user.txt"), ax, g, ax[6][0] + ax[6][1] * 56.5)
     faces = [o + d * x[-1] for (o, d), x in zip(ax, LINEUP)]
     bodies = [(cr.MASS[gr], arm.com[gr], cr.NMOV[gr]) for gr in cr.MASS]
     pay = arm.tcp0 + a.pay_off * arm.app0
@@ -96,7 +112,12 @@ def main():
         w = a.speed * rng.choice([-1, 1], 7); al = a.accel * rng.choice([-1, 1], 7)
         P0, F0 = pos(q); Pp, _ = pos(q + w * h + 0.5 * al * h * h); Pm, _ = pos(q - w * h + 0.5 * al * h * h)
         acc = (Pp - 2 * P0 + Pm) / (h * h)                        # mm/s^2
-        f = m[:, None] * (gvec - acc)                             # load on the arm, N*... (kg mm/s^2 = mN)
+        mm = m
+        if a.pay_r > 0:
+            _, cum_ = arm.fk(q); tcp = (cum_[7] @ np.r_[arm.tcp0, 1])[:3]
+            if math.hypot(tcp[1], tcp[2]) > a.pay_r:
+                mm = m.copy(); mm[-1] = 0.0
+        f = mm[:, None] * (gvec - acc)                             # load on the arm, N*... (kg mm/s^2 = mN)
         for k in range(7):
             sel = nm >= k + 1
             p, d = F0[k]
@@ -128,14 +149,17 @@ def main():
           "| Joint | Reducer | Joint mass, kg | Torque, N·m (rated) | Tilting, N·m (allow.) | Axial, N (allow.) | Radial, N | Motor | Ratio | Motor torque, N·m (rated) |",
           "|---|---|---|---|---|---|---|---|---|---|"] + rows + ["",
           f"J1 ОПУ RU178G: P0 = Fr + 2M/Dp + 0.44 Fa = {P0 / 1e3:.1f} kN against C0 135 kN (s0 = {C0 / P0:.1f})."]
-    open(os.path.join(ROOT, "robot", "RTC-7-loads-user.md"), "w", encoding="utf-8").write("\n".join(md) + "\n")
+    if a.pay_r > 0:
+        md.insert(3, f"Payload zone: the payload is carried only while the TCP is within R{a.pay_r:.0f} from the J1 axis; beyond it - SZU only.")
+        md.insert(4, "")
+    open(os.path.join(ROOT, "robot", f"RTC-7-loads-user{a.tag}.md"), "w", encoding="utf-8").write("\n".join(md) + "\n")
     gg = lambda v: f"{v:g}".replace(".", ",")
     sub1 = (f"Груз {gg(a.payload)} кг в {gg(a.pay_off)} мм за TCP (торец СЗУ) + СЗУ 4 кг; все шарниры ±{gg(a.speed)} рад/с, "
             f"±{gg(a.accel)} рад/с²; худшая из {a.poses} поз (J2 ±90°, J4 ±170°, остальные ±180°); подвижная масса {mov:.0f} кг.")
     sub2 = ("Массы звеньев — по моделям, шарниров — оценка (у номера). Силы и опрокидывающий момент — на торце выходного вала. "
             "Двигатель: требуемый момент = M / (i · 0,8) против номинального.")
     json.dump({"payload": a.payload, "pay_off": a.pay_off, "speed": a.speed, "accel": a.accel, "reach": 0, "interface": 4.0,
-               "share": 0.6, "sub1": sub1, "sub2": sub2, "joints": js, "P0": P0, "moving_mass": mov}, open(os.path.join(ROOT, "robot", "RTC-7-loads-user.json"), "w", encoding="utf-8"),
+               "share": 0.6, "sub1": sub1, "sub2": sub2, "joints": js, "P0": P0, "moving_mass": mov}, open(os.path.join(ROOT, "robot", f"RTC-7-loads-user{a.tag}.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1, default=float)
     print("\n".join(md))
 
