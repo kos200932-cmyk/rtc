@@ -13,6 +13,8 @@ import cart_layout as cl, cart_reach as cr
 
 ROOT = cl.ROOT
 VMAX, AMAX, DWELL = 0.2, 0.1, 1.5
+FOLD_WRIST = [0, 0, 0, 180, 180, 90, 0]     # deg
+FOLD = [0, 90, 0, 180, 180, 90, 0]          # transport pose: TCP (2451, 435, 603), arm top y 859 (1457 over the ground)
 
 def b64(a): return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode("ascii")
 
@@ -115,6 +117,16 @@ def main():
     box_rel = np.array(R["box_rel"])
     progs = [build_program("Груз → дальнее место", lift_place(arm, R, "far", chk, box_rel), arm, chk, box_rel),
              build_program("Груз → ближнее место", lift_place(arm, R, "near", chk, box_rel), arm, chk, box_rel)]
+    # folding for transport (STATUS item 14: J2 90, J4 180, J5 180, J6 90): wrist first (J4 / J5 / J6 with J2 = 0 - the
+    # direct joint-space move hits the panel and the hull), then J2; the folded arm lies over the rear bay below the wall top
+    z = np.zeros(7); qw = np.radians(FOLD_WRIST); qf = np.radians(FOLD)
+    progs.append(build_program("Складывание для транспортировки", [
+        (z, 0, "none", "исходная поза"),
+        (qw, 0, "none", "складывание кисти: J4 180°, J5 180°, J6 90°"),
+        (qf, 0, "none", "складывание плеча: J2 90° — транспортное положение"),
+        (qf, 0, "none", "транспортное положение (сложено)"),
+        (qw, 0, "none", "раскладывание плеча"),
+        (z, 0, "none", "исходная поза")], arm, chk, box_rel))
     if os.path.exists(a.panel_program):
         PP = json.load(open(a.panel_program, encoding="utf-8"))
         W = [(np.array(q), az, "none", lab) for q, az, lab in PP["wps"]]
