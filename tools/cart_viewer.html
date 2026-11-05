@@ -45,7 +45,7 @@ button, select { font: 500 13px var(--f-ui); color: var(--fg); background: var(-
 button:hover { border-color: var(--muted); }
 button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.joint { display: grid; grid-template-columns: 28px 1fr 62px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.joint { display: grid; grid-template-columns: 28px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 6px; }
 .joint b { font-weight: 600; }
 .joint output { font: 13px var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
@@ -92,6 +92,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .chk.ok { color: var(--ok); } .chk.bad { color: var(--bad); }
 .prog { display: flex; flex-direction: column; gap: 6px; }
 .prog button { text-align: left; }
+.joint input.num { width: 78px; font: 13px var(--f-num); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; text-align: right; }
+.joint output { font: 13px var(--f-num); text-align: right; }
 .tq { grid-template-columns: 34px 1fr 124px !important; }
 .tq output { white-space: nowrap; }
 .tq output.over { color: var(--bad); }
@@ -139,7 +141,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
     </section>
     <section>
       <h2>Углы шарниров, °</h2>
-      <div class="kv" id="joints"></div>
+      <div class="row" style="margin-bottom:8px">
+        <button id="manual" aria-pressed="false" title="Позу задают ползунки; программа на паузе">Ручное управление</button>
+        <button id="fromprog" title="Ползунки — в текущую позу программы">Из программы</button>
+      </div>
+      <div id="joints"></div>
+      <div class="joint"><b title="поворот панели вокруг втулки">П</b><input id="paz" type="range" min="-180" max="180" step="1" value="0" aria-label="Поворот панели"><output id="pazo">0</output></div>
+      <div class="row" style="margin-top:4px">
+        <button id="mzero">Нулевая поза</button><button id="mfold">Сложенная</button>
+        <label class="note"><input type="checkbox" id="mheld"> груз 8 кг в захвате</label>
+      </div>
+      <div class="note" id="mnote" style="margin-top:6px">Ползунок или поле — ручной режим. В ручном режиме касания с тележкой не проверяются (только выход ниже грунта); проверенные позы — в программах.</div>
     </section>
     <section>
       <h2>Статический момент от веса</h2>
@@ -241,9 +253,35 @@ const SCENE = /*SCENE_JSON*/null;
   const P = SCENE.programs; let cur = 0, t = 0, playing = false, lastSeg = -1;
   const progBox = $("progs");
   P.forEach((p, i) => { const b = document.createElement("button"); b.textContent = p.name; b.setAttribute("aria-pressed", i === 0);
-    b.onclick = () => { cur = i; t = 0; trailLen = 0; lastSeg = -1; [...progBox.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i)); setup(); }; progBox.appendChild(b); });
-  const jt = $("joints"); const jOut = [];
-  for (let k = 0; k < 7; k++) { const a = document.createElement("span"); a.textContent = "J" + (k + 1); const b = document.createElement("span"); jt.append(a, b); jOut.push(b); }
+    b.onclick = () => { if (manual) setManual(false); cur = i; t = 0; trailLen = 0; lastSeg = -1; [...progBox.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i)); setup(); }; progBox.appendChild(b); });
+  // joint sliders: show the pose of the program, or set it by hand (manual mode)
+  const jt = $("joints"); const jIn = [], jNum = [];
+  let manual = false; const qM = [0, 0, 0, 0, 0, 0, 0]; let azM = 0;
+  const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+  function setManual(on) {
+    manual = on; $("manual").setAttribute("aria-pressed", on);
+    if (on && playing) $("play").click();
+    trailLen = 0;
+  }
+  for (let k = 0; k < 7; k++) {
+    const r = document.createElement("div"); r.className = "joint";
+    r.innerHTML = `<b>J${k + 1}</b><input type="range" min="-180" max="180" step="0.5" value="0" aria-label="Угол J${k + 1}"><input type="number" min="-180" max="180" step="0.5" value="0" aria-label="Угол J${k + 1}, число" class="num">`;
+    jt.appendChild(r);
+    const sl = r.querySelector("input[type=range]"), nb = r.querySelector("input[type=number]");
+    sl.oninput = () => { if (!manual) { syncFromCurrent(); setManual(true); } qM[k] = parseFloat(sl.value) * Math.PI / 180; nb.value = sl.value; };
+    nb.onchange = () => { if (!manual) { syncFromCurrent(); setManual(true); } const v = Math.max(-180, Math.min(180, parseFloat(nb.value) || 0)); qM[k] = v * Math.PI / 180; sl.value = v; nb.value = v; };
+    jIn.push(sl); jNum.push(nb);
+  }
+  let qCur = [0, 0, 0, 0, 0, 0, 0], azCur = 0;
+  function syncFromCurrent() { for (let k = 0; k < 7; k++) qM[k] = qCur[k]; azM = azCur; $("paz").value = Math.round(azM); $("pazo").textContent = Math.round(azM); }
+  function setSliders(q) { for (let k = 0; k < 7; k++) { const d = wrap(q[k] * 180 / Math.PI); jIn[k].value = d; if (document.activeElement !== jNum[k]) jNum[k].value = d.toFixed(1); } }
+  $("paz").oninput = (e) => { if (!manual) { syncFromCurrent(); setManual(true); } azM = parseFloat(e.target.value); $("pazo").textContent = azM; };
+  $("manual").onclick = () => { if (!manual) syncFromCurrent(); setManual(!manual); };
+  $("fromprog").onclick = () => { manual = false; evalAt(t); syncFromCurrent(); setManual(true); };
+  const setQ = (deg) => { if (!manual) setManual(true); deg.forEach((d, k) => qM[k] = d * Math.PI / 180); };
+  $("mzero").onclick = () => setQ([0, 0, 0, 0, 0, 0, 0]);
+  $("mfold").onclick = () => setQ(SCENE.fold || [0, 0, 0, 0, 0, 0, 0]);
+  $("mheld").onchange = () => { if (!manual) { syncFromCurrent(); setManual(true); } };
   const tqBox = $("torques"), tqRows = [];
   for (const [lab] of SCENE.caps) {
     const r = document.createElement("div"); r.className = "tq";
@@ -274,6 +312,33 @@ const SCENE = /*SCENE_JSON*/null;
     const p = P[cur]; const [i, u] = segAt(p, tt); const s = p.segs[i]; const w = sq(u);
     const q = s.q0.map((v, k) => v + w * (s.q1[k] - v));
     const az = s.az0 + w * (s.az1 - s.az0);
+    if (i !== lastSeg && i === 0 && u === 0) trailLen = 0;
+    lastSeg = i;
+    const ck = p.checks[Math.min(p.checks.length - 1, Math.round(tt / p.dt))];
+    pose(q, az, s.box, s.label, ck, p.box_at);
+    setSliders(q); $("paz").value = Math.round(az); $("pazo").textContent = Math.round(az);
+    $("capt").textContent = `${p.name} · t = ${tt.toFixed(1)} с`;
+    $("tout").textContent = `${tt.toFixed(1)} / ${p.total.toFixed(1)} с`;
+  }
+  const BOXV = [];   // corners of the arm part boxes (zero pose) for the ground check in the manual mode
+  for (const [mesh, n] of arm) { mesh.geometry.computeBoundingBox(); BOXV.push([mesh.geometry.boundingBox, n]); }
+  function lowestArm(C) {
+    let low = 1e9; const b3 = new THREE.Box3();
+    for (const [bb, n] of BOXV) { if (n === 0) continue; b3.copy(bb).applyMatrix4(C[n]); low = Math.min(low, b3.min.y); }
+    return low;
+  }
+  function evalManual() {
+    const held = $("mheld").checked; const C = chain(qM);
+    const low = Math.min(lowestArm(C), held ? new THREE.Vector3(0, 0, 400).applyMatrix4(C[7].clone().multiply(B)).y - 200 : 1e9);
+    const ck = low < GY ? `ниже грунта на ${(GY - low).toFixed(0)} мм (по габаритам деталей)` : "";
+    pose(qM, azM, held ? "held" : "none", "ручное управление", ck, {});
+    setSliders(qM);
+    $("chk").textContent = ck ? ck : "касания с тележкой не проверяются"; $("chk").className = "chk " + (ck ? "bad" : "");
+    $("capt").textContent = "ручное управление";
+  }
+  function pose(q, az, box, label, ck, boxAt) {
+    qCur = q.slice(); azCur = az;
+    const s = { box, label };
     const C = chain(q);
     for (const [mesh, n] of arm) mesh.matrix.copy(C[n]);
     if (panelMesh) panelMesh.matrix.copy(panelM(az));
@@ -281,15 +346,12 @@ const SCENE = /*SCENE_JSON*/null;
       boxMesh.visible = s.box !== "none";
       if (s.box === "held") boxMesh.matrix.copy(C[7].clone().multiply(B));
       else if (s.box === "ground") boxMesh.matrix.copy(m4(SCENE.box_ground));
-      else if (s.box.startsWith("at:")) boxMesh.matrix.copy(m4(p.box_at[s.box.slice(3)]));
+      else if (s.box.startsWith("at:")) boxMesh.matrix.copy(m4(boxAt[s.box.slice(3)]));
     }
     const tcp = TCP0.clone().applyMatrix4(C[7]);
     tcpDot.position.copy(tcp);
-    if (i !== lastSeg && i === 0 && u === 0) trailLen = 0;
     if ($("trail").getAttribute("aria-pressed") === "true" && trailLen < trailN) { trailPos.set([tcp.x, tcp.y, tcp.z], trailLen * 3); trailLen++; trailGeo.setDrawRange(0, trailLen); trailGeo.attributes.position.needsUpdate = true; }
-    lastSeg = i;
     // readouts
-    q.forEach((v, k) => { const d = v * 180 / Math.PI; jOut[k].textContent = ((((d + 180) % 360) + 360) % 360 - 180).toFixed(1); });
     $("tx").textContent = tcp.x.toFixed(0) + " мм"; $("ty").textContent = tcp.y.toFixed(0) + " мм"; $("tz").textContent = tcp.z.toFixed(0) + " мм";
     $("th").textContent = (tcp.y - GY).toFixed(0) + " мм";
     $("phase").textContent = s.label;
@@ -300,11 +362,8 @@ const SCENE = /*SCENE_JSON*/null;
       bar.className = f > 1 ? "over" : (f > 0.9 ? "hi" : ""); out.textContent = `${v.toFixed(0)} Н·м · ${(f * 100).toFixed(0)} %`;
       out.classList.toggle("over", f > 1);
     });
-    const ck = p.checks[Math.min(p.checks.length - 1, Math.round(tt / p.dt))];
     const c = $("chk"); c.textContent = ck ? "касание: " + ck : "касаний нет"; c.className = "chk " + (ck ? "bad" : "ok");
     $("phase").classList.toggle("bad", !!ck);
-    $("capt").textContent = `${p.name} · t = ${tt.toFixed(1)} с`;
-    $("tout").textContent = `${tt.toFixed(1)} / ${p.total.toFixed(1)} с`;
   }
 
   // views
@@ -317,15 +376,16 @@ const SCENE = /*SCENE_JSON*/null;
   window.addEventListener("resize", resize); resize(); view("iso");
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeColors); themeColors();
 
-  $("play").onclick = () => { playing = !playing; $("play").textContent = playing ? "❚❚" : "▶"; $("play").setAttribute("aria-pressed", playing); };
-  $("time").oninput = (e) => { t = e.target.value / 1000 * P[cur].total; trailLen = 0; };
+  $("play").onclick = () => { if (manual && !playing) setManual(false); playing = !playing; $("play").textContent = playing ? "❚❚" : "▶"; $("play").setAttribute("aria-pressed", playing); };
+  $("time").oninput = (e) => { if (manual) setManual(false); t = e.target.value / 1000 * P[cur].total; trailLen = 0; };
   $("trail").onclick = (e) => { const on = e.target.getAttribute("aria-pressed") !== "true"; e.target.setAttribute("aria-pressed", on); trail.visible = on; trailLen = 0; };
   setup();
   let last = performance.now();
   function loop(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing) { t += dt * parseFloat($("speed").value); if (t > P[cur].total) { t = 0; trailLen = 0; } $("time").value = Math.round(t / P[cur].total * 1000); }
-    evalAt(t); controls.update(); renderer.render(scene, camera);
+    if (manual) evalManual(); else evalAt(t);
+    controls.update(); renderer.render(scene, camera);
     if (!rec) requestAnimationFrame(loop);
   }
   if (rec) { window.renderAt = (i, tt) => { cur = i; setup(); evalAt(tt); controls.update(); renderer.render(scene, camera); }; }

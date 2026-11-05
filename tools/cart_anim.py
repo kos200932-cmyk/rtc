@@ -154,7 +154,7 @@ def main():
     scene = {"ground_y": cl.GROUND_Y, "meshes": meshes, "axes": axes, "tcp0": (H @ np.r_[arm.tcp0, 1])[:3].tolist(),
              "panel_pivot": list(cl.SLEEVE), "box_B": (H @ box_rel).tolist(), "box_ground": cl.box_pose(cr.BOX_GROUND).tolist(),
              "bodies": [[cr.MASS[g], (H @ np.r_[arm.com[g], 1])[:3].round(1).tolist(), cr.NMOV[g]] for g in cr.MASS],
-             "load_kg": cr.LOAD_KG, "caps": caps, "programs": progs}
+             "load_kg": cr.LOAD_KG, "caps": caps, "programs": progs, "fold": FOLD}
     tpl = open(os.path.join(ROOT, "tools", "cart_viewer.html"), encoding="utf-8").read()
     html = tpl.replace("/*SCENE_JSON*/null", json.dumps(scene, ensure_ascii=False, separators=(",", ":")))
     if a.offline:
