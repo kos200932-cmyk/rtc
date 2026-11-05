@@ -13,8 +13,11 @@ import cart_layout as cl, cart_reach as cr
 
 ROOT = cl.ROOT
 VMAX, AMAX, DWELL = 0.2, 0.1, 1.5
-FOLD_WRIST = [0, 0, 0, 180, 180, 90, 0]     # deg
-FOLD = [0, 90, 0, 180, 180, 90, 0]          # transport pose: TCP (2451, 435, 603), arm top y 859 (1457 over the ground)
+# transport pose (user 2026-11-05: parallel to the long side): J1 -92.4 - the folded arm points to the front along X,
+# J2 -90 (the other side: +90 puts it outside the robot-side edge), J6 180; x 1000..2478, z 426..994, top y 859
+FOLD_J1 = [-92.4, 0, 0, 0, 0, 0, 0]          # deg
+FOLD_WRIST = [-92.4, 0, 0, 180, 180, 180, 0]
+FOLD = [-92.4, -90, 0, 180, 180, 180, 0]
 
 def b64(a): return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode("ascii")
 
@@ -117,15 +120,17 @@ def main():
     box_rel = np.array(R["box_rel"])
     progs = [build_program("Груз → дальнее место", lift_place(arm, R, "far", chk, box_rel), arm, chk, box_rel),
              build_program("Груз → ближнее место", lift_place(arm, R, "near", chk, box_rel), arm, chk, box_rel)]
-    # folding for transport (STATUS item 14: J2 90, J4 180, J5 180, J6 90): wrist first (J4 / J5 / J6 with J2 = 0 - the
-    # direct joint-space move hits the panel and the hull), then J2; the folded arm lies over the rear bay below the wall top
-    z = np.zeros(7); qw = np.radians(FOLD_WRIST); qf = np.radians(FOLD)
+    # folding for transport (STATUS item 14; user 2026-11-05: parallel to the long side): J1 first (upright arm), then the
+    # wrist (J4 / J5 / J6 with J2 = 0 - all joints at once hit the panel and the hull), then J2; unfolding in reverse
+    z = np.zeros(7); q1 = np.radians(FOLD_J1); qw = np.radians(FOLD_WRIST); qf = np.radians(FOLD)
     progs.append(build_program("Складывание для транспортировки", [
         (z, 0, "none", "исходная поза"),
-        (qw, 0, "none", "складывание кисти: J4 180°, J5 180°, J6 90°"),
-        (qf, 0, "none", "складывание плеча: J2 90° — транспортное положение"),
-        (qf, 0, "none", "транспортное положение (сложено)"),
+        (q1, 0, "none", "поворот J1 на −92,4°: рука вдоль длинного борта"),
+        (qw, 0, "none", "складывание кисти: J4 180°, J5 180°, J6 180°"),
+        (qf, 0, "none", "складывание плеча: J2 −90° — транспортное положение"),
+        (qf, 0, "none", "транспортное положение: параллельно длинному борту"),
         (qw, 0, "none", "раскладывание плеча"),
+        (q1, 0, "none", "раскладывание кисти"),
         (z, 0, "none", "исходная поза")], arm, chk, box_rel))
     if os.path.exists(a.panel_program):
         PP = json.load(open(a.panel_program, encoding="utf-8"))
