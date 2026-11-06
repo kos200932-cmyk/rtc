@@ -13,11 +13,11 @@ import cart_layout as cl, cart_reach as cr
 
 ROOT = cl.ROOT
 VMAX, AMAX, DWELL = 0.2, 0.1, 1.5
-# transport pose (user 2026-11-05: parallel to the long side): J1 -92.4 - the folded arm points to the front along X,
-# J2 -90 (the other side: +90 puts it outside the robot-side edge), J6 180; x 1000..2478, z 426..994, top y 859
-FOLD_J1 = [-92.4, 0, 0, 0, 0, 0, 0]          # deg
-FOLD_WRIST = [-92.4, 0, 0, 180, 180, 180, 0]
-FOLD = [-92.4, -90, 0, 180, 180, 180, 0]
+# transport pose (user 2026-11-06, from the viewer pictures): J1 -93.5, J2 -90, J4 -180, J5 90, J6 -180 - the folded
+# arm lies along the long side (X) to the front, the SZU across the cart standing up; x 1005..2477, z 426..945, top y 940
+FOLD_J1 = [-93.5, 0, 0, 0, 0, 0, 0]          # deg
+FOLD_WRIST = [-93.5, 0, 0, -180, 90, -180, 0]
+FOLD = [-93.5, -90, 0, -180, 90, -180, 0]
 
 def b64(a): return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode("ascii")
 
@@ -125,8 +125,8 @@ def main():
     z = np.zeros(7); q1 = np.radians(FOLD_J1); qw = np.radians(FOLD_WRIST); qf = np.radians(FOLD)
     progs.append(build_program("Складывание для транспортировки", [
         (z, 0, "none", "исходная поза"),
-        (q1, 0, "none", "поворот J1 на −92,4°: рука вдоль длинного борта"),
-        (qw, 0, "none", "складывание кисти: J4 180°, J5 180°, J6 180°"),
+        (q1, 0, "none", "поворот J1 на −93,5°: рука вдоль длинного борта"),
+        (qw, 0, "none", "складывание кисти: J4 −180°, J5 90°, J6 −180°"),
         (qf, 0, "none", "складывание плеча: J2 −90° — транспортное положение"),
         (qf, 0, "none", "транспортное положение: параллельно длинному борту"),
         (qw, 0, "none", "раскладывание плеча"),
