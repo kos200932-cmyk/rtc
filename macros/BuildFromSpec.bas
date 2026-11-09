@@ -46,6 +46,8 @@ Attribute VB_Name = "BuildFromSpec"
 '                                         rebuild - build this model again even if it exists (v29);
 '                                         the file may be another ROBOTASM spec - a sub-assembly (v35, e.g. the
 '                                         wrist): built when missing, inserted flexible, its REV mates keep working
+' v36: every sketch of a built part gets dimensions (DIM_SKETCHES): the points of the sketch are dimensioned
+'       horizontally / vertically from the sketch origin, so the sketch is fully defined
 '       REV <link> <linkPart> <planeA> <planeB> <portPlane> <joint> <jointPart>  (v32) - revolute joint: the AXIS of
 '                                         the joint part (output shaft) in the two link planes, its PORT_output on the
 '                                         link port plane; the link turns about the joint axis, the joint stays rigid
@@ -68,13 +70,18 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v35 (2026-11-09)"
+Private Const MACRO_VERSION As String = "v36 (2026-11-09)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
 ' True: SolidWorks does not refresh the screen between API calls (faster); set False if a build misbehaves.
 ' Not used for ROBOTANIM (the view must be redrawn for every saved picture).
 Private Const FAST_MODE As Boolean = True
+' v36: dimensions in the sketches - every sketch point gets its horizontal / vertical dimension from the sketch origin
+' (SketchManager.FullyDefineSketch, dimensions only, no relations): the sketch is fully defined and the numbers are the
+' coordinates of the spec (P x y, CIRC / RING centres and diameters ...). False - sketches without dimensions (as v35).
+Private Const DIM_SKETCHES As Boolean = True
+Private gDimN As Long, gDimFail As Long
 
 Private Type HoleSpec
     X As Double         ' face position along the axis, mm
@@ -153,6 +160,7 @@ Private gHidden As Collection       ' models loaded without a window for AddComp
 Sub main()
     Set swApp = Application.SldWorks
     gLog = "": gSummary = "": gTplPart = "": gTplAsm = "": gRebuildAll = False
+    gDimN = 0: gDimFail = 0
     Set gHidden = New Collection
 
     Dim specPath As String, asmPath As String, ok As Boolean
@@ -178,6 +186,7 @@ Sub main()
     swApp.CommandInProgress = False
     On Error GoTo 0
 
+    If DIM_SKETCHES And gDimN > 0 Then gSummary = gSummary & "sketch dimensions (v36): fully defined " & (gDimN - gDimFail) & " of " & gDimN & " sketch(es)" & vbCrLf
     If Not ok Then
         MsgBox "Stopped (" & MACRO_VERSION & ", " & SwVersion() & "):" & vbCrLf & gLog, vbExclamation
     ElseIf gLog <> "" Then
@@ -744,6 +753,7 @@ Private Function BuildPart(p As PartSpec, ByVal outPath As String) As Boolean
     Next i
     sm.CreateCenterLine xMin * MM, 0, 0, xMax * MM, 0, 0
     SnapOff sm, False
+    DimSketch sm
     sm.InsertSketch True
 
     Dim sk As SldWorks.Feature
@@ -849,6 +859,7 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
         Next k
     End If
     SnapOff sm, False
+    DimSketch sm
     sm.InsertSketch True
 
     Dim sk As SldWorks.Feature, cut As SldWorks.Feature, attempt As Long, rev As Boolean
@@ -869,6 +880,29 @@ Private Sub AddCut(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks.F
     Else
         cut.Name = nm
     End If
+End Sub
+
+' v36: dimensions of the active sketch (see DIM_SKETCHES). Late bound - an API error is counted, never stops the build.
+Private Sub DimSketch(ByVal sm As SldWorks.SketchManager)
+    If Not DIM_SKETCHES Then Exit Sub
+    Dim o As Object, st As Long
+    Set o = sm
+    gDimN = gDimN + 1
+    On Error Resume Next
+    ' Relations=False, Dimensions=True, relation types (unused), all entities, horizontal scheme (baseline), datum = origin,
+    ' vertical scheme (baseline), datum = origin, horizontal placement, vertical placement
+    st = o.FullyDefineSketch(False, True, 0, True, 0, Nothing, 0, Nothing, 1, 0)
+    If Err.Number <> 0 Then
+        gDimFail = gDimFail + 1
+        If gDimFail <= 3 Then gLog = gLog & "sketch dimensions: FullyDefineSketch error " & Err.Number & " " & Err.Description & vbCrLf
+    Else
+        Dim sk As Object, cs As Long
+        Set sk = sm.ActiveSketch
+        cs = sk.GetConstrainedStatus()          ' swConstrainedStatus_e: 3 = fully defined
+        If cs <> 3 Then gDimFail = gDimFail + 1
+    End If
+    Err.Clear
+    On Error GoTo 0
 End Sub
 
 ' Sketch entities straight into the database: no snapping / automatic relations to the
@@ -931,6 +965,7 @@ Private Function AddBox(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWo
         sm.CreateLine pt(k)(0), pt(k)(1), 0, pt((k + 1) Mod 4)(0), pt((k + 1) Mod 4)(1), 0
     Next k
     SnapOff sm, False
+    DimSketch sm
     sm.InsertSketch True
     Set sk = m.FeatureByPositionReverse(0)
     sk.Name = "Box_Sketch"
@@ -1055,6 +1090,7 @@ Private Sub AddHoles(ByVal m As SldWorks.ModelDoc2, ByVal rightPlane As SldWorks
         sm.CreateCircleByRadius sp(0), sp(1), 0, h.D / 2 * MM
     Next i
     SnapOff sm, False
+    DimSketch sm
     sm.InsertSketch True
 
     Dim sk As SldWorks.Feature
@@ -1501,6 +1537,7 @@ Private Function AddPrismOp(ByVal m As SldWorks.ModelDoc2, planes() As SldWorks.
         Next j
     End Select
     SnapOff sm, False
+    DimSketch sm
     sm.InsertSketch True
     Set sk = m.FeatureByPositionReverse(0)
     sk.Name = nm & "_Sketch"
