@@ -43,7 +43,9 @@ Attribute VB_Name = "BuildFromSpec"
 '                                         .SLDASM / .SLDPRT) placed with its origin at (ox,oy,oz)
 '                                         and its X / Z axes along the given directions, fixed;
 '                                         optional words: rigid (a link) / flex (default for .SLDASM),
-'                                         rebuild - build this model again even if it exists (v29)
+'                                         rebuild - build this model again even if it exists (v29);
+'                                         the file may be another ROBOTASM spec - a sub-assembly (v35, e.g. the
+'                                         wrist): built when missing, inserted flexible, its REV mates keep working
 '       REV <link> <linkPart> <planeA> <planeB> <portPlane> <joint> <jointPart>  (v32) - revolute joint: the AXIS of
 '                                         the joint part (output shaft) in the two link planes, its PORT_output on the
 '                                         link port plane; the link turns about the joint axis, the joint stays rigid
@@ -66,7 +68,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v34 (2026-10-27)"
+Private Const MACRO_VERSION As String = "v35 (2026-11-09)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -2132,6 +2134,12 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
             ext = UCase(Mid(cFile(k), InStrRev(cFile(k), ".") + 1))
             If ext = "SLDASM" Or ext = "SLDPRT" Then
                 cModel(k) = cFile(k)
+            ElseIf FileHasKeyword(cFile(k), "ROBOTASM") Then     ' v35: a sub-assembly (e.g. the wrist)
+                jn = FirstArg(cFile(k), "ROBOTASM")
+                cModel(k) = Left(cFile(k), InStrRev(cFile(k), "\")) & jn & ".SLDASM"
+                If rebuild Or cRebuild(k) Or Not FileExists(cModel(k)) Then
+                    If Not BuildRobotAsm(cFile(k)) Then Exit Function
+                End If
             ElseIf FileHasKeyword(cFile(k), "JOINT") Then
                 jn = FirstArg(cFile(k), "JOINT")
                 cModel(k) = Left(cFile(k), InStrRev(cFile(k), "\")) & jn & ".SLDASM"
@@ -2249,6 +2257,7 @@ Private Function BuildRobotAsm(ByVal specPath As String) As Boolean
     am.ShowNamedView2 "*Isometric", swIsometricView
     am.ViewZoomtofit2
     If Not SaveDoc(am, folder & aName & ".SLDASM") Then Exit Function
+    CloseSaved am, IsTopSpec(specPath)          ' v35: a sub-assembly (wrist) is closed, the top one stays open
     If nRv > 0 Then gSummary = "revolute joints (REV): " & nRvOk & " of " & nRv & vbCrLf & gSummary
     If nLk > 0 Then gSummary = "lock mates: " & nOk & " of " & nLk & vbCrLf & gSummary
     gSummary = "arm assembly " & aName & ": " & nC & " component(s)" & vbCrLf & gSummary
@@ -2261,6 +2270,14 @@ Private Function ModelOfComp(ByVal f As String, ByVal rebuild As Boolean, ByVal 
     Dim ext As String, jn As String, m As String, asmPath As String
     ext = UCase(Mid(f, InStrRev(f, ".") + 1))
     If ext = "SLDASM" Or ext = "SLDPRT" Then ModelOfComp = f: Exit Function
+    If FileHasKeyword(f, "ROBOTASM") Then                  ' v35: a sub-assembly
+        jn = FirstArg(f, "ROBOTASM")
+        m = Left(f, InStrRev(f, "\")) & jn & ".SLDASM"
+        If rebuild Or Not FileExists(m) Then
+            If Not BuildRobotAsm(f) Then Exit Function
+        End If
+        ModelOfComp = m: Exit Function
+    End If
     If FileHasKeyword(f, "JOINT") Then
         jn = FirstArg(f, "JOINT")
         m = Left(f, InStrRev(f, "\")) & jn & ".SLDASM"
