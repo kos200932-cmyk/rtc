@@ -60,12 +60,60 @@ NAMES = {"B": "пластина", "J1": "J1", "L1": "звено 1", "J2": "J2", 
          "L4": "звено 4", "J5": "J5", "L5": "звено 5", "J6": "J6", "L6": "звено 6", "J7": "J7", "F": "СЗУ", "LOAD": "груз",
          "hull": "корпус", "wheel": "колесо", "panel": "панель", "box": "груз"}
 
+def q_at(s, w):
+    """joint position of segment s at the blend w (0..1): straight in joint space, or along its sampled path."""
+    if "path" in s:
+        P = np.array(s["path"]); x = w * (len(P) - 1); i = min(int(x), len(P) - 2); f = x - i
+        return P[i] + f * (P[i + 1] - P[i])
+    return np.array(s["q0"]) + w * (np.array(s["q1"]) - np.array(s["q0"]))
+
+def path_T(P):
+    """duration of a path segment (quintic blend over the index): the peak index rate x the largest joint step
+    <= VMAX, and the travel / acceleration bound of seg_T."""
+    P = np.array(P); n = len(P) - 1
+    step = float(np.abs(np.diff(P, axis=0)).max())          # rad per index step
+    d = float(np.abs(np.diff(P, axis=0)).sum(axis=0).max())  # the largest joint travel
+    return max(1.875 * n * step / VMAX, math.sqrt(5.7735 * d / AMAX))
+
+PATH_STEP = 10.0     # mm between the Cartesian samples
+
+def resample(P, n=None):
+    """the path again with equal joint-space steps (the largest joint moves alike between the samples): a uniform
+    blend then runs every joint at an even rate - slow only where the arm must turn fast, not along the whole path."""
+    P = np.array(P); d = np.abs(np.diff(P, axis=0)).max(axis=1); c = np.r_[0, np.cumsum(d)]
+    if c[-1] < 1e-9: return [P[0], P[-1]]
+    n = n or max(2, len(P)); t = np.linspace(0, c[-1], n)
+    return [np.array([np.interp(x, c, P[:, k]) for k in range(P.shape[1])]) for x in t]
+
+def vertical_path(arm, q0, a, b):
+    """TCP along the straight a -> b with the SZU axis vertical (down): [q] from q0, one per PATH_STEP."""
+    n = int(np.linalg.norm(np.asarray(b) - np.asarray(a)) / PATH_STEP) + 2
+    Q = [np.asarray(q0, float)]
+    for t in np.linspace(0, 1, n)[1:]:
+        p = np.asarray(a) + (np.asarray(b) - np.asarray(a)) * t
+        q, e, an = arm.ik(p, cr.DOWN, Q[-1], w_a=3000, reg=0.05)
+        q = unwrap(Q[-1], q)
+        if e > 0.5 or an > 0.05: raise RuntimeError(f"vertical path: no IK at {np.round(p)} ({e:.2f} mm, {an:.2f} deg)")
+        Q.append(q)
+    return Q
+
 def build_program(name, wps, arm, chk, box_rel, dt=0.25):
     """wps: [(q, az, box_state, label)] - segment i goes from wps[i] to wps[i+1] with the state / label of wps[i+1]."""
     segs = []; q_prev = np.asarray(wps[0][0], float)
     box_at = {}
-    for (qa, aza, _, _), (qb, azb, st, lab) in zip(wps[:-1], wps[1:]):
-        q0 = q_prev; q1 = unwrap(q0, qb); q_prev = q1
+    for wa, wb in zip(wps[:-1], wps[1:]):
+        (qa, aza, _, _), (qb, azb, st, lab) = wa[:4], wb[:4]
+        path = wb[4] if len(wb) > 4 else None
+        q0 = q_prev
+        if path is not None:                              # Cartesian path (SZU axis vertical): joint samples
+            P = [q0]
+            for q in path[1:]: P.append(unwrap(P[-1], q))
+            P = resample(P); q1 = P[-1]; q_prev = q1
+            T = max(path_T(P), 1.5)
+            segs.append({"q0": q0.tolist(), "q1": q1.tolist(), "T": round(T, 2), "az0": aza, "az1": azb, "box": st,
+                         "label": lab, "path": [np.round(x, 6).tolist() for x in P]})
+            continue
+        q1 = unwrap(q0, qb); q_prev = q1
         T = max(seg_T(q0, q1), abs(azb - aza) / 6.0 if azb != aza else 0)       # panel turn 6 deg/s
         segs.append({"q0": q0.tolist(), "q1": q1.tolist(), "T": round(T, 2), "az0": aza, "az1": azb, "box": st, "label": lab})
     # box poses after the release: the TCP frame at the release x the load in the gripper
@@ -80,7 +128,7 @@ def build_program(name, wps, arm, chk, box_rel, dt=0.25):
             if tt <= acc + s["T"] or s is segs[-1]: break
             acc += s["T"]
         u = min(1, max(0, (tt - acc) / s["T"])); w = u ** 3 * (10 - 15 * u + 6 * u * u)
-        q = np.array(s["q0"]) + w * (np.array(s["q1"]) - np.array(s["q0"])); az = s["az0"] + w * (s["az1"] - s["az0"])
+        q = q_at(s, w); az = s["az0"] + w * (s["az1"] - s["az0"])
         tcp = arm.tcp(q)[0]
         seat_contact = s["box"] == "held" and tcp[1] < 923 + 12 and s["label"].startswith("установка")
         h = chk.hits(q, s["box"], box_rel, az, box_at.get(s["box"][3:]) if s["box"].startswith("at:") else None, seat_contact)
@@ -91,23 +139,36 @@ def build_program(name, wps, arm, chk, box_rel, dt=0.25):
     return {"name": name, "segs": segs, "dt": dt, "checks": checks,
             "box_at": {k: M.tolist() for k, M in box_at.items()}}
 
+# end of the transfer (TCP y over the seat): the far seat is approached descending - level at 1400 the arm is nearly
+# stretched there (J4 ~ 0, the J3 / J5 axes align) and the vertical SZU makes J3 / J5 spin; 1150 keeps it bent
+TRANSFER_END = {"far": 1150.0, "near": None}
+
 def lift_place(arm, R, seat, chk, box_rel):
+    """user 2026-11-12: the SZU axis vertical all the time the load is handled (the cube orientation does not matter):
+    the grasp, the lift, the transfer and the placing go along straight TCP lines, solved every 10 mm."""
     q1, q2, q3 = [np.array(v) for v in R["q_lift"]]
-    qa, qb, q4, q5 = [np.array(v) for v in R["q_" + seat]]
-    st = cl.box_top(seat)
-    q6 = arm.ik(st + np.array([0, 150, 0]), cr.DOWN, q5)[0]
-    z = np.zeros(7); s_ = "ближним" if seat == "near" else "дальним"
+    top = cl.box_top(cr.BOX_GROUND); st = cl.box_top(seat)
+    ty = R.get(f"transit_{seat}", cr.TRANSIT); ye = TRANSFER_END[seat] or ty
+    up = np.array([0, 1.0, 0])
+    p1 = top + 150 * up; p2 = top; p3 = top + 500 * up; pa = np.array([top[0], ty, top[2]])
+    pb = np.array([st[0], ye, st[2]]); p4 = st + 150 * up; p5 = st + 2 * up
+    P12 = vertical_path(arm, q1, p1, p2); qg = P12[-1]
+    P23 = vertical_path(arm, qg, p2, p3); P3a = vertical_path(arm, P23[-1], p3, pa)
+    Pab = vertical_path(arm, P3a[-1], pa, pb); Pb4 = vertical_path(arm, Pab[-1], pb, p4)
+    P45 = vertical_path(arm, Pb4[-1], p4, p5); q5 = P45[-1]
+    P56 = vertical_path(arm, q5, p5, p4); q6 = P56[-1]
+    z = np.zeros(7); s_ = "ближнему" if seat == "near" else "дальнему"
     W = [(z, 0, "ground", "исходная поза"),
-         (q1, 0, "ground", "подход: СЗУ над штырём груза (+150 мм)"),
-         (q2, 0, "ground", "надевание СЗУ на штырь до касания грани куба"),
-         (q2, 0, "held", "фиксация груза"),
-         (q3, 0, "held", "подъём на 500 мм"),
-         (qa, 0, "held", "подъём на высоту переноса (TCP 1500)"),
-         (qb, 0, "held", f"перенос: над {s_} посадочным местом"),
-         (q4, 0, "held", "опускание: груз в 150 мм над конусом"),
-         (q5, 0, "held", "установка на посадочное место"),
+         (q1, 0, "ground", "подход: СЗУ над штырём груза (+150 мм), ось СЗУ вертикальна"),
+         (qg, 0, "ground", "надевание СЗУ на штырь до касания грани куба", P12),
+         (qg, 0, "held", "фиксация груза"),
+         (P23[-1], 0, "held", "подъём на 500 мм (ось СЗУ вертикальна)", P23),
+         (P3a[-1], 0, "held", f"подъём на высоту переноса (TCP {ty:.0f})", P3a),
+         (Pab[-1], 0, "held", f"перенос к {s_} посадочному месту" + (f", снижаясь до TCP {ye:.0f}" if ye != ty else ""), Pab),
+         (Pb4[-1], 0, "held", "опускание: груз в 150 мм над конусом", Pb4),
+         (q5, 0, "held", "установка на посадочное место", P45),
          (q5, 0, "at:" + seat, "освобождение груза"),
-         (q6, 0, "at:" + seat, "отвод СЗУ вверх"),
+         (q6, 0, "at:" + seat, "отвод СЗУ вверх", P56),
          (z, 0, "at:" + seat, "исходная поза")]
     return W
 
@@ -154,7 +215,8 @@ def main():
     scene = {"ground_y": cl.GROUND_Y, "meshes": meshes, "axes": axes, "tcp0": (H @ np.r_[arm.tcp0, 1])[:3].tolist(),
              "panel_pivot": list(cl.SLEEVE), "box_B": (H @ box_rel).tolist(), "box_ground": cl.box_pose(cr.BOX_GROUND).tolist(),
              "bodies": [[cr.MASS[g], (H @ np.r_[arm.com[g], 1])[:3].round(1).tolist(), cr.NMOV[g]] for g in cr.MASS],
-             "load_kg": cr.LOAD_KG, "caps": caps, "programs": progs, "fold": FOLD}
+             "load_kg": cr.LOAD_KG, "caps": caps, "programs": progs, "fold": FOLD,
+             "app0": (H[:3, :3] @ arm.app0).round(6).tolist()}
     tpl = open(os.path.join(ROOT, "tools", "cart_viewer.html"), encoding="utf-8").read()
     html = tpl.replace("/*SCENE_JSON*/null", json.dumps(scene, ensure_ascii=False, separators=(",", ":")))
     if a.offline:

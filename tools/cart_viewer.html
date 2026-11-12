@@ -160,7 +160,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
     </section>
     <section>
       <h2>TCP — торец СЗУ</h2>
-      <div class="kv"><span>X</span><span id="tx">–</span><span>Y (вверх)</span><span id="ty">–</span><span>Z</span><span id="tz">–</span><span>Над грунтом</span><span id="th">–</span></div>
+      <div class="kv"><span>X</span><span id="tx">–</span><span>Y (вверх)</span><span id="ty">–</span><span>Z</span><span id="tz">–</span><span>Над грунтом</span><span id="th">–</span><span>Ось СЗУ от вертикали</span><span id="tilt">–</span></div>
       <div class="note" style="margin-top:6px">Система координат корпуса тележки: X вдоль (0 — передний торец), Y вверх, Z поперёк (+Z — борт робота). Грунт y = −597,5.</div>
     </section>
     <section>
@@ -310,7 +310,11 @@ const SCENE = /*SCENE_JSON*/null;
   function setup() { const p = P[cur]; p.total = p.segs.reduce((a, s) => a + s.T, 0); $("time").max = 1000; seatM = null; }
   function evalAt(tt) {
     const p = P[cur]; const [i, u] = segAt(p, tt); const s = p.segs[i]; const w = sq(u);
-    const q = s.q0.map((v, k) => v + w * (s.q1[k] - v));
+    let q;
+    if (s.path) {                                  // Cartesian path (SZU axis vertical): sampled joint positions
+      const n = s.path.length - 1, x = w * n, i0 = Math.min(Math.floor(x), n - 1), f = x - i0;
+      q = s.path[i0].map((v, k) => v + f * (s.path[i0 + 1][k] - v));
+    } else q = s.q0.map((v, k) => v + w * (s.q1[k] - v));
     const az = s.az0 + w * (s.az1 - s.az0);
     if (i !== lastSeg && i === 0 && u === 0) trailLen = 0;
     lastSeg = i;
@@ -354,6 +358,8 @@ const SCENE = /*SCENE_JSON*/null;
     // readouts
     $("tx").textContent = tcp.x.toFixed(0) + " мм"; $("ty").textContent = tcp.y.toFixed(0) + " мм"; $("tz").textContent = tcp.z.toFixed(0) + " мм";
     $("th").textContent = (tcp.y - GY).toFixed(0) + " мм";
+    const ax = new THREE.Vector3(...SCENE.app0).transformDirection(C[7]);
+    $("tilt").textContent = (Math.acos(Math.max(-1, Math.min(1, -ax.y))) * 180 / Math.PI).toFixed(1) + "°";
     $("phase").textContent = s.label;
     const [tq, tilt] = statics(C, s.box === "held");
     SCENE.caps.forEach(([lab, k, cap, kind], r) => {
