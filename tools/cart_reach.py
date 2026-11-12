@@ -275,10 +275,19 @@ def scen(out_json):
         q4 = cand[0][0]
         # transit at TCP y = TRANSIT (load bottom above the side wall / cup y 997 with margin): up above the
         # pick point, over to above the seat, then down
-        qa = solve(arm, np.array([top[0], TRANSIT, top[2]]), DOWN, seeds_around(q3, 20, spread=0.3), prefer=q3,
-                   scene=scB, box_rel=box_rel)[0][0]
-        qb = solve(arm, np.array([st[0], TRANSIT, st[2]]), DOWN, [q4] + seeds_around(q4, 20, spread=0.3), prefer=q4,
-                   scene=scB, box_rel=box_rel)[0][0]
+        # v2026-11-12: the highest transfer height (TRANSIT down in 50 mm steps) the arm reaches over this seat with a
+        # collision-free transfer (the sunk base puts the arm 70 mm lower - over the far seat 1500 is out of reach)
+        qa = qb = None
+        for ty in np.arange(TRANSIT, 1049.0, -50.0):
+            ca = solve(arm, np.array([top[0], ty, top[2]]), DOWN, seeds_around(q3, 20, spread=0.3), prefer=q3,
+                       scene=scB, box_rel=box_rel)
+            cb = solve(arm, np.array([st[0], ty, st[2]]), DOWN, [q4] + seeds_around(q4, 20, spread=0.3), prefer=q4,
+                       scene=scB, box_rel=box_rel)
+            ca = [x for x in ca if not x[3]]; cb = [x for x in cb if not x[3]]
+            if ca and cb and not segment(scB, ca[0][0], cb[0][0], box_rel, n=48):
+                qa, qb = ca[0][0], cb[0][0]; R[f"transit_{seat}"] = float(ty); break
+        if qa is None: print(seat, "no transfer height"); R[seat] = "no transfer"; continue
+        print(seat, "transfer height (TCP y)", R[f"transit_{seat}"], flush=True)
         report(f"P3h_up_{seat}", qa, box_rel, com_of(qa), scB)
         report(f"P4h_over_{seat}", qb, box_rel, com_of(qb), scB)
         report(f"P4_above_{seat}", q4, box_rel, com_of(q4), scB)
