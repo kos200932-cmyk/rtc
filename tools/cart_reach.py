@@ -479,7 +479,7 @@ def panel_program(D, out_json, per_turn=3):
             q = np.array(D["q"][f"{az}:{k}"]); p = (Mp @ np.r_[grid[k], 1])[:3] + 5.0 * n_out
             qa, e, an = arm.ik(p + 80 * n_out, -n_out, q, reg=0.3)
             if e > 1 or an > 0.5 or sc.pairs(qa, None): continue
-            if segment(sc, z, qa, None) or segment(sc, qa, q, None, n=10): continue
+            if segment(sc, z, qa, None, n=120) or segment(sc, qa, q, None, n=30): continue
             lab = f"точка панели {k} (ряд, столбец)"
             wps += [(qa.tolist(), a, "подход к: " + lab), (q.tolist(), a, "касание: " + lab),
                     (qa.tolist(), a, "отвод от: " + lab), (z.tolist(), a, "исходная поза")]
