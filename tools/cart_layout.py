@@ -26,7 +26,13 @@ def Ry(deg):
 # --- robot on the flange: base plate bottom (arm x = -12) on the flange top y = 550, J1 axis at (2359, 825).
 # Arm X (J1) -> hull +Y; arm Z -> hull -X (the zero pose looks along the cart, to the front), then +15 deg about Y:
 # the plate holes (15 + 30k deg in the arm frame) onto the flange holes (0 + 30k deg in the hull frame).
-FLANGE_C = (2359.0, 825.0); FLANGE_TOP = 550.0; PLATE_T = 12.0
+FLANGE_C = (2359.0, 825.0); PLATE_T = 12.0
+# robot flange of the hull: disc D240 on the deck plate (deck top y = 520), 30 mm high in the user model; a lower flange
+# (tools/cart_flange.py, user 2026-11-12: minimise the robot height over the deck) - env CART_FLANGE_H, mm
+DECK_Y = 520.0; FLANGE_H0 = 30.0
+FLANGE_H = float(os.environ.get("CART_FLANGE_H", FLANGE_H0))
+FLANGE_TOP = DECK_Y + FLANGE_H
+HULL_FILE = "KORPUS.STEP" if FLANGE_H == FLANGE_H0 else f"KORPUS_F{FLANGE_H:g}.STEP"
 ROBOT = np.eye(4)
 ROBOT[:3, :3] = Ry(15.0)[:3, :3] @ np.array([[0, 0, -1], [1, 0, 0], [0, -1, 0]], float)   # columns: arm X, Y, Z
 ROBOT[:3, 3] = (FLANGE_C[0], FLANGE_TOP + PLATE_T, FLANGE_C[1])
@@ -38,7 +44,7 @@ SLEEVE = (1764.0, 997.0, -897.5)                                            # pa
 def cart_parts(panel_az=0.0, box_at=None):
     """[(name, step file, 4x4 file -> hull, colour)]; panel_az - turn of the panel about the sleeve axis, deg
     (+ = from +X towards -Z ... right-hand about +Y); box_at - (x, z) of the load centre on the ground or a seat name."""
-    P = [("hull", "KORPUS.STEP", np.eye(4), "#9aa3a8")]
+    P = [("hull", HULL_FILE, np.eye(4), "#9aa3a8")]
     for xa in AXLES_X:
         P.append(("wheel", "KOLESO.STEP", T([(0, 0, 1), (0, 1, 0), (-1, 0, 0)], (xa, AXLE_Y, 770)), "#4a4d50"))
         P.append(("wheel", "KOLESO.STEP", T([(0, 0, -1), (0, 1, 0), (1, 0, 0)], (xa, AXLE_Y, -770)), "#4a4d50"))
