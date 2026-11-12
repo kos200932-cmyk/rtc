@@ -20,9 +20,18 @@ PAY_COM = 200.0             # mm below the TCP
 LEVELS = {"ground": ("груз на грунте (TCP = верх куба 400, y = −197,5)", cl.GROUND_Y + 400.0),
           "deck": ("над палубой: низ груза на 600 мм, выше конусов (TCP y = 1000)", 1000.0),
           "transfer": ("высота переноса (TCP y = 1500)", 1500.0)}
-BINS = [0, 4, 8, 12, 16, 1e9]
-BIN_LAB = ["< 4 кг", "4–8 кг", "8–12 кг", "12–16 кг", "> 16 кг (расчёт до 40)"]
-BIN_COL = ["#d9534f", "#f0ad4e", "#e8d44d", "#8cc56b", "#3a9b5c"]
+# capacity bands (user 2026-11-12: more classes by mass, the max capacity of each zone); the calculation stops at 40 kg
+BINS = [0, 8, 10, 12, 14, 16, 18, 20, 25, 30, 35, 39.99, 1e9]
+def _blab(a, b):
+    if a == 0: return f"< {b:g} кг"
+    if b > 1e8: return "≥ 40 кг (предел расчёта)"
+    return f"{a:g}–{round(min(b, 40)):g} кг"
+BIN_LAB = [_blab(a, b) for a, b in zip(BINS[:-1], BINS[1:])]
+def _bcol():
+    import matplotlib
+    cm = matplotlib.colormaps["RdYlGn"]; n = len(BINS) - 1
+    return [matplotlib.colors.to_hex(cm(0.04 + 0.92 * i / (n - 1))) for i in range(n)]
+BIN_COL = _bcol()
 J1C = np.array([cl.FLANGE_C[0], cl.FLANGE_C[1]])           # flange / J1 axis, (x, z)
 
 def capacity(arm, q, tcp):
@@ -122,22 +131,52 @@ def mask_under_hull(xs, zs, cap):
     c[(X >= HULL_FOOT[0]) & (X <= HULL_FOOT[1]) & (Z >= HULL_FOOT[2]) & (Z <= HULL_FOOT[3])] = np.nan
     return c
 
-def draw(level, title, xs, zs, cap, sols, png, r_any):
+MONO_R = 700.0      # beyond this radius the capacity can only fall with the radius (static moments grow)
+
+def smooth_cap(xs, zs, cap, R, C):
+    """the map without the IK seed scatter: the best capacity found at a radius r is also reachable closer in
+    (r >= MONO_R), so the radial curve becomes its outer envelope; a cell keeps its own loss against the best
+    configuration at its radius (contacts with the cart force a weaker configuration there)."""
+    R = np.asarray(R, float); C = np.asarray(C, float)
+    env = C.copy()
+    for i in range(len(R) - 2, -1, -1):
+        if R[i] >= MONO_R: env[i] = max(env[i], env[i + 1])
+    X, Z = np.meshgrid(xs, zs); Rg = np.hypot(X - J1C[0], Z - J1C[1])
+    top = np.interp(Rg, R, C); en = np.interp(Rg, R, env)
+    out = np.where(cap >= 0, np.minimum(40.0, en - np.maximum(0.0, top - cap)), cap)
+    return out, R, env
+
+def zones(R, env, rmax):
+    """[(band label, r_from, r_to, largest capacity in it, colour)] - rings of the envelope from the J1 axis outward."""
+    rows = []
+    for k, (a, b) in enumerate(zip(BINS[:-1], BINS[1:])):
+        m = (env >= a) & (env < b) & (R >= MONO_R)
+        if not m.any(): continue
+        rows.append((BIN_LAB[k], float(R[m].min()), float(min(R[m].max() + 25, rmax)), float(env[m].max()), BIN_COL[k]))
+    rows.sort(key=lambda r: r[1])
+    return rows
+
+def draw(level, title, xs, zs, cap, sols, png, r_any, R=None, C=None):
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap, BoundaryNorm
     from matplotlib.patches import Patch, Circle
-    fig, ax = plt.subplots(figsize=(13, 11))
+    rmax = sols if isinstance(sols, (int, float)) else max(r for r, s in sols.items() if s)
+    if R is None: R = sorted(r for r in sols if sols[r]); C = [sols[r][0][0] for r in R]
+    capS, Ra, env = smooth_cap(xs, zs, cap, R, C)
+    fig = plt.figure(figsize=(19, 11.5)); ax = fig.add_axes([0.05, 0.07, 0.62, 0.86]); tx = fig.add_axes([0.69, 0.07, 0.30, 0.86]); tx.axis("off")
     cm = ListedColormap(BIN_COL); norm = BoundaryNorm(BINS[:-1] + [100], cm.N)
-    c2 = np.where(cap >= 0, cap, np.nan)
+    c2 = np.where(capS >= 0, capS, np.nan)
     ext = (xs[0] - 30, xs[-1] + 30, zs[-1] + 30, zs[0] - 30)
     outline(ax)
     ax.imshow(c2, extent=ext, cmap=cm, norm=norm, origin="upper", alpha=0.72, zorder=4, interpolation="nearest")
-    hit = np.where(cap == -1, 1.0, np.nan)
+    X, Z = np.meshgrid(xs, zs)
+    cs = ax.contour(X, Z, np.where(np.isnan(c2), -5, c2), levels=[b for b in BINS[1:-1]], colors="#222", linewidths=0.6, zorder=5)
+    ax.clabel(cs, fmt=lambda v: f"{v:.0f}" if v < 39 else "40", fontsize=8, inline=True)
+    hit = np.where(capS == -1, 1.0, np.nan)
     ax.imshow(hit, extent=ext, cmap=ListedColormap(["#8f8fa8"]), origin="upper", alpha=0.55, zorder=4, interpolation="nearest")
     for r in range(500, 3001, 500):
         ax.add_patch(Circle(J1C, r, fill=False, lw=0.8, ls="--", color="#333", zorder=4))
         ax.text(J1C[0] + r * 0.707 + 15, J1C[1] - r * 0.707 - 15, f"R{r}", fontsize=9, color="#222", zorder=5)
-    rmax = sols if isinstance(sols, (int, float)) else max(r for r, s in sols.items() if s)
     ax.add_patch(Circle(J1C, rmax, fill=False, lw=2.0, color="#1f4e8c", zorder=5))
     ax.add_patch(Circle(J1C, r_any, fill=False, lw=1.6, ls="-.", color="#7b2d8e", zorder=5))
     for nm, (sx, sy, sz) in cl.SEATS.items():
@@ -146,19 +185,46 @@ def draw(level, title, xs, zs, cap, sols, png, r_any):
     gx, gz = cr.BOX_GROUND
     ax.add_patch(plt.Rectangle((gx - 200, gz - 200), 400, 400, fill=False, lw=1.4, ec="k", zorder=6))
     ax.text(gx - 190, gz - 220, "груз 400 на грунте", fontsize=9, zorder=6)
-    ax.plot(*J1C, "k+", ms=14, mew=2, zorder=6); ax.text(J1C[0] + 40, J1C[1] + 90, "ось J1 (фланец)", fontsize=9, zorder=6)
+    ax.plot(*J1C, "k+", ms=14, mew=2, zorder=6); ax.text(J1C[0] + 40, J1C[1] + 90, "ось J1", fontsize=9, zorder=6)
     ax.set_aspect("equal"); ax.set_xlim(min(xs[0], -400), max(xs[-1], 3000)); ax.set_ylim(max(zs[-1], 1100), min(zs[0], -2100))
     ax.set_xlabel("X вдоль тележки, мм (0 — передний торец)"); ax.set_ylabel("Z поперёк, мм (+Z — борт робота)")
-    ax.set_title(f"RTC-7 на тележке: грузоподъёмность, вид сверху — {title}\n"
-                 f"СЗУ вертикально вниз, центр масс груза в {PAY_COM:.0f} мм под TCP, СЗУ 4 кг учтён; все шарниры ≤ {LIMIT*100:.0f} % допускаемого (статика)")
-    h = [Patch(color=c, alpha=0.75, label=l) for c, l in zip(BIN_COL, BIN_LAB)]
-    h += [Patch(color="#8f8fa8", alpha=0.55, label="достаёт, но рука или груз задевает тележку / грунт"),
-          Patch(facecolor="white", edgecolor="#999", label="без цвета — не достаёт" + (" / под корпусом" if level == "ground" else "")),
-          plt.Line2D([], [], color="#1f4e8c", lw=2, label=f"граница досягаемости на этой высоте, R{rmax:.0f}"),
-          plt.Line2D([], [], color="#7b2d8e", lw=1.6, ls="-.", label=f"предельный вылет TCP (любая ориентация), R{r_any:.0f}"),
-          plt.Line2D([], [], color="#333", lw=0.8, ls="--", label="окружности от оси J1 через 500 мм")]
-    ax.legend(handles=h, loc="lower left", fontsize=9, framealpha=0.92)
-    ax.grid(alpha=0.25); plt.tight_layout(); plt.savefig(png, dpi=110); plt.close(fig)
+    ax.grid(alpha=0.25)
+    fig.suptitle(f"RTC-7 на тележке: грузоподъёмность, вид сверху — {title}", fontsize=13, x=0.36, y=0.985)
+    # zone table
+    rows = zones(Ra, env, rmax)
+    tx.text(0, 1.0, "Зоны грузоподъёмности", fontsize=13, weight="bold", va="top")
+    tx.text(0, 0.965, "кольца от оси J1; макс. груз в зоне — на её внутренней границе", fontsize=9.5, va="top", color="#444")
+    y = 0.92
+    tx.text(0.02, y, "груз, кг", fontsize=10, weight="bold"); tx.text(0.42, y, "радиус от оси J1, мм", fontsize=10, weight="bold")
+    tx.text(0.80, y, "макс., кг", fontsize=10, weight="bold"); y -= 0.035
+    inner = [r for r, c in zip(Ra, C) if r < MONO_R]
+    if inner:
+        cin = [c for r, c in zip(Ra, C) if r < MONO_R]
+        tx.add_patch(plt.Rectangle((0, y - 0.008), 1, 0.03, color="#eee", transform=tx.transAxes))
+        tx.text(0.02, y, f"{min(cin):.0f}…{max(cin):.0f}", fontsize=10); tx.text(0.42, y, f"R{min(inner):.0f}…R{MONO_R:.0f}", fontsize=10)
+        tx.text(0.80, y, f"{max(cin):.0f}", fontsize=10); tx.text(0.99, y + 0.022, "у оси J1: рука сложена", fontsize=7.5, color="#555", ha="right"); y -= 0.035
+    for lab, r0, r1, cmax, col in rows:
+        tx.add_patch(plt.Rectangle((0, y - 0.008), 1, 0.03, color=col, alpha=0.8, transform=tx.transAxes))
+        tx.text(0.02, y, lab.replace(" кг", ""), fontsize=10); tx.text(0.42, y, f"R{r0:.0f}…R{r1:.0f}", fontsize=10)
+        tx.text(0.80, y, "≥ 40" if cmax >= 39.99 else f"{cmax:.1f}", fontsize=10); y -= 0.035
+    y -= 0.02
+    notes = [f"СЗУ вертикально вниз, центр масс груза в {PAY_COM:.0f} мм под TCP, СЗУ 4 кг учтён;",
+             f"все шарниры ≤ {LIMIT*100:.0f} % допускаемого момента (статика, 10 % — на разгон);",
+             "грузоподъёмность рассчитана до 40 кг.",
+             f"граница досягаемости на этой высоте — R{rmax:.0f}; предельный вылет TCP — R{r_any:.0f}.",
+             "Цвет — грузоподъёмность клетки 60 × 60 мм; у бортов и колёс она ниже кольца:",
+             "там рука обходит тележку менее выгодной позой."]
+    for t in notes: tx.text(0, y, t, fontsize=9, color="#333", va="top"); y -= 0.028
+    y -= 0.01
+    h = [Patch(color="#8f8fa8", alpha=0.55, label="достаёт, но рука или груз задевает тележку / грунт"),
+         Patch(facecolor="white", edgecolor="#999", label="без цвета — не достаёт" + (" / под корпусом" if level == "ground" else "")),
+         plt.Line2D([], [], color="#1f4e8c", lw=2, label="граница досягаемости на этой высоте"),
+         plt.Line2D([], [], color="#7b2d8e", lw=1.6, ls="-.", label="предельный вылет TCP (любая ориентация)"),
+         plt.Line2D([], [], color="#333", lw=0.8, ls="--", label="окружности от оси J1 через 500 мм"),
+         plt.Line2D([], [], color="#222", lw=0.6, label="границы зон (подписи — кг)")]
+    tx.legend(handles=h, loc="upper left", bbox_to_anchor=(0, y), fontsize=9, frameon=False)
+    plt.savefig(png, dpi=105); plt.close(fig)
+    return rows
 
 def radius_png(curves, png, r_any):
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
@@ -213,7 +279,9 @@ def redraw(out_dir):
         xs, zs = np.array(L["x"]), np.array(L["z"])
         cap = np.array([[np.nan if v is None else v for v in r] for r in L["cap"]], float)
         if lev == "ground": cap = mask_under_hull(xs, zs, cap)
-        draw(lev, L["title"], xs, zs, cap, float(max(L["radius"])), os.path.join(out_dir, f"payload_map_{lev}.png"), D["r_any"])
+        rows = draw(lev, L["title"], xs, zs, cap, float(max(L["radius"])), os.path.join(out_dir, f"payload_map_{lev}.png"), D["r_any"],
+                    L["radius"], L["capacity"])
+        print(lev, [(r[0], round(r[1]), round(r[2]), round(r[3], 1)) for r in rows])
         curves[lev] = (L["radius"], L["capacity"])
     radius_png(curves, os.path.join(out_dir, "payload_radius.png"), D["r_any"])
 
