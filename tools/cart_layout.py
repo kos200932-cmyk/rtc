@@ -33,6 +33,13 @@ DECK_Y = 520.0; FLANGE_H0 = 30.0
 FLANGE_H = float(os.environ.get("CART_FLANGE_H", FLANGE_H0))
 FLANGE_TOP = DECK_Y + FLANGE_H
 HULL_FILE = "KORPUS.STEP" if FLANGE_H == FLANGE_H0 else f"KORPUS_F{FLANGE_H:g}.STEP"
+# sunk base (user 2026-11-12, env CART_SINK=1): the top plane of the ОПУ RU178G (arm x = OPU_B) in the deck plane, the base
+# plate and the ОПУ in a hole D SINK_HOLE_D through the deck (the flange removed; the lower fastening is not designed yet)
+OPU_B = 28.0; SINK_HOLE_D = 250.0
+SINK = os.environ.get("CART_SINK", "0") not in ("", "0")
+if SINK:
+    FLANGE_TOP = DECK_Y - OPU_B - PLATE_T
+    HULL_FILE = f"KORPUS_SINK{SINK_HOLE_D:g}.STEP"
 ROBOT = np.eye(4)
 ROBOT[:3, :3] = Ry(15.0)[:3, :3] @ np.array([[0, 0, -1], [1, 0, 0], [0, -1, 0]], float)   # columns: arm X, Y, Z
 ROBOT[:3, 3] = (FLANGE_C[0], FLANGE_TOP + PLATE_T, FLANGE_C[1])

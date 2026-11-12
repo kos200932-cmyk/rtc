@@ -33,6 +33,25 @@ def make(h, out=None):
     print(f"flange {cl.FLANGE_H0:g} -> {h:g} mm: removed {dv / 1e3:.0f} cm3 ({dv * 7.85e-6:.2f} kg of steel), {out}")
     return out
 
+def make_sink(d=None, out=None):
+    """the flange removed and a hole D d through the deck (y from the base plate bottom - 10 up), for the sunk base."""
+    d = d or cl.SINK_HOLE_D
+    src = os.path.join(cl.CART_DIR, "KORPUS.STEP")
+    r = STEPControl_Reader(); r.ReadFile(src); r.TransferRoots(); sh = r.OneShape()
+    y0 = cl.DECK_Y - cl.OPU_B - cl.PLATE_T - 10.0
+    tool = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(cl.FLANGE_C[0], y0, cl.FLANGE_C[1]), gp_Dir(0, 1, 0)), d / 2,
+                                    cl.DECK_Y + cl.FLANGE_H0 + 1 - y0).Shape()
+    res = BRepAlgoAPI_Cut(sh, tool).Shape()
+    def vol(s):
+        g = GProp_GProps(); BRepGProp.VolumeProperties_s(s, g); return g.Mass()
+    dv = vol(sh) - vol(res)
+    out = out or os.path.join(cl.CART_DIR, f"KORPUS_SINK{d:g}.STEP")
+    w = STEPControl_Writer(); w.Transfer(res, STEPControl_AsIs); w.Write(out)
+    print(f"sunk base: flange removed, hole D{d:g} through the deck from y {y0:g}: removed {dv / 1e3:.0f} cm3, {out}")
+    return out
+
 if __name__ == "__main__":
-    for a in sys.argv[1:]:
-        make(float(a))
+    if sys.argv[1:2] == ["sink"]: make_sink(float(sys.argv[2]) if len(sys.argv) > 2 else None)
+    else:
+        for a in sys.argv[1:]:
+            make(float(a))
