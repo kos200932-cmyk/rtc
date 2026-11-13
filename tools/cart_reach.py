@@ -12,18 +12,22 @@ sys.path.insert(0, os.path.dirname(__file__))
 import numpy as np
 import cart_layout as cl
 
-ORDER = ["B", "J1", "L1", "J2", "L2", "J3", "L3", "J4", "L4", "J5", "L5", "J6", "L6", "J7", "F"]
+ORDER = ["B", "J1", "L1", "J2", "L2", "J3", "L3", "J4", "L4", "J5", "L5", "J6", "L6", "J7", "FTS", "F"]
 NMOV = {"B": 0, "J1": 0, "L1": 1, "J2": 1, "L2": 2, "J3": 2, "L3": 3, "J4": 3, "L4": 4, "J5": 4, "L5": 5, "J6": 5,
-        "L6": 6, "J7": 6, "F": 7}
+        "L6": 6, "J7": 6, "FTS": 7, "F": 7}
 # masses, kg (STATUS_2026-10-26.md; joints - load model estimates; SZU 4 kg - user 2026-10-27)
 MASS = {"L1": 1.39 + 5.73, "J2": 25.1, "L2": 7.25, "J3": 20.0, "L3": 11.42, "J4": 15.0, "L4": 2.74, "J5": 6.0,
         "L5": 4.31, "J6": 3.5, "L6": 1.41, "J7": 1.8, "F": 4.0}
+if cl.FTS:                        # F/T stack (adapter 0.20 + tube + KWR90 0.34 + adapter2 ~0.10 + hardware), from the models
+    MASS["FTS"] = None            # set in Arm from the volumes (aluminium) + FTS_EXTRA_KG
 LOAD_KG = 8.0
 # allowed torque about the axis = min(reducer rated, motor rated x ratio x 0.8), N·m (robot/RTC-7-loads-user.md)
 # ratios J3..J6 = 99 since 2026-11-03 (tools/user_loads.py)
 CAP = {1: (62, 0.94 * 79 * 0.8), 2: (1400, 9.0 * 153 * 0.8), 3: (415, 5.5 * 99 * 0.8), 4: (375, 5.5 * 99 * 0.8),
        5: (103, 0.94 * 99 * 0.8), 6: (62, 0.94 * 99 * 0.8)}
-TILT = {3: 1032, 5: 336}          # allowed tilting moment of KB50 (J3) and KB32 (J5), N·m
+TILT = {3: 1032, 5: 336, 7: 48}   # allowed tilting moment of KB50 (J3), KB32 (J5), KB17 (J7), N·m
+# KWR90 measuring ranges (Kunwei catalogue): Fx,Fy 400 N, Fz 800 N, Mx,My 36 N·m; overload 300 %
+FTS_RANGE = {"Fxy": 400.0, "Fz": 800.0, "Mxy": 36.0}
 G = 9.81
 
 def rot(o, d, ang):
@@ -40,8 +44,10 @@ class Arm:
         finally:
             sys.argv = argv
         import gen_user_full as gf
-        self.F = gf.szu_frame()
-        self.axes = [sw.axis(f"J{k}") for k in range(1, 7)] + [(self.F[:3, 3].copy(), self.F[:3, 0].copy())]
+        self.F = cl.szu_frame()
+        # J7 axis point = the KB17 output bearing (joint x 46.5 = the SZU card origin without the F/T stack): the J7
+        # tilting moment is taken there
+        self.axes = [sw.axis(f"J{k}") for k in range(1, 7)] + [(gf.szu_frame()[:3, 3].copy(), self.F[:3, 0].copy())]
         self.tcp0 = self.F[:3, 3] + 150.0 * self.F[:3, 0]
         self.app0 = self.F[:3, 0].copy()
         self.groups = {}
@@ -57,6 +63,31 @@ class Arm:
                     a = com.setdefault(g, [0.0, np.zeros(3)]); a[0] += v; a[1] += v * np.array([c.X(), c.Y(), c.Z()])
             self.groups = {g: np.concatenate(t) for g, t in self.groups.items()}
             self.com = {g: a[1] / a[0] for g, a in com.items()}
+            if cl.FTS:
+                import make_kwr90_adapter as fa
+                MASS["FTS"] = com["FTS"][0] * 2.7e-6 + fa.FTS_EXTRA_KG
+                # sensor measuring plane = its tool face (joint x 90.5); masses beyond it: SZU + adapter2 + load
+                self.fts_o = gf.szu_frame()[:3, 3] + (fa.J7_X0 + fa.H + fa.kw.H - (gf.J7_OUT_X - gf.SZU_PORT_X)) * self.F[:3, 0]
+                v, c = lb.volume(sw.mv(fa.adapter2(), self._stackT(gf, fa)))
+                self.a2 = (v * 2.7e-6, np.array([c.X(), c.Y(), c.Z()]))
+        elif cl.FTS:
+            MASS["FTS"] = 0.7
+
+    def _stackT(self, gf, fa):
+        T = gf.szu_frame().copy(); A = np.eye(4); A[:3, :3] = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]], float)
+        A[:3, 3] = [fa.J7_X0 - (gf.J7_OUT_X - gf.SZU_PORT_X), 0, 0]; return T @ A
+
+    def fts_load(self, q, load_com=None):
+        """force (N) and moment (N·m) on the sensor from the masses beyond its tool face: Fz along the J7 axis, Fxy, Mxy."""
+        Tg, cum = self.fk(q); M = cum[7]
+        g_arm = cl.ROBOT[:3, :3].T @ np.array([0, -G, 0])
+        o = (M @ np.r_[self.fts_o, 1])[:3]; d = M[:3, :3] @ self.F[:3, 0]
+        bodies = [(MASS["F"], (M @ np.r_[self.com["F"], 1])[:3]), (self.a2[0], (M @ np.r_[self.a2[1], 1])[:3])]
+        if load_com is not None:
+            bodies.append((LOAD_KG, (np.linalg.inv(cl.ROBOT) @ np.r_[load_com, 1])[:3]))
+        f = sum(m * g_arm for m, _ in bodies); mo = sum(np.cross(c - o, m * g_arm) for m, c in bodies) / 1000.0
+        fz = float(f @ d); fxy = float(np.linalg.norm(f - fz * d)); mz = float(mo @ d)
+        return {"Fz": abs(fz), "Fxy": fxy, "Mxy": float(np.linalg.norm(mo - mz * d)), "Mz": abs(mz)}
 
     def fk(self, q):
         """q, rad (7) -> {group: 4x4 in the arm frame}, list of cumulative joint transforms."""
@@ -91,7 +122,7 @@ class Arm:
         if load_com is not None:                                  # load COM given in the hull frame
             bodies.append((LOAD_KG, (np.linalg.inv(cl.ROBOT) @ np.r_[load_com, 1])[:3], 7))
         tq, tilt = {}, {}
-        for k in range(1, 7):
+        for k in range(1, 8):
             o, d = self.axes[k - 1]; M = cum[k - 1]; o = (M @ np.r_[o, 1])[:3]; d = M[:3, :3] @ d
             m = np.zeros(3)
             for mass, c, n in bodies:
@@ -224,6 +255,9 @@ def ratio(arm, q, load_com):
     tq, tilt = arm.torques(q, load_com)
     r = {f"J{k}": abs(tq[k]) / min(CAP[k]) for k in CAP}
     r.update({f"J{k}tilt": tilt[k] / TILT[k] for k in TILT})
+    if cl.FTS and hasattr(arm, "a2"):
+        fl = arm.fts_load(q, load_com)
+        r.update({f"FTS_{k}": fl[k] / FTS_RANGE[k] for k in FTS_RANGE})
     return tq, tilt, r
 
 def segment(scene, qa, qb, box_rel, n=24, skip=()):

@@ -79,6 +79,24 @@ def tube():
     s = BRepAlgoAPI_Fuse(cyl(0, 0, TUBE_TOP - TUBE_L, TUBE_OD, TUBE_L), cyl(0, 0, POCKET_Z0, 22.0, TUBE_TOP - POCKET_Z0)).Shape()
     return BRepAlgoAPI_Cut(s, cyl(0, 0, TUBE_TOP - TUBE_L - 1, TUBE_ID, TUBE_L + 4)).Shape()
 
+# second adapter sensor tool side -> SZU (CONCEPT, not detailed yet): plate D80 x 6 on the sensor tool boss D48 (6 x M5
+# DIN912 on PCD40 from inside the spigot, 2 pins D5), spigot D62h7 x 11 / ID50 for the SZU recess D62H7 x 10 + its
+# 20 x M3 on PCD54; SZU port (recess bottom) at joint x 90.5 + 6 + 11 = 107.5 = J7 face 56.5 + FTS_DX
+A2_T, A2_SPIG = 6.0, 11.0
+FTS_DX = J7_X0 + H + kw.H + A2_T + A2_SPIG - 56.5          # SZU shift along the J7 axis, mm (= 51)
+FTS_EXTRA_KG = 0.05                                         # screws, pins, Helicoils, cable in the stack
+
+def adapter2():
+    z0 = H + kw.H
+    s = BRepAlgoAPI_Fuse(cyl(0, 0, z0, 80.0, A2_T), cyl(0, 0, z0 + A2_T - 0.01, 62.0, A2_SPIG + 0.01)).Shape()
+    for c in (cyl(0, 0, z0 - 1, 30.0, A2_T + 2), cyl(0, 0, z0 + A2_T, 50.0, A2_SPIG + 1)):
+        s = BRepAlgoAPI_Cut(s, c).Shape()
+    return s
+
+def stack_shapes():
+    """[(name, shape)] of the F/T stack in the adapter frame (z = 0 at joint x 47.5)."""
+    return [("adapter", adapter()), ("tube", tube()), ("sensor", moved(kw.build(), dz=H)), ("adapter2", adapter2())]
+
 def vol(s):
     g = GProp_GProps(); BRepGProp.VolumeProperties_s(s, g); return g.Mass()
 

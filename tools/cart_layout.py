@@ -87,8 +87,26 @@ def arm_parts():
     import link_build as lb, gen_user_full as gf
     pts = [(float(l.split()[1]), float(l.split()[2])) for l in open(os.path.join(ROOT, "links-user/SZU/SZU.txt"),
            encoding="utf-8") if l.startswith("P ")]
-    szu = sw.mv(lb.revolved(np.zeros(3), [1, 0, 0], pts), gf.szu_frame())
-    return list(sw.P) + [("SZU", szu, "F")], gf.szu_frame()
+    Fr = szu_frame()
+    szu = sw.mv(lb.revolved(np.zeros(3), [1, 0, 0], pts), Fr)
+    parts = list(sw.P) + [("SZU", szu, "F")]
+    if FTS:                                  # F/T sensor stack between J7 and the SZU (adapter frame z -> card x)
+        import make_kwr90_adapter as fa
+        T = gf.szu_frame().copy(); A = np.eye(4); A[:3, :3] = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]], float)
+        A[:3, 3] = [fa.J7_X0 - (gf.J7_OUT_X - gf.SZU_PORT_X), 0, 0]
+        for n, sh in fa.stack_shapes(): parts.append(("FTS-" + n, sw.mv(sh, T @ A), "FTS"))
+    return parts, Fr
+
+FTS = os.environ.get("CART_FTS", "1") == "1"       # user 2026-11-13: the KWR90 sensor stack J7 -> SZU is in the arm
+
+def szu_frame():
+    """SZU card frame in the arm (zero pose): on the J7 face, or moved by the F/T stack (FTS_DX along the J7 axis)."""
+    import gen_user_full as gf
+    T = gf.szu_frame().copy()
+    if FTS:
+        import make_kwr90_adapter as fa
+        T[:3, 3] = T[:3, 3] + fa.FTS_DX * T[:3, 0]
+    return T
 
 def load_step(path):
     from OCP.STEPControl import STEPControl_Reader
@@ -101,7 +119,7 @@ def mesh(shape, M=np.eye(4), defl=1.0):
 
 ARM_COL = {"B": "#c8a0c8", "J1": "#b8c2cc", "L1": "#d49a90", "J2": "#5f6a74", "L2": "#c9bfae", "J3": "#b8c2cc",
            "L3": "#e0b93c", "J4": "#b8c2cc", "L4": "#e0b93c", "J5": "#b8c2cc", "L5": "#e0b93c", "J6": "#b8c2cc",
-           "L6": "#e0b93c", "J7": "#b8c2cc", "F": "#2a5d9f"}
+           "L6": "#e0b93c", "J7": "#b8c2cc", "FTS": "#c9a227", "F": "#2a5d9f"}
 
 def preview(png):
     import pyvista as pv
