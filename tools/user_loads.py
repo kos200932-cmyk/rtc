@@ -60,7 +60,7 @@ def write_layout(path, ax, g, flange):
         L.append(f"AXIS  J{k + 1}  {jn:9s} {po[0]:.1f} {po[1]:.1f} {po[2]:.1f}   {dd[0]:.0f} {dd[1]:.0f} {dd[2]:.0f}   "
                  f"motor={'-' if sg == '+' else '+'}{a} output={sg}{a} face={f[0]:.1f},{f[1]:.1f},{f[2]:.1f}")
     fp = R(flange)
-    L += [f"# Tool flange = output face of SHM-KB17 (the SZU gripper is not on the scheme, TCP 150 mm beyond).",
+    L += [f"# Tool flange = output face of SHM-KB17; beyond it the F/T sensor KWR90 stack (51 mm) and the SZU gripper (not on the scheme).",
           f"FLANGE {fp[0]:.1f} {fp[1]:.1f} {fp[2]:.1f}   0 0 1", "END"]
     open(path, "w", encoding="utf-8").write("\n".join(L) + "\n")
 
@@ -142,8 +142,9 @@ def main():
     C0, Dp = 135e3, 0.178
     P0 = W[0, 1] + 2 * W[0, 2] / Dp + 0.44 * W[0, 0]
     mov = sum(cr.MASS.values())
-    md = [f"# RTC-7 user configuration: joint loads (`python tools/user_loads.py`), 2026-10-27", "",
-          f"Payload {a.payload:g} kg {a.pay_off:g} mm beyond the TCP (SZU end face) + SZU 4 kg; all joints at ±{a.speed:g} rad/s, "
+    md = [f"# RTC-7 user configuration: joint loads (`python tools/user_loads.py`), 2026-11-18 (with the KWR90 F/T stack)", "",
+          f"Payload {a.payload:g} kg {a.pay_off:g} mm beyond the TCP (SZU end face) + SZU 4 kg"
+          f"{' + F/T sensor KWR90 stack %.2f kg (SZU +51 mm)' % cr.MASS['FTS'] if cr.MASS.get('FTS') else ''}; all joints at ±{a.speed:g} rad/s, "
           f"±{a.accel:g} rad/s²; worst of {a.poses} random poses (J2 ±90°, J4 ±170°, others ±180°). Moving mass "
           f"(without payload, on the ОПУ): {mov:.1f} kg.", "",
           "| Joint | Reducer | Joint mass, kg | Torque, N·m (rated) | Tilting, N·m (allow.) | Axial, N (allow.) | Radial, N | Motor | Ratio | Motor torque, N·m (rated) |",
@@ -154,7 +155,9 @@ def main():
         md.insert(4, "")
     open(os.path.join(ROOT, "robot", f"RTC-7-loads-user{a.tag}.md"), "w", encoding="utf-8").write("\n".join(md) + "\n")
     gg = lambda v: f"{v:g}".replace(".", ",")
-    sub1 = (f"Груз {gg(a.payload)} кг в {gg(a.pay_off)} мм за TCP (торец СЗУ) + СЗУ 4 кг; все шарниры ±{gg(a.speed)} рад/с, "
+    fts = (f" + датчик KWR90 с переходниками {cr.MASS['FTS']:.1f} кг (СЗУ +51 мм)".replace(".", ",")
+           if cr.MASS.get("FTS") else "")
+    sub1 = (f"Груз {gg(a.payload)} кг в {gg(a.pay_off)} мм за TCP (торец СЗУ) + СЗУ 4 кг{fts}; все шарниры ±{gg(a.speed)} рад/с, "
             f"±{gg(a.accel)} рад/с²; худшая из {a.poses} поз (J2 ±90°, J4 ±170°, остальные ±180°); подвижная масса {mov:.0f} кг.")
     sub2 = ("Массы звеньев — по моделям, шарниров — оценка (у номера). Силы и опрокидывающий момент — на торце выходного вала. "
             "Двигатель: требуемый момент = M / (i · 0,8) против номинального.")
