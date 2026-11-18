@@ -61,6 +61,13 @@ Attribute VB_Name = "BuildFromSpec"
 '       FRAME <n> + P <comp> ox oy oz xx xy xz zx zy zz - frame of every component per picture;
 '       IMAGES jpg|png|bmp|none - save every frame into <name>-frames\f0000.<ext> (none: only play);
 '       VIEW <named view> (default *Isometric), RANGE <first> <last> - frames to run, ZOOM <k> (0.8)
+'   * a BATCH file (v37, e.g. components/DMRD/DMRD-series.txt) builds several specs in one run:
+'       BATCH <name>                    - batch name (only for the report)
+'       SPEC <file>                     - a spec of any kind (parts / JOINT / ROBOTASM), path relative to the
+'                                         batch file (searched upwards as for USE); built in the order given
+'       ON_ERROR continue|stop          - after a failed spec go on with the next one (default) or stop
+'     Every spec is built as if it were run alone and closed after saving; at the end one report lists
+'     every spec as OK / FAILED with its log. Nested BATCH files are not allowed.
 ' Files are saved into the folder of the spec file.
 '
 ' Coordinates: X - along the axis of rotation, Y - radius, mm.
@@ -70,7 +77,7 @@ Option Explicit
 Private Const MM As Double = 0.001          ' SolidWorks API works in meters
 Private Const PI As Double = 3.14159265358979
 Private Const AXIS_NAME As String = "AXIS"
-Private Const MACRO_VERSION As String = "v36 (2026-11-09)"
+Private Const MACRO_VERSION As String = "v37 (2026-11-18)"
 ' True: every part / intermediate assembly is closed after it is saved, models for the assemblies are
 ' loaded without windows; only the result of the run stays open (many open windows hang SolidWorks)
 Private Const CLOSE_DOCS As Boolean = True
@@ -174,7 +181,9 @@ Sub main()
     gTopSpec = specPath
     On Error GoTo Crash
     If FAST_MODE And Not FileHasKeyword(specPath, "ROBOTANIM") Then swApp.CommandInProgress = True
-    If FileHasKeyword(specPath, "ROBOTANIM") Then
+    If FileHasKeyword(specPath, "BATCH") Then
+        ok = BuildBatch(specPath)
+    ElseIf FileHasKeyword(specPath, "ROBOTANIM") Then
         ok = BuildRobotAnim(specPath)
     ElseIf FileHasKeyword(specPath, "ROBOTASM") Then
         ok = BuildRobotAsm(specPath)
@@ -202,6 +211,91 @@ Crash:
     MsgBox "Runtime error " & Err.Number & ": " & Err.Description & " (" & MACRO_VERSION & ")" & vbCrLf & gLog, _
            vbCritical
 End Sub
+
+' ---------------------------------------------------------------- BATCH (v37)
+' Builds every SPEC of a batch file in turn. Each spec is built exactly as a separate run would build it
+' (same dispatch as in main); its documents are closed after saving. The log of each spec is collected
+' separately, a failed spec does not stop the batch unless ON_ERROR stop is given.
+Private Function BuildBatch(ByVal batchPath As String) As Boolean
+    Dim lines() As String, li As Long, s As String, t() As String
+    Dim folder As String, batchName As String, stopOnErr As Boolean
+    Dim specs() As String, nSpec As Long, i As Long
+    Dim specPath As String, okOne As Boolean, asmPath As String
+    Dim logAll As String, sumAll As String, nOk As Long, nFail As Long, tStart As Single
+
+    folder = Left(batchPath, InStrRev(batchPath, ""))
+    batchName = Mid(batchPath, InStrRev(batchPath, "") + 1)
+    ReDim specs(0 To 63)
+    lines = ReadLines(batchPath)
+    For li = LBound(lines) To UBound(lines)
+        s = CleanLine(lines(li))
+        If s <> "" Then
+            t = Split(s, " ")
+            Select Case UCase(t(0))
+            Case "BATCH"
+                If UBound(t) >= 1 Then batchName = t(1)
+            Case "SPEC"
+                If UBound(t) < 1 Then
+                    gLog = gLog & batchName & ", line " & (li + 1) & ": SPEC needs a file" & vbCrLf
+                    Exit Function
+                End If
+                If nSpec > UBound(specs) Then ReDim Preserve specs(0 To 2 * nSpec)
+                specs(nSpec) = t(1): nSpec = nSpec + 1
+            Case "ON_ERROR"
+                If UBound(t) >= 1 Then stopOnErr = (LCase(t(1)) = "stop")
+            Case Else
+                gLog = gLog & batchName & ", line " & (li + 1) & ": unknown keyword " & t(0) & vbCrLf
+                Exit Function
+            End Select
+        End If
+    Next li
+    If nSpec = 0 Then gLog = gLog & batchName & ": no SPEC lines" & vbCrLf: Exit Function
+
+    For i = 0 To nSpec - 1
+        specPath = ResolvePath(folder, specs(i))
+        gLog = "": gSummary = ""
+        okOne = False
+        tStart = Timer
+        If specPath = "" Then
+            gLog = "file not found: " & specs(i) & vbCrLf
+        ElseIf FileHasKeyword(specPath, "BATCH") Then
+            gLog = "nested BATCH is not allowed" & vbCrLf
+        Else
+            On Error GoTo SpecCrash
+            If FileHasKeyword(specPath, "ROBOTASM") Then
+                okOne = BuildRobotAsm(specPath)
+            ElseIf FileHasKeyword(specPath, "JOINT") Then
+                okOne = BuildJoint(specPath)
+            Else
+                okOne = BuildSpecFile(specPath, asmPath)
+            End If
+            On Error GoTo 0
+        End If
+AfterSpec:
+        CloseHidden
+        If okOne Then
+            nOk = nOk + 1
+            sumAll = sumAll & "OK      " & specs(i) & "  (" & Format(Timer - tStart, "0") & " s)" & vbCrLf
+        Else
+            nFail = nFail + 1
+            sumAll = sumAll & "FAILED  " & specs(i) & vbCrLf
+        End If
+        If gLog <> "" Then logAll = logAll & "--- " & specs(i) & ":" & vbCrLf & gLog
+        If Not okOne And stopOnErr Then Exit For
+    Next i
+
+    gSummary = batchName & ": " & nOk & " of " & nSpec & " spec(s) built" & _
+               IIf(nFail > 0, ", " & nFail & " failed", "") & vbCrLf & sumAll
+    gLog = logAll
+    BuildBatch = (nFail = 0)
+    If nFail > 0 Then gLog = gSummary & vbCrLf & logAll
+    Exit Function
+SpecCrash:
+    gLog = gLog & "Runtime error " & Err.Number & ": " & Err.Description & vbCrLf
+    swApp.CommandInProgress = FAST_MODE
+    okOne = False
+    Resume AfterSpec
+End Function
 
 ' ---------------------------------------------------------------- open / close of documents (CLOSE_DOCS)
 Private Function IsTopSpec(ByVal specPath As String) As Boolean

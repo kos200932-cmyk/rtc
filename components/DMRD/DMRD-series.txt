@@ -1,0 +1,17 @@
+# DMRD reducer series - all reducer models in one run of BuildFromSpec (v37, BATCH).
+# Run: macro main -> pick this file. Each reducer is built from its own spec into its own folder
+# (parts + assembly DMRD-<size>.SLDASM next to the spec), documents are closed after saving.
+# At the end one report lists every spec as OK / FAILED (with its log).
+# KB40 is in the catalog table (KB-series.txt) but has no drawing / spec yet - not built.
+
+BATCH DMRD-series
+ON_ERROR continue          # continue | stop
+
+SPEC KB14/DMRD-KB14.txt
+SPEC KB17/DMRD-KB17.txt
+SPEC KB20/DMRD-KB20.txt
+SPEC KB25/DMRD-KB25.txt
+SPEC KB32/DMRD-KB32.txt
+SPEC KB45/DMRD-KB45.txt
+SPEC KB50/DMRD-KB50.txt
+SPEC 80E/DMRD-80E.txt
